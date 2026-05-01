@@ -70,7 +70,7 @@ export function Testimonials() {
     <section className="container mx-auto px-4 py-16 bg-white overflow-hidden">
       {/* Title & Nav */}
       <div className="flex justify-between items-center mb-10">
-        <h2 className="text-2xl md:text-3xl font-black text-zinc-900 tracking-tight">
+        <h2 className="text-2xl md:text-3xl font-bold text-zinc-900 tracking-tight">
           What they say
         </h2>
         <div className="flex gap-2">
@@ -105,7 +105,7 @@ export function Testimonials() {
                 <img src={current.image} alt={current.name} className="w-full h-full object-cover" />
               </div>
               <div className="text-center py-6">
-                <h3 className="text-lg font-black text-zinc-900">{current.name}</h3>
+                <h3 className="text-lg font-bold text-zinc-900">{current.name}</h3>
                 <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">{current.role}</p>
               </div>
             </motion.div>
@@ -133,7 +133,7 @@ export function Testimonials() {
                 className="max-w-xl"
               >
                 <Quote className="h-10 w-10 text-primary/10 mb-4" />
-                <p className="text-xl md:text-2xl font-medium text-zinc-700 leading-tight italic font-serif">
+                <p className="text-xl md:text-2xl font-medium text-zinc-700 leading-tight  ">
                   "{current.text}"
                 </p>
               </motion.div>
@@ -142,7 +142,7 @@ export function Testimonials() {
 
           {/* Bottom Area */}
           <div className="flex flex-col items-center lg:items-start gap-4">
-            <div className="px-4 py-0.5 bg-white border border-zinc-100 rounded-full text-primary font-black text-[9px] tracking-widest uppercase shadow-sm">
+            <div className="px-4 py-0.5 bg-white border border-zinc-100 rounded-full text-primary font-bold text-[9px] tracking-widest uppercase shadow-sm">
               {index + 1} / {TESTIMONIALS.length}
             </div>
             <div className="flex flex-wrap justify-center lg:justify-start gap-3">

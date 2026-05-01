@@ -8,6 +8,7 @@ import { Testimonials } from "@/components/testimonials";
 import { Footer } from "@/components/footer";
 import { HowItWorks } from "@/components/how-it-works";
 import { FaqSection } from "@/components/faq-section";
+import { NearbyAttractions } from "@/components/nearby-attractions";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
@@ -47,10 +48,11 @@ export default function Home() {
         </Section>
 
         <OffersSection />
+        
 
         {/* Featured Homestays */}
         <Section title="Featured Homestays" viewAll="/stays">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <ItemCard 
               title="The Creek Villa" 
               location="Manali, HP" 
@@ -84,7 +86,7 @@ export default function Home() {
 
         {/* Top Activities */}
         <Section title="Top Activities" viewAll="/activities">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <ItemCard 
               type="activity"
               title="River Rafting" 
@@ -162,7 +164,7 @@ export default function Home() {
 
 function Section({ title, children, viewAll }: { title: string, children: React.ReactNode, viewAll: string }) {
   return (
-    <section className="container mx-auto px-4 py-16">
+    <section className="container mx-auto px-4 py-4">
       <div className="flex justify-between items-end mb-8">
         <div>
           <h2 className="text-3xl font-bold tracking-tight mb-2">{title}</h2>

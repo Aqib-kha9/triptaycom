@@ -34,7 +34,7 @@ export function OffersSection() {
   return (
     <section className="container mx-auto px-4 py-16">
       <div className="flex items-center justify-between mb-8">
-        <h2 className="text-2xl font-black text-zinc-900 uppercase tracking-tight">Special Offers</h2>
+        <h2 className="text-2xl font-bold text-zinc-900 uppercase tracking-tight">Special Offers</h2>
         <button className="text-primary font-bold text-sm hover:underline flex items-center gap-1">
           View all <ChevronRight className="h-4 w-4" />
         </button>
@@ -51,10 +51,10 @@ export function OffersSection() {
             <div className="flex-1 pl-2 flex flex-col justify-center">
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Tag className="h-3 w-3 text-primary" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-primary">Limited</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-primary">Limited</span>
               </div>
               <h3 className="text-[12px] font-bold text-zinc-400 mb-0.5">{offer.title}</h3>
-              <p className="text-[18px] font-black text-zinc-900 leading-tight mb-1">{offer.discount}</p>
+              <p className="text-[18px] font-bold text-zinc-900 leading-tight mb-1">{offer.discount}</p>
               <p className="text-[11px] text-zinc-400 font-medium line-clamp-1">{offer.desc}</p>
             </div>
 

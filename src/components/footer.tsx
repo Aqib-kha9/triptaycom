@@ -37,7 +37,7 @@ export function Footer() {
           
           {/* Brand Column */}
           <div className="lg:col-span-2 space-y-6 text-center md:text-left">
-            <Link href="/" className="text-3xl font-black text-zinc-900 tracking-tighter">
+            <Link href="/" className="text-3xl font-bold text-zinc-900 tracking-tighter">
               TRIPTAY<span className="text-primary">.</span>
             </Link>
             <p className="text-zinc-400 max-w-sm text-sm leading-relaxed mx-auto md:mx-0">
@@ -61,7 +61,7 @@ export function Footer() {
 
           {/* Links Columns */}
           <div>
-            <h4 className="text-zinc-900 font-black mb-6 uppercase tracking-widest text-[11px]">Company</h4>
+            <h4 className="text-zinc-900 font-bold mb-6 uppercase tracking-widest text-[11px]">Company</h4>
             <ul className="space-y-4 text-sm">
               {FOOTER_LINKS.company.map((link, i) => (
                 <li key={i}><Link href={link.href} className="hover:text-primary transition-colors font-medium">{link.label}</Link></li>
@@ -70,7 +70,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="text-zinc-900 font-black mb-6 uppercase tracking-widest text-[11px]">Support</h4>
+            <h4 className="text-zinc-900 font-bold mb-6 uppercase tracking-widest text-[11px]">Support</h4>
             <ul className="space-y-4 text-sm">
               {FOOTER_LINKS.support.map((link, i) => (
                 <li key={i}><Link href={link.href} className="hover:text-primary transition-colors font-medium">{link.label}</Link></li>
@@ -79,7 +79,7 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="text-zinc-900 font-black mb-6 uppercase tracking-widest text-[11px]">Legal</h4>
+            <h4 className="text-zinc-900 font-bold mb-6 uppercase tracking-widest text-[11px]">Legal</h4>
             <ul className="space-y-4 text-sm">
               {FOOTER_LINKS.legal.map((link, i) => (
                 <li key={i}><Link href={link.href} className="hover:text-primary transition-colors font-medium">{link.label}</Link></li>
@@ -91,7 +91,7 @@ export function Footer() {
 
         {/* Bottom Bar */}
         <div className="pt-10 border-t border-zinc-100 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex flex-col md:flex-row items-center gap-6 text-[10px] font-black uppercase tracking-[0.2em]">
+          <div className="flex flex-col md:flex-row items-center gap-6 text-[10px] font-bold uppercase tracking-[0.2em]">
             <div className="flex items-center gap-2">
               <Mail className="h-3.5 w-3.5 text-primary" /> hello@triptay.com
             </div>

@@ -37,11 +37,11 @@ export function FaqSection() {
   return (
     <section className="container mx-auto px-4 py-24 bg-white">
       <div className="flex flex-col items-center text-center mb-16">
-        <span className="text-primary font-black uppercase tracking-[0.3em] text-[10px] mb-4">Support</span>
-        <h2 className="text-3xl md:text-5xl font-black tracking-tight text-zinc-900 mb-4">
+        <span className="text-primary font-bold uppercase tracking-[0.3em] text-[10px] mb-4">Support</span>
+        <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900 mb-4">
           Common Questions
         </h2>
-        <p className="text-zinc-500 font-medium italic">Everything you need to know about Triptay</p>
+        <p className="text-zinc-500 font-medium ">Everything you need to know about Triptay</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

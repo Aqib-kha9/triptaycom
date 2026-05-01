@@ -26,7 +26,7 @@ export function DestinationCard({ name, location, image }: DestinationCardProps)
 
       {/* Content */}
       <div className="absolute bottom-6 left-6 text-white">
-        <h3 className="text-2xl font-black tracking-tight mb-0.5">{name}</h3>
+        <h3 className="text-2xl font-bold tracking-tight mb-0.5">{name}</h3>
         <p className="text-sm font-medium text-white/70">{location}</p>
       </div>
     </motion.div>

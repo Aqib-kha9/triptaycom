@@ -28,8 +28,8 @@ export function HowItWorks() {
   return (
     <section className="container mx-auto px-4 py-24  rounded-[3rem] my-16 border border-zinc-100">
       <div className="flex flex-col items-center text-center mb-16">
-        <span className="text-primary font-black uppercase tracking-[0.3em] text-[10px] mb-4">The Journey</span>
-        <h2 className="text-3xl md:text-5xl font-black tracking-tight text-zinc-900">
+        <span className="text-primary font-bold uppercase tracking-[0.3em] text-[10px] mb-4">The Journey</span>
+        <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-zinc-900">
           How Triptay works
         </h2>
       </div>
@@ -50,7 +50,7 @@ export function HowItWorks() {
             <div className="w-24 h-24 rounded-full bg-white border border-zinc-100 flex items-center justify-center mb-8 shadow-sm group-hover:border-primary transition-all group-hover:scale-110">
               <step.icon className="h-10 w-10 text-primary" />
               {/* Step Number Badge */}
-              <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center text-[12px] font-black">
+              <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center text-[12px] font-bold">
                 {step.id}
               </div>
             </div>
