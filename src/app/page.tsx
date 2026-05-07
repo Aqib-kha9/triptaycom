@@ -148,7 +148,6 @@ export default function Home() {
           </div>
         </Section>
 
-        {/* <HowItWorks /> */}
 
         <Testimonials />
 

@@ -5,8 +5,6 @@ import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { ListingSearch } from "@/components/listing-search";
 import { ItemCard } from "@/components/cards";
-import { Map as MapIcon, List, Search, Maximize2, Star, MapPin,X } from "lucide-react";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 const STAYS_DATA = [
@@ -55,8 +53,6 @@ const STAYS_DATA = [
 ];
 
 export default function StaysPage() {
-  const [showMapMobile, setShowMapMobile] = useState(false);
-
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
@@ -65,100 +61,42 @@ export default function StaysPage() {
       <div className="h-16" />
 
       {/* Sticky Header with Search - Sticks below Navbar */}
-      <div className="sticky top-16 z-40 bg-white shadow-sm lg:shadow-none">
+      <div className="sticky top-16 z-40 bg-white shadow-sm">
         <ListingSearch />
       </div>
 
       <main className="relative">
-        <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-140px)] overflow-hidden">
-          
-          {/* Left Column: Listings */}
-          <div className={cn(
-            "w-full lg:w-[60%] xl:w-[68%] overflow-y-auto no-scrollbar bg-white",
-            showMapMobile ? "hidden lg:block" : "block"
-          )}>
-            <div className="p-4 md:p-8">
-              <div className="mb-8 md:mb-10 px-2">
-                <h1 className="text-2xl md:text-[28px] font-extrabold text-zinc-900 tracking-tight mb-1">Hotels in Jakarta, Indonesia</h1>
-                <p className="text-sm text-zinc-500 font-medium">
-                  We found <span className="text-zinc-900 font-bold">2478</span> Premium Hotels
-                </p>
-              </div>
-
-              {/* Grid - Adaptive Columns */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-x-6 md:gap-x-8 gap-y-10 md:gap-y-12">
-                {STAYS_DATA.map((stay, index) => (
-                  <ItemCard 
-                    key={index}
-                    title={stay.title}
-                    location={stay.location}
-                    price={stay.price}
-                    rating={stay.rating}
-                    image={stay.image}
-                  />
-                ))}
-              </div>
-
-              <div className="flex justify-center py-12 md:py-16">
-                <Button variant="outline" size="lg" className="rounded-full px-10 md:px-12 border-zinc-200 font-bold text-sm">
-                  Load more stays
-                </Button>
-              </div>
-
-              {/* Mobile Bottom Padding */}
-              <div className="h-20 lg:hidden" />
-            </div>
+        <div className="container mx-auto px-4 md:px-8 py-8 md:py-12">
+          <div className="mb-12 px-2">
+            <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-900 tracking-tight mb-2">Hotels in Jakarta, Indonesia</h1>
+            <p className="text-sm md:text-base text-zinc-500 font-medium">
+              We found <span className="text-zinc-900 font-bold">2,478</span> Premium Hotels
+            </p>
           </div>
 
-          {/* Right Column: Map (Responsive) */}
-          <div className={cn(
-            "w-full lg:w-[40%] xl:w-[32%] h-[60vh] lg:h-full p-4 lg:p-4",
-            showMapMobile ? "block fixed inset-0 z-50 pt-24 bg-white lg:relative lg:block lg:pt-4" : "hidden lg:block"
-          )}>
-            <div className="relative w-full h-full overflow-hidden rounded-[2rem] md:rounded-[2.5rem] border border-zinc-100 group shadow-lg">
-              
-              {/* Back button for mobile map view */}
-              <button 
-                onClick={() => setShowMapMobile(false)}
-                className="absolute top-6 left-6 z-20 lg:hidden flex items-center justify-center w-10 h-10 bg-white rounded-full shadow-xl border border-zinc-100"
-              >
-                <X className="w-5 h-5 text-zinc-900" />
-              </button>
-
-              <button className="absolute top-6 left-6 hidden lg:flex z-20 items-center gap-2 bg-white px-5 py-2.5 rounded-full shadow-lg border border-zinc-100 font-bold text-xs hover:scale-105 transition-all">
-                <Maximize2 className="w-4 h-4" />
-                <span>Expand Map</span>
-              </button>
-
-              <iframe
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                loading="lazy"
-                allowFullScreen
-                referrerPolicy="no-referrer-when-downgrade"
-                src="https://maps.google.com/maps?q=Jakarta,Indonesia&t=&z=13&ie=UTF8&iwloc=&output=embed"
-                className="absolute inset-0 grayscale-[0.1] contrast-[1.05]"
-              ></iframe>
-            </div>
+          {/* Grid - Adaptive Columns, taking full width */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12">
+            {STAYS_DATA.map((stay, index) => (
+              <ItemCard 
+                key={index}
+                title={stay.title}
+                location={stay.location}
+                price={stay.price}
+                rating={stay.rating}
+                image={stay.image}
+              />
+            ))}
           </div>
 
-        </div>
-
-        {/* Floating Mobile Map Toggle */}
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 lg:hidden">
-          <button 
-            onClick={() => setShowMapMobile(!showMapMobile)}
-            className="flex items-center gap-2 bg-zinc-900 text-white px-8 py-3.5 rounded-full shadow-2xl font-bold text-sm hover:scale-105 active:scale-95 transition-all"
-          >
-            {showMapMobile ? (
-              <><List className="w-4 h-4" /><span>Show List</span></>
-            ) : (
-              <><MapIcon className="w-4 h-4" /><span>Show Map</span></>
-            )}
-          </button>
+          <div className="flex justify-center py-16 md:py-24">
+            <Button variant="outline" size="lg" className="rounded-full px-12 h-14 border-zinc-200 font-bold text-sm hover:bg-zinc-50 transition-all">
+              Load more stays
+            </Button>
+          </div>
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 }

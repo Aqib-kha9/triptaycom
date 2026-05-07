@@ -3,191 +3,179 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   User, 
-  Settings, 
-  Heart, 
-  ShoppingBag, 
+  Lock, 
+  Camera, 
+  ShieldCheck, 
+  Globe, 
   Bell, 
-  CreditCard, 
-  ChevronRight,
-  LogOut,
-  MapPin,
-  Calendar,
-  CheckCircle2
+  Check
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useState } from "react";
-
-const SIDEBAR_ITEMS = [
-  { icon: <User className="w-5 h-5" />, label: "Personal Info", active: true },
-  { icon: <ShoppingBag className="w-5 h-5" />, label: "My Bookings" },
-  { icon: <Heart className="w-5 h-5" />, label: "Wishlist" },
-  { icon: <Bell className="w-5 h-5" />, label: "Notifications" },
-  { icon: <CreditCard className="w-5 h-5" />, label: "Payments" },
-  { icon: <Settings className="w-5 h-5" />, label: "Account Settings" },
-];
-
-const RECENT_BOOKINGS = [
-  {
-    id: "TRP-1024",
-    title: "The Creek Villa",
-    location: "Manali, HP",
-    date: "15 May - 20 May",
-    status: "Confirmed",
-    amount: "₹26,250",
-    image: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&q=80&w=100",
-  },
-  {
-    id: "TRP-1025",
-    title: "River Rafting Trip",
-    location: "Rishikesh",
-    date: "22 May 2024",
-    status: "Completed",
-    amount: "₹2,520",
-    image: "https://images.unsplash.com/photo-1530866495547-084969f682ba?auto=format&fit=crop&q=80&w=100",
-  }
-];
+import { DashboardSidebar } from "@/components/navigation/dashboard-sidebar";
 
 export default function ProfilePage() {
-  const [activeItem, setActiveItem] = useState("Personal Info");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = () => {
+    setIsSaving(true);
+    setTimeout(() => setIsSaving(false), 2000);
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
       <Navbar />
 
-      <main className="flex-grow pt-28 pb-20">
+      <main className="flex-grow pt-20 pb-12">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col lg:flex-row gap-12">
+          
+          <div className="flex flex-col lg:flex-row gap-6">
             
-            {/* Sidebar */}
-            <aside className="lg:w-80 flex-shrink-0">
-              <div className="bg-white rounded-3xl border border-zinc-100 p-8 shadow-xl shadow-zinc-200/50 space-y-8">
-                {/* User Info */}
-                <div className="flex flex-col items-center text-center pb-8 border-b border-zinc-50">
-                  <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-4 relative ring-4 ring-zinc-50">
-                    <User className="w-10 h-10" />
-                    <button className="absolute bottom-0 right-0 w-8 h-8 bg-white rounded-full border border-zinc-100 flex items-center justify-center text-zinc-900 shadow-sm">
-                      <Settings className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <h2 className="text-xl font-bold text-zinc-900">Aryan Singh</h2>
-                  <p className="text-zinc-500 text-sm">aryan.singh@example.com</p>
-                </div>
+            <DashboardSidebar />
 
-                {/* Navigation Menu */}
-                <nav className="space-y-2">
-                  {SIDEBAR_ITEMS.map((item) => (
-                    <button
-                      key={item.label}
-                      onClick={() => setActiveItem(item.label)}
-                      className={cn(
-                        "w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all font-bold",
-                        activeItem === item.label 
-                          ? "bg-primary/10 text-primary shadow-sm" 
-                          : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                        {item.icon}
-                        <span className="text-sm">{item.label}</span>
-                      </div>
-                      {activeItem === item.label && <ChevronRight className="w-4 h-4" />}
-                    </button>
-                  ))}
-                  <button className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-red-500 hover:bg-red-50 transition-all font-bold mt-8">
-                    <LogOut className="w-5 h-5" />
-                    <span className="text-sm">Log Out</span>
-                  </button>
-                </nav>
-              </div>
-            </aside>
-
-            {/* Main Content Area */}
-            <div className="flex-grow space-y-10">
+            {/* Profile Content */}
+            <div className="flex-grow space-y-6">
               
-              {/* Header */}
-              <div>
-                <h1 className="text-3xl font-bold text-zinc-900 mb-2">Welcome back, Aryan!</h1>
-                <p className="text-zinc-500 font-medium">Manage your bookings, settings, and profile information.</p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
+                <div>
+                  <h1 className="text-xl font-bold text-zinc-900">Profile Settings</h1>
+                  <p className="text-xs text-zinc-500 font-medium italic">Update your personal information.</p>
+                </div>
+                <Button onClick={handleSave} className="rounded-xl px-6 h-10 font-bold gap-1.5 text-xs">
+                  {isSaving ? <span className="animate-pulse">Saving...</span> : <><Check className="w-3.5 h-3.5" /> Save Changes</>}
+                </Button>
               </div>
 
-              {/* Stats Bar */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-3xl border border-zinc-100 shadow-sm flex items-center gap-5 group hover:shadow-lg transition-all">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-                    <ShoppingBag className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-zinc-900">12</p>
-                    <p className="text-xs font-bold uppercase text-zinc-400 tracking-wider">Total Bookings</p>
-                  </div>
-                </div>
-                <div className="bg-white p-6 rounded-3xl border border-zinc-100 shadow-sm flex items-center gap-5 group hover:shadow-lg transition-all">
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 flex items-center justify-center text-rose-600">
-                    <Heart className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-zinc-900">24</p>
-                    <p className="text-xs font-bold uppercase text-zinc-400 tracking-wider">Saved Items</p>
-                  </div>
-                </div>
-                <div className="bg-white p-6 rounded-3xl border border-zinc-100 shadow-sm flex items-center gap-5 group hover:shadow-lg transition-all">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                    <CheckCircle2 className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-zinc-900">₹85K</p>
-                    <p className="text-xs font-bold uppercase text-zinc-400 tracking-wider">Total Spent</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Recent Bookings Section */}
-              <div className="bg-white rounded-[40px] border border-zinc-100 p-8 shadow-xl shadow-zinc-200/40">
-                <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-2xl font-bold text-zinc-900">Recent Bookings</h2>
-                  <Button variant="ghost" className="text-primary font-bold">View All</Button>
-                </div>
-
-                <div className="space-y-4">
-                  {RECENT_BOOKINGS.map((booking) => (
-                    <div 
-                      key={booking.id} 
-                      className="flex flex-col sm:flex-row items-center gap-6 p-4 rounded-3xl border border-zinc-50 hover:bg-zinc-50/50 transition-all group"
-                    >
-                      <div className="w-24 h-24 rounded-2xl overflow-hidden flex-shrink-0">
-                        <img src={booking.image} alt="Property" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                
+                {/* Left Column: Forms */}
+                <div className="xl:col-span-2 space-y-6">
+                  
+                  {/* Basic Info Card */}
+                  <div className="bg-white p-6 sm:p-8 rounded-2xl border border-zinc-100 space-y-6">
+                    <h2 className="text-sm font-bold text-zinc-900 flex items-center gap-2 uppercase tracking-widest">
+                      <User className="w-4 h-4 text-primary" />
+                      Basic Information
+                    </h2>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Full Name</label>
+                        <Input defaultValue="Aqib Ahmed" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
                       </div>
-                      
-                      <div className="flex-1 space-y-1 text-center sm:text-left">
-                        <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mb-1">
-                          <span className="text-[10px] font-bold uppercase text-zinc-400">{booking.id}</span>
-                          <span className="w-1 h-1 rounded-full bg-zinc-300" />
-                          <span className={cn(
-                            "text-[10px] font-bold uppercase px-2 py-0.5 rounded-sm",
-                            booking.status === "Confirmed" ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"
-                          )}>
-                            {booking.status}
-                          </span>
-                        </div>
-                        <h3 className="text-lg font-bold text-zinc-900">{booking.title}</h3>
-                        <div className="flex items-center justify-center sm:justify-start gap-3 text-zinc-500 text-xs font-medium">
-                          <div className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {booking.location}</div>
-                          <div className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {booking.date}</div>
-                        </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Email Address</label>
+                        <Input defaultValue="aqib@example.com" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
                       </div>
-
-                      <div className="text-center sm:text-right flex flex-col items-center sm:items-end gap-3">
-                        <p className="text-xl font-bold text-zinc-900">{booking.amount}</p>
-                        <Button size="sm" className="rounded-full px-6 font-bold">Details</Button>
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Phone Number</label>
+                        <Input defaultValue="+91 98765 43210" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Gender</label>
+                        <Input defaultValue="Male" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
                       </div>
                     </div>
-                  ))}
+                    
+                    <div className="space-y-1.5">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Bio</label>
+                      <Textarea defaultValue="Passionate traveler and adventure seeker. Love exploring hidden gems in India." className="min-h-[100px] rounded-xl border-zinc-100 bg-zinc-50 text-xs p-4 focus:outline-none" />
+                    </div>
+                  </div>
+
+                  {/* Security Card */}
+                  <div className="bg-white p-6 sm:p-8 rounded-2xl border border-zinc-100 space-y-6">
+                    <h2 className="text-sm font-bold text-zinc-900 flex items-center gap-2 uppercase tracking-widest">
+                      <Lock className="w-4 h-4 text-rose-500" />
+                      Security & Password
+                    </h2>
+                    
+                    <div className="space-y-5">
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Current Password</label>
+                        <Input type="password" placeholder="••••••••" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">New Password</label>
+                          <Input type="password" placeholder="••••••••" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Confirm New Password</label>
+                          <Input type="password" placeholder="••••••••" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
+                        </div>
+                      </div>
+                      <Button variant="outline" className="rounded-xl font-bold border-rose-100 text-rose-600 hover:bg-rose-50 h-9 px-4 text-xs mt-2">Update Password</Button>
+                    </div>
+                  </div>
+
                 </div>
+
+                {/* Right Column: Preferences & Image */}
+                <div className="space-y-6">
+                  
+                  {/* Profile Image Section */}
+                  <div className="bg-white p-6 sm:p-8 rounded-2xl border border-zinc-100 text-center space-y-5">
+                    <div className="relative inline-block">
+                      <div className="w-24 h-24 rounded-2xl bg-zinc-100 overflow-hidden border-2 border-white shadow-sm">
+                        <img src="https://i.pravatar.cc/300?u=aqib" alt="Profile" className="w-full h-full object-cover" />
+                      </div>
+                      <button className="absolute -bottom-1 -right-1 w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center hover:scale-105 transition-transform">
+                        <Camera className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-zinc-900">Profile Picture</h3>
+                      <p className="text-[10px] text-zinc-400 font-medium">PNG or JPG up to 5MB</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" className="flex-1 rounded-xl font-bold text-xs h-9 border-zinc-100">Remove</Button>
+                      <Button className="flex-1 rounded-xl font-bold text-xs h-9">Change</Button>
+                    </div>
+                  </div>
+
+                  {/* Preferences Card */}
+                  <div className="bg-white p-6 sm:p-8 rounded-2xl border border-zinc-100 space-y-6">
+                    <h2 className="text-sm font-bold text-zinc-900 flex items-center gap-2 uppercase tracking-widest">
+                      <Globe className="w-4 h-4 text-indigo-500" />
+                      Preferences
+                    </h2>
+                    
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 border border-zinc-100">
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-3.5 h-3.5 text-zinc-400" />
+                          <span className="text-xs font-bold text-zinc-600">Notifications</span>
+                        </div>
+                        <div className="w-8 h-4 bg-primary rounded-full relative"><div className="absolute right-0.5 top-0.5 w-3 h-3 bg-white rounded-full" /></div>
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 border border-zinc-100">
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
+                          <span className="text-xs font-bold text-zinc-600">Two-Factor Auth</span>
+                        </div>
+                        <div className="w-8 h-4 bg-zinc-200 rounded-full relative"><div className="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full" /></div>
+                      </div>
+                      <div className="space-y-1.5 pt-2">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Currency</label>
+                        <Input defaultValue="INR (₹)" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs font-bold" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Language</label>
+                        <Input defaultValue="English (US)" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs font-bold" />
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
               </div>
 
             </div>
+
           </div>
         </div>
       </main>

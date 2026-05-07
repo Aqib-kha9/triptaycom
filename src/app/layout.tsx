@@ -17,6 +17,8 @@ export const metadata: Metadata = {
   description: "Next-generation web application built with Next.js, Tailwind CSS, and shadcn/ui.",
 };
 
+import { RoleProvider } from "@/components/role-provider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -27,7 +29,11 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <RoleProvider>
+          {children}
+        </RoleProvider>
+      </body>
     </html>
   );
 }
