@@ -3,16 +3,31 @@
 import Link from "next/link";
 import { Search, Menu, X, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRole } from "@/components/role-provider";
+import { usePathname } from "next/navigation";
 
 export function NavbarPublic() {
+  const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showCompactSearch, setShowCompactSearch] = useState(false);
   const { setIsLoggedIn } = useRole();
 
+  useEffect(() => {
+    const handleScroll = () => {
+      if (pathname === "/" && window.scrollY > 120) {
+        setShowCompactSearch(true);
+      } else {
+        setShowCompactSearch(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [pathname]);
+
   return (
-    <nav className="fixed top-0 z-[110] w-full border-b border-zinc-100 bg-white/80 backdrop-blur-md">
+    <nav className="fixed top-0 z-[110] w-full border-b border-zinc-100 bg-white shadow-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
@@ -22,30 +37,65 @@ export function NavbarPublic() {
           <span className="text-2xl font-bold tracking-tight text-zinc-900 hidden sm:block">Triptay</span>
         </Link>
 
-        {/* Public Links */}
-        <div className="hidden md:flex items-center gap-10">
+        {/* Public Links & Scroll-sticky Search Pill */}
+        <div className="hidden md:flex items-center gap-6 lg:gap-10">
+          <AnimatePresence>
+            {showCompactSearch && (
+              <motion.div
+                initial={{ opacity: 0, x: -20, scale: 0.95 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={{ opacity: 0, x: -20, scale: 0.95 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="flex items-center bg-white border border-zinc-200 rounded-full p-1 shadow-md hover:border-zinc-300 transition-all w-[320px] lg:w-[380px] h-10"
+              >
+                {/* Location */}
+                <div className="flex-1 cursor-pointer px-3 border-r border-zinc-100 flex items-center">
+                  <input 
+                    type="text" 
+                    placeholder="Search stays..." 
+                    className="bg-transparent border-none outline-none text-[11px] font-bold placeholder:text-zinc-400 w-full text-zinc-700 p-0"
+                  />
+                </div>
+
+                {/* Date */}
+                <div className="w-[80px] cursor-pointer px-2 border-r border-zinc-100 flex items-center justify-center">
+                  <p className="text-[11px] font-bold text-zinc-400 truncate">Add dates</p>
+                </div>
+
+                {/* Guests */}
+                <div className="w-[80px] cursor-pointer px-2 flex items-center justify-center pr-1">
+                  <p className="text-[11px] font-bold text-zinc-400 truncate">Add guests</p>
+                </div>
+
+                {/* Circular Search Button */}
+                <button 
+                  className="bg-primary hover:bg-primary/90 text-white w-7 h-7 rounded-full transition-all flex items-center justify-center active:scale-95 shrink-0"
+                >
+                  <Search className="w-3.5 h-3.5 stroke-[3]" />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <Link href="/explore" className="text-sm font-bold text-zinc-500 hover:text-primary transition-colors">Explore</Link>
           <Link href="/stays" className="text-sm font-bold text-zinc-500 hover:text-primary transition-colors">Stays</Link>
           <Link href="/activities" className="text-sm font-bold text-zinc-500 hover:text-primary transition-colors">Activities</Link>
-          <Link href="/vendor/onboarding" className="text-sm font-bold text-zinc-900 hover:text-primary transition-colors">List your property</Link>
         </div>
 
         {/* Auth Actions */}
         <div className="flex items-center gap-4">
-          <Link href="/wishlist">
+          <Link href="/wishlist" className="hidden md:block">
             <Button variant="ghost" size="icon" className="rounded-full text-zinc-500 hover:text-primary">
               <Heart className="h-5 w-5" />
             </Button>
           </Link>
-          <Link href="/login" className="text-sm font-bold text-zinc-900 hover:text-primary transition-colors hidden sm:block">
-            Login
-          </Link>
           <Link href="/login">
-            <Button className="rounded-full px-8 h-12 font-bold shadow-xl shadow-primary/20">
-              Sign Up
+            <Button className="rounded-full px-8 h-11 font-bold shadow-lg shadow-primary/20">
+              Login / Sign Up
             </Button>
           </Link>
-          <button className="md:hidden p-2" onClick={() => setIsMobileMenuOpen(true)}>
+          {/* Mobile menu button hidden in favor of the new bottom navigation bar */}
+          <button className="hidden p-2" onClick={() => setIsMobileMenuOpen(true)}>
             <Menu className="w-6 h-6" />
           </button>
         </div>

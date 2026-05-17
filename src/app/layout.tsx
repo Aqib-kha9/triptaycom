@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 };
 
 import { RoleProvider } from "@/components/role-provider";
+import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
 
 export default function RootLayout({
   children,
@@ -29,9 +30,10 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col pb-24 md:pb-0">
         <RoleProvider>
           {children}
+          <MobileBottomNav />
         </RoleProvider>
       </body>
     </html>

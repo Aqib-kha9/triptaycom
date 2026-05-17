@@ -56,10 +56,50 @@ const SIMILAR_PROPERTIES = [
   { title: "Greenwood Stay", location: "Bir, HP", price: "3,000", rating: "4.9", image: "https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&q=80&w=600" },
 ];
 
+const VARIANTS = [
+  {
+    id: "mega",
+    name: "Whole Sanctuary (Mega Package)",
+    description: "Book the entire Creek Villa! Enjoy all 3 private bedrooms, spacious private lawns, chef service, and complimentary bonfire setups.",
+    price: 12000,
+    badge: "Most Premium",
+    sleeps: "Up to 8 Guests",
+    features: ["All 3 Private Bedrooms", "Private Chef & Lawn Access", "Unlimited Himachali Meals", "Free Spa Session"]
+  },
+  {
+    id: "deluxe",
+    name: "Riverview Deluxe Suite",
+    description: "A gorgeous 1st-floor master suite featuring a premium king bed, cozy wooden fireplace, and a massive glass balcony over the river.",
+    price: 4500,
+    badge: "Best Seller",
+    sleeps: "2 Guests",
+    features: ["King Size Bed", "Private Glass Balcony", "Attached Stone Jacuzzi", "Cozy Fireplace"]
+  },
+  {
+    id: "cabin",
+    name: "Forest Cozy Cabin Room",
+    description: "Cozy ground floor room crafted with local Deodar wood, featuring large cottage windows looking directly into pine forests.",
+    price: 3200,
+    badge: "Nature Lover",
+    sleeps: "2 Guests",
+    features: ["1 Queen Bed", "Private Balcony Deck", "Cedar Wood Interiors", "Direct Lawn Access"]
+  },
+  {
+    id: "attic",
+    name: "Cozy Skylight Attic Room",
+    description: "An romantic rooftop retreat with a fully glassed skylight roof, perfect for couple stargazing in the cold Manali nights.",
+    price: 2800,
+    badge: "Great Value",
+    sleeps: "2 Guests",
+    features: ["1 Double Bed", "Glass Skylight Ceiling", "Mini Library & Lounge", "Electric Room Heater"]
+  }
+];
+
 export default function StayDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [guestCount, setGuestCount] = useState(2);
+  const [selectedVariant, setSelectedVariant] = useState(VARIANTS[1]); // Default to Best Seller (Deluxe Suite)
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -145,13 +185,13 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                 <div className="space-y-4">
                   <h2 className="text-3xl font-bold text-zinc-900">Experience Manali with Aryan Singh</h2>
                   <div className="flex items-center gap-4 text-zinc-500 font-medium">
-                    <span>6 guests</span>
+                    <span>{selectedVariant.id === 'mega' ? '8 guests' : '2 guests'}</span>
                     <span>•</span>
-                    <span>3 bedrooms</span>
+                    <span>{selectedVariant.id === 'mega' ? '3 bedrooms' : '1 bedroom'}</span>
                     <span>•</span>
-                    <span>4 beds</span>
+                    <span>{selectedVariant.id === 'mega' ? '4 beds' : '1 bed'}</span>
                     <span>•</span>
-                    <span>3.5 bathrooms</span>
+                    <span>{selectedVariant.id === 'mega' ? '3.5 bathrooms' : '1 bathroom'}</span>
                   </div>
                 </div>
                 <div className="relative group flex-shrink-0">
@@ -179,6 +219,75 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                     <h3 className="font-bold text-zinc-900 mb-1">Great Location</h3>
                     <p className="text-zinc-500 text-sm leading-relaxed">95% of recent guests gave the location a 5-star rating.</p>
                   </div>
+                </div>
+              </div>
+
+              {/* Stays & Packages Selection Section */}
+              <div className="space-y-6 pt-4">
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-bold text-zinc-900">Choose Your Stay Option</h3>
+                  <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">Book the entire villa or choose a private suite package</p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {VARIANTS.map((v) => {
+                    const isSelected = selectedVariant.id === v.id;
+                    return (
+                      <div 
+                        key={v.id}
+                        onClick={() => setSelectedVariant(v)}
+                        className={cn(
+                          "p-6 rounded-[28px] border-2 cursor-pointer transition-all duration-300 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between",
+                          isSelected 
+                            ? "border-primary bg-primary/[0.02] shadow-lg shadow-primary/[0.03]" 
+                            : "border-zinc-100 bg-white hover:border-zinc-200"
+                        )}
+                      >
+                        <div className="space-y-3 flex-1">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <h4 className="font-bold text-zinc-900 text-base">{v.name}</h4>
+                            <span className={cn(
+                              "text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full",
+                              isSelected 
+                                ? "bg-primary text-white" 
+                                : "bg-zinc-100 text-zinc-500"
+                            )}>
+                              {v.badge}
+                            </span>
+                            <span className="text-[10px] font-bold text-zinc-400">• {v.sleeps}</span>
+                          </div>
+
+                          <p className="text-xs text-zinc-500 font-medium leading-relaxed max-w-xl">
+                            {v.description}
+                          </p>
+
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {v.features.map((feat, i) => (
+                              <span key={i} className="text-[9px] font-bold px-2 py-0.5 bg-zinc-50 border border-zinc-100 text-zinc-500 rounded-md">
+                                {feat}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-row md:flex-col items-end gap-3 w-full md:w-auto border-t md:border-t-0 pt-4 md:pt-0 border-zinc-50 justify-between md:justify-center">
+                          <div className="text-left md:text-right">
+                            <span className="text-2xl font-black text-zinc-900">₹{v.price.toLocaleString()}</span>
+                            <span className="text-zinc-400 text-[10px] font-bold block uppercase tracking-widest">/ night</span>
+                          </div>
+                          <Button 
+                            variant={isSelected ? "default" : "outline"} 
+                            className={cn(
+                              "rounded-xl h-10 px-6 text-xs font-bold shrink-0",
+                              isSelected ? "bg-primary text-white shadow-md shadow-primary/10" : "border-zinc-200 text-zinc-600"
+                            )}
+                          >
+                            {isSelected ? "Selected Stay" : "Select stay"}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -332,13 +441,19 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
 
                   <div className="flex justify-between items-end">
                     <div>
-                      <span className="text-3xl font-bold text-zinc-900">₹4,500</span>
+                      <span className="text-3xl font-black text-zinc-900">₹{selectedVariant.price.toLocaleString()}</span>
                       <span className="text-zinc-500 font-bold text-sm ml-1">/ night</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-sm font-bold bg-zinc-50 px-3 py-1.5 rounded-full">
-                      <Star className="w-4 h-4 fill-primary text-primary" />
+                    <div className="flex items-center gap-1.5 text-xs font-bold bg-zinc-50 px-3 py-1.5 rounded-full">
+                      <Star className="w-3.5 h-3.5 fill-primary text-primary" />
                       <span>4.9</span>
                     </div>
+                  </div>
+
+                  {/* Active Package Info */}
+                  <div className="p-4 rounded-2xl bg-zinc-50 border border-zinc-100">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-0.5">Selected Option</p>
+                    <p className="text-xs font-bold text-zinc-800 truncate">{selectedVariant.name}</p>
                   </div>
 
                   {/* Booking Form Interface */}
@@ -364,9 +479,9 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                       </div>
                     </div>
 
-                    <Link href={`/checkout/stay/${params.id}`} className="block">
+                    <Link href={`/checkout/stay/${params.id}?variant=${selectedVariant.id}`} className="block">
                       <Button className="w-full h-16 rounded-2xl text-lg font-bold bg-primary hover:bg-primary/90 transition-all shadow-xl shadow-primary/20 gap-2 group">
-                        Book Sanctuary
+                        Book Stay Option
                         <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </Link>
@@ -377,16 +492,16 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                   {/* Price Breakdown Preview */}
                   <div className="space-y-4 pt-6 border-t border-zinc-50">
                     <div className="flex justify-between text-zinc-500 font-medium text-sm">
-                      <span className="underline">₹4,500 x 5 nights</span>
-                      <span>₹22,500</span>
+                      <span className="underline">₹{selectedVariant.price.toLocaleString()} x 5 nights</span>
+                      <span>₹{(selectedVariant.price * 5).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between text-zinc-500 font-medium text-sm">
                       <span className="underline">Platform Fee</span>
-                      <span>₹1,125</span>
+                      <span>₹{Math.round(selectedVariant.price * 5 * 0.05).toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between text-zinc-900 font-bold pt-4 text-xl">
                       <span>Total</span>
-                      <span>₹23,625</span>
+                      <span>₹{Math.round(selectedVariant.price * 5 * 1.05).toLocaleString()}</span>
                     </div>
                   </div>
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, ChevronDown, Home, Ticket, Compass } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -16,11 +16,18 @@ export function SearchForm() {
         <button
           onClick={() => setActiveTab("homestays")}
           className={cn(
-            "text-[14px] md:text-[15px] font-bold transition-all relative flex items-center gap-2 pb-1 flex-shrink-0",
+            "text-[14px] md:text-[15px] font-bold transition-all relative flex items-center gap-3 pb-1 flex-shrink-0",
             activeTab === "homestays" ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-600"
           )}
         >
-          <Home className={cn("h-4 w-4", activeTab === "homestays" ? "text-primary" : "text-zinc-400")} />
+          <img 
+            src="/icons/stays-3d.png" 
+            alt="Homestays" 
+            className={cn(
+              "h-8 w-8 object-contain transition-all duration-300", 
+              activeTab === "homestays" ? "scale-110 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
+            )} 
+          />
           Homestays
           {activeTab === "homestays" && (
             <motion.div 
@@ -32,11 +39,18 @@ export function SearchForm() {
         <button
           onClick={() => setActiveTab("activities")}
           className={cn(
-            "text-[14px] md:text-[15px] font-bold transition-all relative flex items-center gap-2 pb-1 flex-shrink-0",
+            "text-[14px] md:text-[15px] font-bold transition-all relative flex items-center gap-3 pb-1 flex-shrink-0",
             activeTab === "activities" ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-600"
           )}
         >
-          <Ticket className={cn("h-4 w-4", activeTab === "activities" ? "text-primary" : "text-zinc-400")} />
+          <img 
+            src="/icons/activities-3d.png" 
+            alt="Activities" 
+            className={cn(
+              "h-8 w-8 object-contain transition-all duration-300", 
+              activeTab === "activities" ? "scale-110 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
+            )} 
+          />
           Activities
           {activeTab === "activities" && (
             <motion.div 
@@ -48,11 +62,18 @@ export function SearchForm() {
         <button
           onClick={() => setActiveTab("nearby")}
           className={cn(
-            "text-[14px] md:text-[15px] font-bold transition-all relative flex items-center gap-2 pb-1 flex-shrink-0",
+            "text-[14px] md:text-[15px] font-bold transition-all relative flex items-center gap-3 pb-1 flex-shrink-0",
             activeTab === "nearby" ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-600"
           )}
         >
-          <Compass className={cn("h-4 w-4", activeTab === "nearby" ? "text-primary" : "text-zinc-400")} />
+          <img 
+            src="/icons/nearby-3d.png" 
+            alt="Find Nearby" 
+            className={cn(
+              "h-8 w-8 object-contain transition-all duration-300", 
+              activeTab === "nearby" ? "scale-110 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
+            )} 
+          />
           Find Nearby
           {activeTab === "nearby" && (
             <motion.div 

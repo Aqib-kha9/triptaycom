@@ -33,7 +33,7 @@ export function DashboardSidebar() {
   const { setIsLoggedIn } = useRole();
 
   return (
-    <aside className="lg:w-64 flex-shrink-0">
+    <aside className="hidden lg:block lg:w-64 flex-shrink-0">
       <div className="sticky top-24 space-y-1 bg-white p-4 rounded-2xl border border-zinc-100">
         <div className="flex items-center gap-3 mb-6 px-2">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary overflow-hidden">

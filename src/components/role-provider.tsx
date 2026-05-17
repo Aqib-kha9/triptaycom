@@ -11,6 +11,8 @@ interface RoleContextType {
   setIsVendorMode: (val: boolean) => void;
   isLoggedIn: boolean;
   setIsLoggedIn: (val: boolean) => void;
+  hasVendorAccess: boolean;
+  setHasVendorAccess: (val: boolean) => void;
 }
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
@@ -19,18 +21,20 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
   const [role, setRole] = useState<Role>("guest");
   const [isVendorMode, setIsVendorMode] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false); // Default to false (public)
+  const [hasVendorAccess, setHasVendorAccess] = useState(false);
 
   // Sync isVendorMode with role if needed
   useEffect(() => {
     if (role === "vendor") {
       setIsVendorMode(true);
+      setHasVendorAccess(true); // If they are actively vendor, they definitely have access
     } else {
       setIsVendorMode(false);
     }
   }, [role]);
 
   return (
-    <RoleContext.Provider value={{ role, setRole, isVendorMode, setIsVendorMode, isLoggedIn, setIsLoggedIn }}>
+    <RoleContext.Provider value={{ role, setRole, isVendorMode, setIsVendorMode, isLoggedIn, setIsLoggedIn, hasVendorAccess, setHasVendorAccess }}>
       {children}
     </RoleContext.Provider>
   );
