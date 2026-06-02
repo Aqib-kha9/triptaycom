@@ -3,6 +3,8 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 import {
     ArrowLeft,
     Edit2,
@@ -229,7 +231,7 @@ export default function ViewListingPage() {
             setIsLoading(true);
             setError("");
             const token = localStorage.getItem("token");
-            const res = await fetch(`http://localhost:5000/api/listings/${listingId}`, {
+            const res = await fetch(`${API_BASE}/listings/${listingId}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const json = await res.json();
@@ -254,7 +256,7 @@ export default function ViewListingPage() {
         try {
             setIsDeleting(true);
             const token = localStorage.getItem("token");
-            const res = await fetch(`http://localhost:5000/api/listings/${deleteId}`, {
+            const res = await fetch(`${API_BASE}/listings/${deleteId}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` },
             });

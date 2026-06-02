@@ -3,6 +3,8 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -719,7 +721,7 @@ export default function AddHomestayPage() {
       };
 
       // Step 1: Create the listing
-      const res = await fetch("http://localhost:5000/api/listings", {
+      const res = await fetch(`${API_BASE}/listings`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -746,7 +748,7 @@ export default function AddHomestayPage() {
           if (m.isCover) formDataUpload.append("isCover", "true");
         });
 
-        const uploadRes = await fetch(`http://localhost:5000/api/listings/${createdId}/media`, {
+        const uploadRes = await fetch(`${API_BASE}/listings/${createdId}/media`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           credentials: "include",

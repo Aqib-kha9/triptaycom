@@ -71,8 +71,8 @@ interface Message {
 
 // ──────────────────────── Constants ────────────────────────
 
-const API_BASE = "http://localhost:5000/api";
-const SOCKET_URL = "http://localhost:5000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || API_BASE.replace(/\/api$/, "");
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;

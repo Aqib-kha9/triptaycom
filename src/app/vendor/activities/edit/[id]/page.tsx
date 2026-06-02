@@ -3,6 +3,8 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { useState, useEffect, useCallback, use } from "react";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -245,7 +247,7 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
             setIsLoading(true);
             setLoadError("");
             const token = localStorage.getItem("token");
-            const res = await fetch(`http://localhost:5000/api/activities/${params.id}`, {
+            const res = await fetch(`${API_BASE}/activities/${params.id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const json = await res.json();
@@ -541,7 +543,7 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
                 videoTourUrl: formData.videoTourUrl.trim() || undefined,
             };
 
-            const res = await fetch(`http://localhost:5000/api/activities/${params.id}`, {
+            const res = await fetch(`${API_BASE}/activities/${params.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify(payload),
@@ -551,7 +553,7 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
 
             // 2) Delete removed media
             for (const publicId of mediaToDelete) {
-                await fetch(`http://localhost:5000/api/activities/${params.id}/media/${publicId}`, {
+                await fetch(`${API_BASE}/activities/${params.id}/media/${publicId}`, {
                     method: "DELETE",
                     headers: { Authorization: `Bearer ${token}` },
                 });
@@ -565,7 +567,7 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
                     formData2.append("captions", m.caption);
                     formData2.append("isCover", m.isCover ? "true" : "false");
                 });
-                await fetch(`http://localhost:5000/api/activities/${params.id}/media`, {
+                await fetch(`${API_BASE}/activities/${params.id}/media`, {
                     method: "POST",
                     headers: { Authorization: `Bearer ${token}` },
                     body: formData2,

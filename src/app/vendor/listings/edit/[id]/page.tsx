@@ -3,6 +3,8 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -253,7 +255,7 @@ export default function EditListingPage() {
         try {
             setIsLoadingListing(true);
             const token = localStorage.getItem("token");
-            const res = await fetch(`http://localhost:5000/api/listings/${listingId}`, {
+            const res = await fetch(`${API_BASE}/listings/${listingId}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const json = await res.json();
@@ -505,7 +507,7 @@ export default function EditListingPage() {
             };
 
             // Step 1: Update listing data
-            const res = await fetch(`http://localhost:5000/api/listings/${listingId}`, {
+            const res = await fetch(`${API_BASE}/listings/${listingId}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 credentials: "include",
@@ -517,7 +519,7 @@ export default function EditListingPage() {
             // Step 2: Delete removed media
             for (const md of mediaToDelete) {
                 try {
-                    await fetch(`http://localhost:5000/api/listings/${listingId}/media/${md._id}`, {
+                    await fetch(`${API_BASE}/listings/${listingId}/media/${md._id}`, {
                         method: "DELETE",
                         headers: { Authorization: `Bearer ${token}` },
                     });
@@ -532,7 +534,7 @@ export default function EditListingPage() {
                     if (m.caption) fd.append("captions", m.caption);
                     if (m.isCover) fd.append("isCover", "true");
                 });
-                await fetch(`http://localhost:5000/api/listings/${listingId}/media`, {
+                await fetch(`${API_BASE}/listings/${listingId}/media`, {
                     method: "POST",
                     headers: { Authorization: `Bearer ${token}` },
                     credentials: "include",

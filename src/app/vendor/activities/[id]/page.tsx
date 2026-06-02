@@ -3,6 +3,8 @@
 import { Navbar } from "@/components/navbar";
 import { useState, useEffect, useCallback, use } from "react";
 import Image from "next/image";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -212,7 +214,7 @@ export default function ViewActivityPage({ params: paramsPromise }: { params: Pr
             setLoading(true);
             setError("");
             const token = localStorage.getItem("token");
-            const res = await fetch(`http://localhost:5000/api/activities/${params.id}`, {
+            const res = await fetch(`${API_BASE}/activities/${params.id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const json = await res.json();
@@ -239,7 +241,7 @@ export default function ViewActivityPage({ params: paramsPromise }: { params: Pr
         try {
             setIsDeleting(true);
             const token = localStorage.getItem("token");
-            const res = await fetch(`http://localhost:5000/api/activities/${activity._id}`, {
+            const res = await fetch(`${API_BASE}/activities/${activity._id}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` },
             });

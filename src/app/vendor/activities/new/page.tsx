@@ -3,6 +3,8 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useState, useRef, useEffect } from "react";
@@ -499,7 +501,7 @@ export default function AddActivityPage() {
         status: "published",
       };
 
-      const res = await fetch("http://localhost:5000/api/activities", {
+      const res = await fetch(`${API_BASE}/activities`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
@@ -520,7 +522,7 @@ export default function AddActivityPage() {
           if (m.caption) formDataMedia.append("caption", m.caption);
         });
 
-        const mediaRes = await fetch(`http://localhost:5000/api/activities/${activityId}/media`, {
+        const mediaRes = await fetch(`${API_BASE}/activities/${activityId}/media`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formDataMedia,

@@ -3,6 +3,8 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -119,7 +121,7 @@ export default function VendorActivitiesPage() {
       setLoading(true);
       setError("");
       const token = localStorage.getItem("token");
-      const res = await fetch("http://localhost:5000/api/activities", {
+      const res = await fetch(`${API_BASE}/activities`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
@@ -146,7 +148,7 @@ export default function VendorActivitiesPage() {
     try {
       setIsDeleting(true);
       const token = localStorage.getItem("token");
-      const res = await fetch(`http://localhost:5000/api/activities/${deleteTarget._id}`, {
+      const res = await fetch(`${API_BASE}/activities/${deleteTarget._id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });

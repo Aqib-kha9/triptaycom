@@ -78,7 +78,8 @@ export function NavbarVendor() {
         const { io } = await import("socket.io-client");
         if (cancelled) return;
 
-        const socket = io("http://localhost:5000", {
+        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
+        const socket = io(socketUrl, {
           auth: { token },
           transports: ["websocket", "polling"],
         });
