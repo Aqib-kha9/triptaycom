@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { 
   MapPin, 
   Users, 
@@ -10,22 +10,172 @@ import {
   X,
   Check,
   ChevronDown,
+  Home,
   Zap,
   Mountain,
   Clock,
-  Navigation
+  Loader2,
+  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 
-interface ListingSearchProps {
-  mode?: "stays" | "activities";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+const PROPERTY_TYPES = [
+  { id: "villa", label: "Villas", icon: <Home className="w-3.5 h-3.5" /> },
+  { id: "apartment", label: "Apartments", icon: <Home className="w-3.5 h-3.5" /> },
+  { id: "cottage", label: "Cottages", icon: <Home className="w-3.5 h-3.5" /> },
+  { id: "farmstay", label: "Farm Stays", icon: <Home className="w-3.5 h-3.5" /> },
+  { id: "luxury", label: "Luxury", icon: <Home className="w-3.5 h-3.5" /> },
+];
+
+const DIFFICULTY_LEVELS = [
+  { id: "easy", label: "Easy", color: "border-emerald-200 hover:border-emerald-400 hover:text-emerald-700" },
+  { id: "moderate", label: "Moderate", color: "border-amber-200 hover:border-amber-400 hover:text-amber-700" },
+  { id: "hard", label: "Hard", color: "border-orange-200 hover:border-orange-400 hover:text-orange-700" },
+  { id: "expert", label: "Expert", color: "border-red-200 hover:border-red-400 hover:text-red-700" },
+];
+
+const STAY_AMENITIES = ["WiFi", "Pool", "Parking", "AC", "Kitchen", "Pet Friendly"];
+const ACTIVITY_TYPES = ["rafting", "trekking", "paragliding", "camping", "cycling", "safari", "bungee", "skiing"];
+
+interface FilterParams {
+  location?: string;
+  propertyType?: string;
+  difficulty?: string;
+  activityType?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  amenities?: string[];
+  sort?: string;
 }
 
-export function ListingSearch({ mode = "stays" }: ListingSearchProps) {
+interface ListingSearchProps {
+  mode?: "stays" | "activities";
+  locationParam?: string;
+  onSearch?: (params: FilterParams) => void;
+}
+
+export function ListingSearch({ mode = "stays", locationParam, onSearch }: ListingSearchProps) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+
+  // Location
+  const [location, setLocation] = useState(locationParam || "");
+  const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
+  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const [isFetchingLocations, setIsFetchingLocations] = useState(false);
+  const locationRef = useRef<HTMLDivElement>(null);
+  const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Filters
+  const [selectedPropertyType, setSelectedPropertyType] = useState<string | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string | null>(null);
+  const [selectedActivityType, setSelectedActivityType] = useState<string | null>(null);
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [minPrice, setMinPrice] = useState<number | undefined>(undefined);
+  const [maxPrice, setMaxPrice] = useState<number | undefined>(undefined);
+
+  // Sync locationParam from parent
+  useEffect(() => {
+    if (locationParam) setLocation(locationParam);
+  }, [locationParam]);
+
+  // Location autocomplete
+  useEffect(() => {
+    if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+
+    if (!location.trim() || location.trim().length < 1) {
+      setLocationSuggestions([]);
+      setShowLocationSuggestions(false);
+      return;
+    }
+
+    fetchTimeoutRef.current = setTimeout(async () => {
+      setIsFetchingLocations(true);
+      try {
+        const res = await fetch(`${API_BASE}/locations/suggest?q=${encodeURIComponent(location.trim())}`);
+        const body = await res.json().catch(() => ({}));
+        if (res.ok && body.data?.suggestions) {
+          setLocationSuggestions(body.data.suggestions);
+          setShowLocationSuggestions(body.data.suggestions.length > 0);
+        } else {
+          setLocationSuggestions([]);
+          setShowLocationSuggestions(false);
+        }
+      } catch {
+        setLocationSuggestions([]);
+        setShowLocationSuggestions(false);
+      } finally {
+        setIsFetchingLocations(false);
+      }
+    }, 250);
+
+    return () => {
+      if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+    };
+  }, [location]);
+
+  // Click-outside for location suggestions
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (locationRef.current && !locationRef.current.contains(e.target as Node)) {
+        setShowLocationSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleSelectSuggestion = (city: string) => {
+    setLocation(city);
+    setShowLocationSuggestions(false);
+  };
+
+  const toggleAmenity = (amenity: string) => {
+    setSelectedAmenities((prev) =>
+      prev.includes(amenity) ? prev.filter((a) => a !== amenity) : [...prev, amenity]
+    );
+  };
+
+  const buildFilterParams = useCallback((): FilterParams => {
+    const params: FilterParams = {};
+    if (location.trim()) params.location = location.trim();
+    if (selectedPropertyType) params.propertyType = selectedPropertyType;
+    if (selectedDifficulty) params.difficulty = selectedDifficulty;
+    if (selectedActivityType) params.activityType = selectedActivityType;
+    if (minPrice !== undefined) params.minPrice = minPrice;
+    if (maxPrice !== undefined) params.maxPrice = maxPrice;
+    if (selectedAmenities.length > 0) params.amenities = selectedAmenities;
+    return params;
+  }, [location, selectedPropertyType, selectedDifficulty, selectedActivityType, minPrice, maxPrice, selectedAmenities]);
+
+  const handleApplyFilters = () => {
+    const params = buildFilterParams();
+    onSearch?.(params);
+    setIsFilterOpen(false);
+  };
+
+  const handleResetAll = () => {
+    setLocation("");
+    setSelectedPropertyType(null);
+    setSelectedDifficulty(null);
+    setSelectedActivityType(null);
+    setSelectedAmenities([]);
+    setMinPrice(undefined);
+    setMaxPrice(undefined);
+    onSearch?.({});
+    setIsFilterOpen(false);
+  };
+
+  const handleLocationSubmit = () => {
+    const params = buildFilterParams();
+    onSearch?.(params);
+  };
+
+  const locationSummary = location.trim() || "Where to?";
 
   return (
     <div className="w-full bg-white border-b border-zinc-100 relative z-30">
@@ -39,9 +189,11 @@ export function ListingSearch({ mode = "stays" }: ListingSearchProps) {
           >
             <Search className="w-5 h-5 text-primary" />
             <div className="text-left">
-              <p className="text-xs font-bold text-zinc-900">{mode === "stays" ? "Jakarta, IND" : "Rishikesh, UK"}</p>
+              <p className="text-xs font-bold text-zinc-900 truncate max-w-[200px]">
+                {locationSummary}
+              </p>
               <p className="text-[10px] text-zinc-400 font-medium">
-                {mode === "stays" ? "22 Dec • 24 Dec • 2 Person" : "20 May • 2 Adults"}
+                {mode === "stays" ? "Find homestays" : "Find activities"}
               </p>
             </div>
           </button>
@@ -59,46 +211,79 @@ export function ListingSearch({ mode = "stays" }: ListingSearchProps) {
         {/* Desktop Full Search Bar */}
         <div className="hidden lg:flex items-center gap-4">
           <div className="flex-1 flex items-center bg-zinc-50 border border-zinc-100 rounded-2xl p-1 shadow-sm hover:shadow-md transition-all">
-            {/* Location */}
-            <div className="flex-1 flex items-center gap-3 px-3 py-1.5 border-r border-zinc-100 cursor-pointer hover:bg-white rounded-xl transition-all group">
+            {/* Location with Autocomplete */}
+            <div ref={locationRef} className="relative flex-1 flex items-center gap-3 px-3 py-1.5 border-r border-zinc-100 cursor-pointer hover:bg-white rounded-xl transition-all group">
               <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-zinc-400 group-hover:text-primary transition-colors shadow-sm">
                 <MapPin className="w-5 h-5" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Location</p>
-                <p className="text-sm font-bold text-zinc-900">{mode === "stays" ? "Jakarta, IND" : "Rishikesh, UK"}</p>
+                <input
+                  type="text"
+                  placeholder="Search destinations"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  onFocus={() => { if (location.trim() && locationSuggestions.length > 0) setShowLocationSuggestions(true); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { setShowLocationSuggestions(false); handleLocationSubmit(); } }}
+                  className="bg-transparent border-none outline-none text-sm font-bold text-zinc-900 w-full placeholder:text-zinc-300"
+                />
               </div>
+
+              {/* Location Suggestions Dropdown */}
+              <AnimatePresence>
+                {showLocationSuggestions && locationSuggestions.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-zinc-200 shadow-2xl shadow-zinc-200/50 py-1 z-50 overflow-hidden"
+                  >
+                    {isFetchingLocations && locationSuggestions.length === 0 ? (
+                      <div className="px-4 py-3 text-sm text-zinc-400 font-medium flex items-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Searching…
+                      </div>
+                    ) : (
+                      locationSuggestions.map((city) => (
+                        <button
+                          key={city}
+                          onClick={() => handleSelectSuggestion(city)}
+                          className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-zinc-50 transition-colors group"
+                        >
+                          <MapPin className="w-4 h-4 text-zinc-300 group-hover:text-zinc-500 shrink-0" />
+                          <span className="text-sm font-bold text-zinc-700 group-hover:text-zinc-900">{city}</span>
+                        </button>
+                      ))
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
-            {/* Dates */}
-            <div className="flex-1 flex items-center gap-3 px-3 py-1.5 border-r border-zinc-100 cursor-pointer hover:bg-white rounded-xl transition-all group">
-              <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-zinc-400 group-hover:text-primary transition-colors shadow-sm">
-                <Calendar className="w-5 h-5" />
+            {/* Current Filters Summary */}
+            <div className="w-44 flex items-center gap-3 px-3 py-1.5 cursor-default group">
+              <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-zinc-400 transition-colors shadow-sm">
+                <SlidersHorizontal className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{mode === "stays" ? "Dates" : "Activity Date"}</p>
-                <p className="text-sm font-bold text-zinc-900">{mode === "stays" ? "22 Dec - 24 Dec" : "20 May, 2024"}</p>
-              </div>
-            </div>
-
-            {/* Guests / Participants */}
-            <div className="w-44 flex items-center gap-3 px-3 py-1.5 cursor-pointer hover:bg-white rounded-xl transition-all group">
-              <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-zinc-400 group-hover:text-primary transition-colors shadow-sm">
-                <Users className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{mode === "stays" ? "Guests" : "People"}</p>
-                <p className="text-sm font-bold text-zinc-900">2 {mode === "stays" ? "Person" : "Adults"}</p>
+                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Filters</p>
+                <p className="text-sm font-bold text-zinc-500">
+                  {mode === "stays" 
+                    ? (selectedPropertyType || selectedAmenities.length > 0 ? "Active" : "None")
+                    : (selectedDifficulty || selectedActivityType ? "Active" : "None")
+                  }
+                </p>
               </div>
             </div>
 
             {/* Search Button */}
-            <Button className="h-12 w-12 rounded-xl shadow-xl shadow-primary/20 flex-shrink-0">
+            <Button onClick={handleLocationSubmit} className="h-12 w-12 rounded-xl shadow-xl shadow-primary/20 flex-shrink-0">
               <Search className="w-6 h-6" />
             </Button>
           </div>
 
-          {/* Filter Button */}
+          {/* Filter Toggle Button */}
           <button 
             onClick={() => setIsFilterOpen(!isFilterOpen)}
             className={cn(
@@ -128,67 +313,128 @@ export function ListingSearch({ mode = "stays" }: ListingSearchProps) {
                 <div className="bg-zinc-50/50 rounded-[32px] border border-zinc-100 p-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
                     
-                    {/* Mode Specific Filter 1: Price / Difficulty */}
+                    {/* Filter 1: Price Range */}
                     <div className="space-y-6">
                       <h3 className="font-bold text-zinc-900 uppercase tracking-widest text-[10px]">
                         {mode === "stays" ? "Price Range" : "Budget per person"}
                       </h3>
                       <div className="space-y-4">
-                        <div className="flex items-center justify-between text-sm font-bold text-zinc-900">
-                          <span>₹{mode === "stays" ? "500" : "200"}</span>
-                          <span>₹{mode === "stays" ? "25k+" : "10k+"}</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-zinc-200 rounded-full relative">
-                          <div className="absolute left-[10%] right-[30%] h-full bg-primary rounded-full" />
-                          <div className="absolute left-[10%] top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-primary rounded-full shadow-lg cursor-pointer" />
-                          <div className="absolute right-[30%] top-1/2 -translate-y-1/2 w-4 h-4 bg-white border-2 border-primary rounded-full shadow-lg cursor-pointer" />
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">Min ₹</label>
+                            <input
+                              type="number"
+                              placeholder="0"
+                              value={minPrice ?? ""}
+                              onChange={(e) => setMinPrice(e.target.value ? parseInt(e.target.value) : undefined)}
+                              className="w-full mt-1 px-3 py-2 rounded-xl border border-zinc-200 text-sm font-bold outline-none focus:border-primary transition-colors"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">Max ₹</label>
+                            <input
+                              type="number"
+                              placeholder="Any"
+                              value={maxPrice ?? ""}
+                              onChange={(e) => setMaxPrice(e.target.value ? parseInt(e.target.value) : undefined)}
+                              className="w-full mt-1 px-3 py-2 rounded-xl border border-zinc-200 text-sm font-bold outline-none focus:border-primary transition-colors"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Mode Specific Filter 2: Property Type / Difficulty */}
+                    {/* Filter 2: Property Type / Difficulty */}
                     <div className="space-y-4">
                       <h3 className="font-bold text-zinc-900 uppercase tracking-widest text-[10px]">
                         {mode === "stays" ? "Property Type" : "Difficulty Level"}
                       </h3>
                       <div className="flex flex-wrap gap-2">
-                        {(mode === "stays" 
-                          ? ["Villas", "Hotels", "Apartments", "Cottages"]
-                          : ["Easy", "Moderate", "Hard", "Expert"]
-                        ).map((item) => (
-                          <button key={item} className="px-4 py-2 rounded-xl border border-zinc-200 bg-white text-xs font-bold text-zinc-600 hover:border-primary hover:text-primary transition-all">
-                            {item}
-                          </button>
-                        ))}
+                        {mode === "stays" ? (
+                          PROPERTY_TYPES.map((pt) => (
+                            <button
+                              key={pt.id}
+                              onClick={() => setSelectedPropertyType((prev) => prev === pt.id ? null : pt.id)}
+                              className={cn(
+                                "px-4 py-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5",
+                                selectedPropertyType === pt.id
+                                  ? "bg-primary text-white border-primary shadow-md shadow-primary/10"
+                                  : "bg-white border-zinc-200 text-zinc-600 hover:border-primary hover:text-primary"
+                              )}
+                            >
+                              {pt.icon}
+                              {pt.label}
+                            </button>
+                          ))
+                        ) : (
+                          DIFFICULTY_LEVELS.map((d) => (
+                            <button
+                              key={d.id}
+                              onClick={() => setSelectedDifficulty((prev) => prev === d.id ? null : d.id)}
+                              className={cn(
+                                "px-4 py-2 rounded-xl border text-xs font-bold transition-all capitalize",
+                                selectedDifficulty === d.id
+                                  ? "bg-zinc-900 text-white border-zinc-900 shadow-md shadow-zinc-200"
+                                  : `bg-white ${d.color} text-zinc-600`
+                              )}
+                            >
+                              {d.label}
+                            </button>
+                          ))
+                        )}
                       </div>
                     </div>
 
-                    {/* Mode Specific Filter 3: Amenities / Duration */}
+                    {/* Filter 3: Amenities / Activity Type */}
                     <div className="space-y-4">
                       <h3 className="font-bold text-zinc-900 uppercase tracking-widest text-[10px]">
-                        {mode === "stays" ? "Amenities" : "Duration"}
+                        {mode === "stays" ? "Amenities" : "Activity Type"}
                       </h3>
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                        {(mode === "stays"
-                          ? ["WiFi", "Pool", "Parking", "AC"]
-                          : ["2-4 Hours", "Full Day", "Overnight", "Multi-day"]
-                        ).map((item) => (
-                          <label key={item} className="flex items-center gap-2 cursor-pointer group">
-                            <div className="w-4 h-4 rounded border border-zinc-300 flex items-center justify-center group-hover:border-primary transition-all">
-                              <Check className="w-3 h-3 text-primary opacity-0 group-hover:opacity-100" />
-                            </div>
-                            <span className="text-xs font-bold text-zinc-500 group-hover:text-zinc-900 transition-all">{item}</span>
-                          </label>
-                        ))}
+                      <div className="flex flex-wrap gap-2">
+                        {mode === "stays" ? (
+                          STAY_AMENITIES.map((amenity) => (
+                            <button
+                              key={amenity}
+                              onClick={() => toggleAmenity(amenity)}
+                              className={cn(
+                                "px-4 py-2 rounded-xl border text-xs font-bold transition-all",
+                                selectedAmenities.includes(amenity)
+                                  ? "bg-primary text-white border-primary shadow-md shadow-primary/10"
+                                  : "bg-white border-zinc-200 text-zinc-600 hover:border-primary hover:text-primary"
+                              )}
+                            >
+                              {amenity}
+                            </button>
+                          ))
+                        ) : (
+                          ACTIVITY_TYPES.map((at) => (
+                            <button
+                              key={at}
+                              onClick={() => setSelectedActivityType((prev) => prev === at ? null : at)}
+                              className={cn(
+                                "px-4 py-2 rounded-xl border text-xs font-bold transition-all capitalize",
+                                selectedActivityType === at
+                                  ? "bg-primary text-white border-primary shadow-md shadow-primary/10"
+                                  : "bg-white border-zinc-200 text-zinc-600 hover:border-primary hover:text-primary"
+                              )}
+                            >
+                              {at}
+                            </button>
+                          ))
+                        )}
                       </div>
                     </div>
 
                     {/* Quick Actions */}
                     <div className="flex flex-col justify-end gap-3">
-                      <Button className="w-full h-12 rounded-xl font-bold shadow-lg shadow-primary/10">
-                        {mode === "stays" ? "Show stays" : "Show activities"}
+                      <Button onClick={handleApplyFilters} className="w-full h-12 rounded-xl font-bold shadow-lg shadow-primary/10">
+                        Show {mode === "stays" ? "stays" : "activities"}
                       </Button>
-                      <button className="text-xs font-bold text-zinc-400 hover:text-zinc-900 transition-all">
+                      <button
+                        onClick={handleResetAll}
+                        className="flex items-center justify-center gap-2 text-xs font-bold text-zinc-400 hover:text-zinc-900 transition-all"
+                      >
+                        <RotateCcw className="w-3 h-3" />
                         Reset All
                       </button>
                     </div>
@@ -225,47 +471,165 @@ export function ListingSearch({ mode = "stays" }: ListingSearchProps) {
             </div>
 
             <div className="space-y-6">
-              <div className="space-y-2">
+              {/* Location */}
+              <div ref={locationRef} className="space-y-2 relative">
                 <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Location</label>
                 <div className="flex items-center gap-4 p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
-                  <MapPin className="w-5 h-5 text-primary" />
-                  <input type="text" placeholder="Search destination" className="bg-transparent outline-none text-sm font-bold w-full" defaultValue={mode === "stays" ? "Jakarta, IND" : "Rishikesh, UK"} />
+                  <MapPin className="w-5 h-5 text-primary shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search destination"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    onFocus={() => { if (location.trim() && locationSuggestions.length > 0) setShowLocationSuggestions(true); }}
+                    className="bg-transparent outline-none text-sm font-bold w-full"
+                  />
                 </div>
+                <AnimatePresence>
+                  {showLocationSuggestions && locationSuggestions.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl border border-zinc-200 shadow-2xl py-1 z-50"
+                    >
+                      {locationSuggestions.map((city) => (
+                        <button
+                          key={city}
+                          onClick={() => handleSelectSuggestion(city)}
+                          className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-zinc-50"
+                        >
+                          <MapPin className="w-4 h-4 text-zinc-300" />
+                          <span className="text-sm font-bold text-zinc-700">{city}</span>
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{mode === "stays" ? "Check-in" : "Date"}</label>
-                  <div className="flex items-center gap-3 p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
-                    <Calendar className="w-4 h-4 text-zinc-400" />
-                    <span className="text-sm font-bold">{mode === "stays" ? "22 Dec" : "20 May"}</span>
-                  </div>
-                </div>
-                {mode === "stays" && (
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Check-out</label>
-                    <div className="flex items-center gap-3 p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
-                      <Calendar className="w-4 h-4 text-zinc-400" />
-                      <span className="text-sm font-bold">24 Dec</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
+              {/* Price Range */}
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{mode === "stays" ? "Travelers" : "Participants"}</label>
-                <div className="flex items-center gap-4 p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
-                  <Users className="w-5 h-5 text-zinc-400" />
-                  <span className="text-sm font-bold">2 Person</span>
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Budget per person</label>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3 p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
+                    <span className="text-[10px] font-bold text-zinc-400">₹</span>
+                    <input
+                      type="number"
+                      placeholder="Min"
+                      value={minPrice ?? ""}
+                      onChange={(e) => setMinPrice(e.target.value ? parseInt(e.target.value) : undefined)}
+                      className="bg-transparent outline-none text-sm font-bold w-full"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3 p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
+                    <span className="text-[10px] font-bold text-zinc-400">₹</span>
+                    <input
+                      type="number"
+                      placeholder="Max"
+                      value={maxPrice ?? ""}
+                      onChange={(e) => setMaxPrice(e.target.value ? parseInt(e.target.value) : undefined)}
+                      className="bg-transparent outline-none text-sm font-bold w-full"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <button 
-                onClick={() => setIsSearchExpanded(false)}
-                className="w-full bg-primary text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 mt-4 active:scale-95 transition-all"
-              >
-                Search {mode === "stays" ? "Stays" : "Activities"}
-              </button>
+              {/* Property Type / Difficulty */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                  {mode === "stays" ? "Property Type" : "Difficulty Level"}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {mode === "stays" ? (
+                    PROPERTY_TYPES.map((pt) => (
+                      <button
+                        key={pt.id}
+                        onClick={() => setSelectedPropertyType((prev) => prev === pt.id ? null : pt.id)}
+                        className={cn(
+                          "px-4 py-2.5 rounded-xl border text-xs font-bold transition-all",
+                          selectedPropertyType === pt.id
+                            ? "bg-primary text-white border-primary"
+                            : "bg-white border-zinc-200 text-zinc-600"
+                        )}
+                      >
+                        {pt.label}
+                      </button>
+                    ))
+                  ) : (
+                    DIFFICULTY_LEVELS.map((d) => (
+                      <button
+                        key={d.id}
+                        onClick={() => setSelectedDifficulty((prev) => prev === d.id ? null : d.id)}
+                        className={cn(
+                          "px-4 py-2.5 rounded-xl border text-xs font-bold transition-all capitalize",
+                          selectedDifficulty === d.id
+                            ? "bg-zinc-900 text-white border-zinc-900"
+                            : "bg-white border-zinc-200 text-zinc-600"
+                        )}
+                      >
+                        {d.label}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Amenities / Activity Type */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                  {mode === "stays" ? "Amenities" : "Activity Type"}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {mode === "stays" ? (
+                    STAY_AMENITIES.map((amenity) => (
+                      <button
+                        key={amenity}
+                        onClick={() => toggleAmenity(amenity)}
+                        className={cn(
+                          "px-4 py-2.5 rounded-xl border text-xs font-bold transition-all",
+                          selectedAmenities.includes(amenity)
+                            ? "bg-primary text-white border-primary"
+                            : "bg-white border-zinc-200 text-zinc-600"
+                        )}
+                      >
+                        {amenity}
+                      </button>
+                    ))
+                  ) : (
+                    ACTIVITY_TYPES.map((at) => (
+                      <button
+                        key={at}
+                        onClick={() => setSelectedActivityType((prev) => prev === at ? null : at)}
+                        className={cn(
+                          "px-4 py-2.5 rounded-xl border text-xs font-bold transition-all capitalize",
+                          selectedActivityType === at
+                            ? "bg-primary text-white border-primary"
+                            : "bg-white border-zinc-200 text-zinc-600"
+                        )}
+                      >
+                        {at}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button 
+                  onClick={handleResetAll}
+                  className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl border-2 border-zinc-100 font-bold text-sm text-zinc-500 hover:bg-zinc-50 transition-all flex-1"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Reset
+                </button>
+                <button 
+                  onClick={() => { handleApplyFilters(); setIsSearchExpanded(false); }}
+                  className="bg-primary text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 active:scale-95 transition-all flex-1"
+                >
+                  Search {mode === "stays" ? "Stays" : "Activities"}
+                </button>
+              </div>
             </div>
           </motion.div>
         )}

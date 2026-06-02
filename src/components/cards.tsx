@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { Star, MapPin, Heart, Navigation } from "lucide-react";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useCallback } from "react";
 import { cn } from "@/lib/utils";
+import { useWishlist } from "@/context/WishlistContext";
 
 interface CardProps {
   id?: string;
@@ -18,8 +19,19 @@ interface CardProps {
 }
 
 export function ItemCard({ id = "1", image, title, location, price, rating, type = "homestay", distanceKm }: CardProps) {
-  const [isLiked, setIsLiked] = useState(false);
+  const { isWishlisted, toggleWishlist } = useWishlist();
+  const wishlistType = type === "homestay" ? "stay" : "activity";
+  const liked = isWishlisted(id, wishlistType as "stay" | "activity");
   const href = type === "homestay" ? `/stays/${id}` : `/activities/${id}`;
+
+  const handleHeartClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleWishlist(id, wishlistType as "stay" | "activity");
+    },
+    [id, wishlistType, toggleWishlist]
+  );
 
   return (
     <Link href={href} className="block">
@@ -37,14 +49,10 @@ export function ItemCard({ id = "1", image, title, location, price, rating, type
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
           <button
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setIsLiked(!isLiked);
-            }}
+            onClick={handleHeartClick}
             className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm"
           >
-            <Heart className={cn("h-4 w-4 transition-colors", isLiked ? "fill-red-500 text-red-500" : "text-zinc-400")} />
+            <Heart className={cn("h-4 w-4 transition-colors", liked ? "fill-red-500 text-red-500" : "text-zinc-400")} />
           </button>
           {/* Distance badge */}
           {distanceKm !== undefined && (

@@ -19,6 +19,7 @@ export const metadata: Metadata = {
 
 import { RoleProvider } from "@/components/role-provider";
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
+import { WishlistProvider } from "@/context/WishlistContext";
 
 export default function RootLayout({
   children,
@@ -32,8 +33,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col pb-24 md:pb-0">
         <RoleProvider>
-          {children}
-          <MobileBottomNav />
+          <WishlistProvider>
+            {children}
+            <MobileBottomNav />
+          </WishlistProvider>
         </RoleProvider>
       </body>
     </html>

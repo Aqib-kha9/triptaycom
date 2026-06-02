@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { useWishlist } from "@/context/WishlistContext";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -58,7 +59,7 @@ export default function DestinationDetailPage({ params: paramsPromise }: { param
     const [destination, setDestination] = useState<DestinationDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [isWishlisted, setIsWishlisted] = useState(false);
+    const { isWishlisted, toggleWishlist } = useWishlist();
     const [similarDests, setSimilarDests] = useState<DestinationDetail[]>([]);
 
     useEffect(() => {
@@ -224,16 +225,16 @@ export default function DestinationDetailPage({ params: paramsPromise }: { param
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => setIsWishlisted(!isWishlisted)}
+                                        onClick={() => toggleWishlist(destination?._id || params.slug, "stay")}
                                         className={cn(
                                             "rounded-full gap-2 backdrop-blur-md transition-all",
-                                            isWishlisted
+                                            isWishlisted(destination?._id || params.slug, "stay")
                                                 ? "bg-primary/20 border-primary/30 text-white"
                                                 : "bg-white/10 border-white/20 text-white hover:bg-white/20"
                                         )}
                                     >
-                                        <Heart className={cn("w-4 h-4", isWishlisted && "fill-white")} />
-                                        {isWishlisted ? "Saved" : "Save"}
+                                        <Heart className={cn("w-4 h-4", isWishlisted(destination?._id || params.slug, "stay") && "fill-white")} />
+                                        {isWishlisted(destination?._id || params.slug, "stay") ? "Saved" : "Save"}
                                     </Button>
                                 </div>
                             </div>

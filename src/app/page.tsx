@@ -35,6 +35,9 @@ export default function Home() {
   const [featuredListings, setFeaturedListings] = useState<any[] | null>(null);
   const [staysLoading, setStaysLoading] = useState(true);
 
+  const [topActivities, setTopActivities] = useState<any[] | null>(null);
+  const [actLoading, setActLoading] = useState(true);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -72,8 +75,26 @@ export default function Home() {
       }
     }
 
+    async function fetchTopActivities() {
+      try {
+        const res = await fetch(`${API_BASE}/activities/browse?limit=4&sort=-avgRating`);
+        const json = await res.json().catch(() => null);
+
+        if (!cancelled && json?.status === "success" && Array.isArray(json.data?.activities)) {
+          setTopActivities(json.data.activities);
+        } else if (!cancelled) {
+          setTopActivities([]);
+        }
+      } catch {
+        if (!cancelled) setTopActivities([]);
+      } finally {
+        if (!cancelled) setActLoading(false);
+      }
+    }
+
     fetchDestinations();
     fetchFeaturedStays();
+    fetchTopActivities();
     return () => { cancelled = true; };
   }, []);
 
@@ -135,7 +156,7 @@ export default function Home() {
                   title={l.name}
                   location={`${l.city}, ${l.state}`}
                   price={l.basePrice.toLocaleString("en-IN")}
-                  rating={l.avgRating || 0}
+                  rating={l.avgRating ? String(l.avgRating) : "New"}
                   image={l.media?.[0]?.url || ""}
                 />
               ))
@@ -151,38 +172,29 @@ export default function Home() {
         {/* Top Activities */}
         <Section title="Top Activities" viewAll="/activities">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <ItemCard
-              type="activity"
-              title="River Rafting"
-              location="Rishikesh"
-              price="1,200"
-              rating="4.8"
-              image="https://images.unsplash.com/photo-1530866495547-084969f682ba?auto=format&fit=crop&q=80&w=600"
-            />
-            <ItemCard
-              type="activity"
-              title="Mountain Trek"
-              location="Triund, HP"
-              price="1,500"
-              rating="4.5"
-              image="https://images.unsplash.com/photo-1551632432-c7359b243b4d?auto=format&fit=crop&q=80&w=600"
-            />
-            <ItemCard
-              type="activity"
-              title="Paragliding"
-              location="Bir Billing, HP"
-              price="3,000"
-              rating="4.9"
-              image="https://images.unsplash.com/photo-1516245556508-7d6004ff0f39?auto=format&fit=crop&q=80&w=600"
-            />
-            <ItemCard
-              type="activity"
-              title="Village Farming"
-              location="Kasol, HP"
-              price="900"
-              rating="4.6"
-              image="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&q=80&w=600"
-            />
+            {actLoading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="aspect-[4/3] rounded-2xl bg-zinc-100 animate-pulse" />
+              ))
+            ) : topActivities && topActivities.length > 0 ? (
+              topActivities.map((a: any) => (
+                <ItemCard
+                  key={a._id}
+                  type="activity"
+                  id={a.slug || a._id}
+                  title={a.name}
+                  location={`${a.city}, ${a.state}`}
+                  price={a.basePrice?.toLocaleString("en-IN") || String(a.basePrice)}
+                  rating={a.avgRating ? String(a.avgRating) : "New"}
+                  image={a.media?.[0]?.url || ""}
+                />
+              ))
+            ) : (
+              <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+                <p className="text-zinc-400 text-sm font-medium">No activities available yet.</p>
+                <p className="text-zinc-300 text-xs mt-1">Exciting adventures coming soon.</p>
+              </div>
+            )}
           </div>
         </Section>
 

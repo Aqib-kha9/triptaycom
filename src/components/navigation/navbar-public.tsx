@@ -77,9 +77,9 @@ export function NavbarPublic() {
             )}
           </AnimatePresence>
 
-          <Link href="/explore" className="text-sm font-bold text-zinc-500 hover:text-primary transition-colors">Explore</Link>
-          <Link href="/stays" className="text-sm font-bold text-zinc-500 hover:text-primary transition-colors">Stays</Link>
-          <Link href="/activities" className="text-sm font-bold text-zinc-500 hover:text-primary transition-colors">Activities</Link>
+          <Link href="/explore" className={`text-sm font-bold transition-colors ${pathname.startsWith("/explore") ? "text-primary" : "text-zinc-500 hover:text-primary"}`}>Explore</Link>
+          <Link href="/stays" className={`text-sm font-bold transition-colors ${pathname.startsWith("/stays") ? "text-primary" : "text-zinc-500 hover:text-primary"}`}>Stays</Link>
+          <Link href="/activities" className={`text-sm font-bold transition-colors ${pathname.startsWith("/activities") ? "text-primary" : "text-zinc-500 hover:text-primary"}`}>Activities</Link>
         </div>
 
         {/* Auth Actions */}
@@ -121,9 +121,9 @@ export function NavbarPublic() {
                 <button onClick={() => setIsMobileMenuOpen(false)}><X className="w-6 h-6" /></button>
               </div>
               <div className="flex flex-col gap-8">
-                <Link href="/explore" onClick={() => setIsMobileMenuOpen(false)} className="text-xl font-bold">Explore</Link>
-                <Link href="/stays" onClick={() => setIsMobileMenuOpen(false)} className="text-xl font-bold">Stays</Link>
-                <Link href="/activities" onClick={() => setIsMobileMenuOpen(false)} className="text-xl font-bold">Activities</Link>
+                <Link href="/explore" onClick={() => setIsMobileMenuOpen(false)} className={`text-xl font-bold transition-colors ${pathname.startsWith("/explore") ? "text-primary" : "text-zinc-800"}`}>Explore</Link>
+                <Link href="/stays" onClick={() => setIsMobileMenuOpen(false)} className={`text-xl font-bold transition-colors ${pathname.startsWith("/stays") ? "text-primary" : "text-zinc-800"}`}>Stays</Link>
+                <Link href="/activities" onClick={() => setIsMobileMenuOpen(false)} className={`text-xl font-bold transition-colors ${pathname.startsWith("/activities") ? "text-primary" : "text-zinc-800"}`}>Activities</Link>
                 <div className="h-px bg-zinc-100 my-4" />
                 <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="text-xl font-bold text-primary text-left">Login / Sign Up</Link>
               </div>

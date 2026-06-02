@@ -10,20 +10,13 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { DashboardSidebar } from "@/components/navigation/dashboard-sidebar";
-
-const SAVED_STAYS = [
-  { id: "1", title: "Harmony Suites", location: "South Jakarta", price: "4,500", rating: "5.0", image: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&q=80&w=600" },
-  { id: "2", title: "Radiant Residences", location: "West Jakarta", price: "3,200", rating: "4.8", image: "https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&q=80&w=600" },
-];
-
-const SAVED_ACTIVITIES = [
-  { id: "101", title: "River Rafting", location: "Rishikesh, UK", price: "1,200", rating: "4.8", image: "https://images.unsplash.com/photo-1530866495547-084969f682ba?auto=format&fit=crop&q=80&w=600" },
-];
+import { useWishlist } from "@/context/WishlistContext";
 
 export default function WishlistPage() {
   const [activeTab, setActiveTab] = useState<"stays" | "activities">("stays");
-  const [stays, setStays] = useState(SAVED_STAYS);
-  const [activities, setActivities] = useState(SAVED_ACTIVITIES);
+  const { stays, activities, loading } = useWishlist();
+
+  const currentItems = activeTab === "stays" ? stays : activities;
 
   return (
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
@@ -51,7 +44,7 @@ export default function WishlistPage() {
 
               {/* Tab Switcher */}
               <div className="flex items-center p-1 bg-zinc-100 rounded-xl w-fit">
-                <button 
+                <button
                   onClick={() => setActiveTab("stays")}
                   className={cn(
                     "flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all",
@@ -61,7 +54,7 @@ export default function WishlistPage() {
                   <Home className="w-3.5 h-3.5" />
                   Stays ({stays.length})
                 </button>
-                <button 
+                <button
                   onClick={() => setActiveTab("activities")}
                   className={cn(
                     "flex items-center gap-2 px-5 py-2 rounded-lg text-xs font-bold transition-all",
@@ -75,27 +68,42 @@ export default function WishlistPage() {
 
               {/* Grid Area */}
               <AnimatePresence mode="wait">
-                <motion.div 
+                <motion.div
                   key={activeTab}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   className="pt-2"
                 >
-                  {(activeTab === "stays" ? stays : activities).length > 0 ? (
+                  {loading ? (
+                    <div className="flex items-center justify-center py-20">
+                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : currentItems.length > 0 ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {(activeTab === "stays" ? stays : activities).map((item) => (
-                        <div key={item.id} className="group relative">
-                          <ItemCard {...item} type={activeTab === "stays" ? "homestay" : "activity"} />
-                          <div className="mt-2 px-1 opacity-0 group-hover:opacity-100 transition-opacity translate-y-1 group-hover:translate-y-0 duration-300">
-                            <Link href={`/checkout/${activeTab === "stays" ? "stay" : "activity"}/${item.id}`}>
-                              <Button className="w-full rounded-xl gap-1.5 font-bold h-10 text-xs">
-                                Quick Book <ArrowRight className="w-3.5 h-3.5" />
-                              </Button>
-                            </Link>
+                      {currentItems.map((entry) => {
+                        const item = entry.item;
+                        return (
+                          <div key={entry.wishlistId} className="group relative">
+                            <ItemCard
+                              id={item._id}
+                              image={item.image || ""}
+                              title={item.title}
+                              location={item.location}
+                              price={item.price.toLocaleString("en-IN")}
+                              rating={item.avgRating.toFixed(1)}
+                              type={entry.itemType === "stay" ? "homestay" : "activity"}
+                            />
+                            <div className="mt-2 px-1 opacity-0 group-hover:opacity-100 transition-opacity translate-y-1 group-hover:translate-y-0 duration-300">
+                              <Link href={`/checkout/${entry.itemType === "stay" ? "stay" : "activity"}/${item._id}`}>
+                                <Button className="w-full rounded-xl gap-1.5 font-bold h-10 text-xs">
+                                  Quick Book <ArrowRight className="w-3.5 h-3.5" />
+                                </Button>
+                              </Link>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 border border-dashed border-zinc-200 rounded-2xl bg-zinc-50/50">
