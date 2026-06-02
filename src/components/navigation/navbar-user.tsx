@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRole } from "@/components/role-provider";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 export function NavbarUser() {
   const pathname = usePathname();
-  const { role, setRole, setIsLoggedIn, hasVendorAccess } = useRole();
+  const router = useRouter();
+  const { role, setRole, hasVendorAccess, logout } = useRole();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showCompactSearch, setShowCompactSearch] = useState(false);
 
@@ -63,9 +64,9 @@ export function NavbarUser() {
               >
                 {/* Location */}
                 <div className="flex-1 cursor-pointer px-3 border-r border-zinc-100 flex items-center">
-                  <input 
-                    type="text" 
-                    placeholder="Search stays..." 
+                  <input
+                    type="text"
+                    placeholder="Search stays..."
                     className="bg-transparent border-none outline-none text-[11px] font-bold placeholder:text-zinc-400 w-full text-zinc-700 p-0"
                   />
                 </div>
@@ -81,7 +82,7 @@ export function NavbarUser() {
                 </div>
 
                 {/* Circular Search Button */}
-                <button 
+                <button
                   className="bg-primary hover:bg-primary/90 text-white w-7 h-7 rounded-full transition-all flex items-center justify-center active:scale-95 shrink-0"
                 >
                   <Search className="w-3.5 h-3.5 stroke-[3]" />
@@ -99,12 +100,25 @@ export function NavbarUser() {
 
         {/* Private Actions */}
         <div className="flex items-center gap-3">
-          <Link href="/vendor/onboarding">
-            <Button variant="ghost" className="text-xs font-bold rounded-full hidden lg:flex">
-              Become a Host
+          {hasVendorAccess ? (
+            <Button
+              variant="ghost"
+              className="text-xs font-bold rounded-full hidden lg:flex"
+              onClick={() => {
+                setRole("vendor");
+                router.push("/vendor/dashboard");
+              }}
+            >
+              Switch to Vendor
             </Button>
-          </Link>
-          
+          ) : (
+            <Link href="/vendor/onboarding">
+              <Button variant="ghost" className="text-xs font-bold rounded-full hidden lg:flex">
+                Become a Host
+              </Button>
+            </Link>
+          )}
+
           <div className="flex items-center gap-1 border-l border-zinc-100 pl-3 ml-1">
             <Link href="/wishlist" className="hidden md:block">
               <Button variant="ghost" size="icon" className="rounded-full text-zinc-500 hover:text-primary">
@@ -116,10 +130,10 @@ export function NavbarUser() {
                 <Bell className="h-5 w-5" />
               </Button>
             </Link>
-            
+
             {/* User Dropdown Trigger */}
             <div className="relative ml-2">
-              <button 
+              <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
                 className="flex items-center gap-2 bg-zinc-50 border border-zinc-100 rounded-full px-3 py-1.5 hover:shadow-md transition-all cursor-pointer"
               >
@@ -133,7 +147,7 @@ export function NavbarUser() {
                 {isMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-0" onClick={() => setIsMenuOpen(false)} />
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -143,11 +157,11 @@ export function NavbarUser() {
                         <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">Signed in as</p>
                         <p className="font-bold text-zinc-900 truncate">aqib@example.com</p>
                       </div>
-                      
+
                       <div className="space-y-1">
                         {USER_MENU.map((item) => (
-                          <Link 
-                            key={item.name} 
+                          <Link
+                            key={item.name}
                             href={item.href}
                             onClick={() => setIsMenuOpen(false)}
                             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 transition-all"
@@ -162,8 +176,8 @@ export function NavbarUser() {
                         <div className="mt-2 pt-2 border-t border-zinc-50">
                           <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-4 mb-2">Hosting</p>
                           {HOST_MENU.map((item) => (
-                            <Link 
-                              key={item.name} 
+                            <Link
+                              key={item.name}
                               href={item.href}
                               onClick={() => {
                                 setRole("vendor");
@@ -179,9 +193,9 @@ export function NavbarUser() {
                       )}
 
                       <div className="mt-2 pt-2 border-t border-zinc-50">
-                        <button 
+                        <button
                           onClick={() => {
-                            setIsLoggedIn(false);
+                            logout();
                             setIsMenuOpen(false);
                           }}
                           className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-rose-500 hover:bg-rose-50 transition-all"

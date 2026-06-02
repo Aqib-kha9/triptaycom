@@ -1,3 +1,5 @@
+"use client";
+
 import { Navbar } from "@/components/navbar";
 import { Hero } from "@/components/hero";
 import { DestinationCard, ItemCard } from "@/components/cards";
@@ -11,151 +13,198 @@ import { FaqSection } from "@/components/faq-section";
 import { NearbyAttractions } from "@/components/nearby-attractions";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { useState, useEffect } from "react";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+interface ApiDestination {
+  _id: string;
+  name: string;
+  slug: string;
+  state: string;
+  city: string;
+  image: string;
+  category: "Nature" | "Adventure" | "Historical" | "Spiritual";
+}
+
 
 export default function Home() {
+  const [destinations, setDestinations] = useState<ApiDestination[] | null>(null);
+  const [destLoading, setDestLoading] = useState(true);
+
+  const [featuredListings, setFeaturedListings] = useState<any[] | null>(null);
+  const [staysLoading, setStaysLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchDestinations() {
+      try {
+        const res = await fetch(`${API_BASE}/destinations?limit=8`);
+        const json = await res.json().catch(() => null);
+
+        if (!cancelled && json?.status === "success" && Array.isArray(json.data?.destinations)) {
+          setDestinations(json.data.destinations);
+        } else if (!cancelled) {
+          setDestinations([]);
+        }
+      } catch {
+        if (!cancelled) setDestinations([]);
+      } finally {
+        if (!cancelled) setDestLoading(false);
+      }
+    }
+
+    async function fetchFeaturedStays() {
+      try {
+        const res = await fetch(`${API_BASE}/listings/browse?limit=4&sort=-avgRating`);
+        const json = await res.json().catch(() => null);
+
+        if (!cancelled && json?.status === "success" && Array.isArray(json.data?.listings)) {
+          setFeaturedListings(json.data.listings);
+        } else if (!cancelled) {
+          setFeaturedListings([]);
+        }
+      } catch {
+        if (!cancelled) setFeaturedListings([]);
+      } finally {
+        if (!cancelled) setStaysLoading(false);
+      }
+    }
+
+    fetchDestinations();
+    fetchFeaturedStays();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Map API destinations to card props — split into two rows of 4
+  const mappedDests1 = destinations && destinations.length > 0
+    ? destinations.slice(0, 4).map(d => ({ id: d.slug, name: d.name, province: d.state, image: d.image }))
+    : null;
+
+  const mappedDests2 = destinations && destinations.length >= 5
+    ? destinations.slice(4, 8).map(d => ({ id: d.slug, name: d.name, province: d.state, image: d.image }))
+    : null;
+
+  const hasDests1 = mappedDests1 && mappedDests1.length > 0;
+  const hasDests2 = mappedDests2 && mappedDests2.length > 0;
+
   return (
     <div className="flex min-h-screen flex-col bg-background selection:bg-primary/20 selection:text-primary">
       <Navbar />
-      
+
       <main className="flex-grow">
         <Hero />
         <TrustBar />
 
-        {/* Popular Destinations */}
+        {/* ── Popular Destinations — Row 1 (first 4) ── */}
         <Section title="Popular Destinations" viewAll="/destinations">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <DestinationCard 
-              name="Manali" 
-              province="Himachal Pradesh" 
-              image="https://images.unsplash.com/photo-1591154706847-e8396bc8d601?auto=format&fit=crop&q=80&w=600" 
-            />
-            <DestinationCard 
-              name="Rishikesh" 
-              province="Uttarakhand" 
-              image="https://images.unsplash.com/photo-1626621341517-bbf3d9990a23?auto=format&fit=crop&q=80&w=600" 
-            />
-            <DestinationCard 
-              name="Goa" 
-              province="Goa" 
-              image="https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?auto=format&fit=crop&q=80&w=600" 
-            />
-            <DestinationCard 
-              name="Kasol" 
-              province="Himachal Pradesh" 
-              image="https://images.unsplash.com/photo-1627894483216-2138af692e2e?auto=format&fit=crop&q=80&w=600" 
-            />
+            {destLoading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="aspect-[1.5/1] rounded-[2rem] bg-zinc-100 animate-pulse" />
+              ))
+            ) : hasDests1 ? (
+              mappedDests1!.map(d => (
+                <DestinationCard key={d.id} id={d.id} name={d.name} province={d.province} image={d.image} />
+              ))
+            ) : (
+              <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+                <p className="text-zinc-400 text-sm font-medium">No destinations available yet.</p>
+                <p className="text-zinc-300 text-xs mt-1">Check back soon for exciting places to explore.</p>
+              </div>
+            )}
           </div>
         </Section>
 
         <OffersSection />
-        
+
 
         {/* Featured Homestays */}
         <Section title="Featured Homestays" viewAll="/stays">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <ItemCard 
-              title="The Creek Villa" 
-              location="Manali, HP" 
-              price="4,500" 
-              rating="4.9" 
-              image="https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&q=80&w=600" 
-            />
-            <ItemCard 
-              title="River View Cottage" 
-              location="Rishikesh, UK" 
-              price="3,200" 
-              rating="4.5" 
-              image="https://images.unsplash.com/photo-1518780664697-55e3ad937233?auto=format&fit=crop&q=80&w=600" 
-            />
-            <ItemCard 
-              title="Mountain Echo" 
-              location="Kasol, HP" 
-              price="2,800" 
-              rating="4.8" 
-              image="https://images.unsplash.com/photo-1449156006079-eb5881679b0b?auto=format&fit=crop&q=80&w=600" 
-            />
-            <ItemCard 
-              title="Greenwood Stay" 
-              location="Bir, HP" 
-              price="3,000" 
-              rating="4.9" 
-              image="https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&q=80&w=600" 
-            />
+            {staysLoading ? (
+              Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="aspect-[4/3] rounded-[2rem] bg-zinc-100 animate-pulse" />
+              ))
+            ) : featuredListings && featuredListings.length > 0 ? (
+              featuredListings.map((l: any) => (
+                <ItemCard
+                  key={l._id}
+                  id={l.slug || l._id}
+                  title={l.name}
+                  location={`${l.city}, ${l.state}`}
+                  price={l.basePrice.toLocaleString("en-IN")}
+                  rating={l.avgRating || 0}
+                  image={l.media?.[0]?.url || ""}
+                />
+              ))
+            ) : (
+              <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+                <p className="text-zinc-400 text-sm font-medium">No stays available yet.</p>
+                <p className="text-zinc-300 text-xs mt-1">Check back soon for exciting places to stay.</p>
+              </div>
+            )}
           </div>
         </Section>
 
         {/* Top Activities */}
         <Section title="Top Activities" viewAll="/activities">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <ItemCard 
+            <ItemCard
               type="activity"
-              title="River Rafting" 
-              location="Rishikesh" 
-              price="1,200" 
-              rating="4.8" 
-              image="https://images.unsplash.com/photo-1530866495547-084969f682ba?auto=format&fit=crop&q=80&w=600" 
+              title="River Rafting"
+              location="Rishikesh"
+              price="1,200"
+              rating="4.8"
+              image="https://images.unsplash.com/photo-1530866495547-084969f682ba?auto=format&fit=crop&q=80&w=600"
             />
-            <ItemCard 
+            <ItemCard
               type="activity"
-              title="Mountain Trek" 
-              location="Triund, HP" 
-              price="1,500" 
-              rating="4.5" 
-              image="https://images.unsplash.com/photo-1551632432-c7359b243b4d?auto=format&fit=crop&q=80&w=600" 
+              title="Mountain Trek"
+              location="Triund, HP"
+              price="1,500"
+              rating="4.5"
+              image="https://images.unsplash.com/photo-1551632432-c7359b243b4d?auto=format&fit=crop&q=80&w=600"
             />
-            <ItemCard 
+            <ItemCard
               type="activity"
-              title="Paragliding" 
-              location="Bir Billing, HP" 
-              price="3,000" 
-              rating="4.9" 
-              image="https://images.unsplash.com/photo-1516245556508-7d6004ff0f39?auto=format&fit=crop&q=80&w=600" 
+              title="Paragliding"
+              location="Bir Billing, HP"
+              price="3,000"
+              rating="4.9"
+              image="https://images.unsplash.com/photo-1516245556508-7d6004ff0f39?auto=format&fit=crop&q=80&w=600"
             />
-            <ItemCard 
+            <ItemCard
               type="activity"
-              title="Village Farming" 
-              location="Kasol, HP" 
-              price="900" 
-              rating="4.6" 
-              image="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&q=80&w=600" 
+              title="Village Farming"
+              location="Kasol, HP"
+              price="900"
+              rating="4.6"
+              image="https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&q=80&w=600"
             />
           </div>
         </Section>
 
-        {/* Explore Attractions */}
-        <Section title="Explore Attractions" viewAll="/attractions">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            <DestinationCard 
-              name="Solang Valley" 
-              province="Manali" 
-              image="https://images.unsplash.com/photo-1582650625119-3a31f8fa2699?auto=format&fit=crop&q=80&w=600" 
-            />
-            <DestinationCard 
-              name="Neer Waterfall" 
-              province="Rishikesh" 
-              image="https://images.unsplash.com/photo-1544131464-f999185b3400?auto=format&fit=crop&q=80&w=600" 
-            />
-            <DestinationCard 
-              name="Vashisht Temple" 
-              province="Manali" 
-              image="https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&q=80&w=600" 
-            />
-            <DestinationCard 
-              name="Jogini Falls" 
-              province="Manali" 
-              image="https://images.unsplash.com/photo-1598330106281-ed851e06d997?auto=format&fit=crop&q=80&w=600" 
-            />
-          </div>
-        </Section>
+        {/* ── Popular Destinations — Row 2 (next 4) ── */}
+        {hasDests2 && (
+          <Section title="More Destinations" viewAll="/destinations">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              {mappedDests2!.map(d => (
+                <DestinationCard key={d.id} id={d.id} name={d.name} province={d.province} image={d.image} />
+              ))}
+            </div>
+          </Section>
+        )}
 
-
+        {/* ── What They Say ── */}
         <Testimonials />
 
         <FaqSection />
 
         <FeaturesBar />
       </main>
-      
+
       <Footer />
     </div>
   );

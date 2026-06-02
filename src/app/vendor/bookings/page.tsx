@@ -3,34 +3,30 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
-import { 
-  Check, 
-  X, 
-  Calendar, 
-  User, 
-  MessageSquare, 
-  Mail, 
-  Phone, 
+import {
+  Check,
+  X,
+  Calendar,
+  User,
+  MessageSquare,
+  Mail,
+  Phone,
   Info,
-  Clock,
-  MoreVertical,
+  Inbox,
   ChevronRight
 } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { VendorSidebar } from "@/components/navigation/vendor-sidebar";
 import { cn } from "@/lib/utils";
-
-const VENDOR_BOOKINGS = [
-  { id: "BOK-99021", guest: "Aryan Singh", email: "aryan@example.com", phone: "+91 98765 43210", item: "Mountain Whisper Villa", dates: "12 Oct - 15 Oct, 2024", duration: "3 Nights", amount: "₹13,440", status: "Pending", guests: 4, request: "Early check-in requested." },
-  { id: "BOK-88012", guest: "Meera Kapoor", email: "meera@example.com", phone: "+91 99887 76655", item: "River Rafting Adventure", dates: "14 Oct, 2024", duration: "4 Hours", amount: "₹2,400", status: "Confirmed", guests: 2, request: "None." },
-];
+import Link from "next/link";
 
 export default function VendorBookingsPage() {
   const [activeTab, setActiveTab] = useState("Pending");
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
+  const [bookings] = useState<any[]>([]);
 
-  const filtered = VENDOR_BOOKINGS.filter(b => b.status === activeTab || activeTab === "All");
+  const filtered = bookings.filter(b => b.status === activeTab || activeTab === "All");
 
   return (
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
@@ -63,66 +59,81 @@ export default function VendorBookingsPage() {
                 </div>
               </div>
 
-              <div className="space-y-4">
-                {filtered.map((booking) => (
-                  <div key={booking.id} className="bg-white rounded-2xl border border-zinc-100 p-5 sm:p-6 hover:border-primary transition-all">
-                    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-                      <div className="flex items-start gap-5 flex-1">
-                        <div className="w-12 h-12 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-400 shrink-0 border border-zinc-100">
-                          <User className="w-6 h-6" />
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-lg font-bold text-zinc-900">{booking.guest}</h3>
-                            <span className={cn(
-                              "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
-                              booking.status === "Pending" ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
-                            )}>
-                              {booking.status}
-                            </span>
+              {filtered.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-zinc-100 p-12 flex flex-col items-center justify-center text-center space-y-4">
+                  <div className="w-16 h-16 rounded-2xl bg-zinc-50 flex items-center justify-center text-zinc-300">
+                    <Inbox className="w-8 h-8" />
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-bold text-zinc-900">No bookings yet</h3>
+                    <p className="text-xs text-zinc-500 font-medium max-w-xs">Reservations will appear here once guests book your listings.</p>
+                  </div>
+                  <Link href="/vendor/listings">
+                    <Button variant="outline" className="rounded-xl h-10 text-xs font-bold border-zinc-100">Manage Listings</Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {filtered.map((booking) => (
+                    <div key={booking.id} className="bg-white rounded-2xl border border-zinc-100 p-5 sm:p-6 hover:border-primary transition-all">
+                      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+                        <div className="flex items-start gap-5 flex-1">
+                          <div className="w-12 h-12 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-400 shrink-0 border border-zinc-100">
+                            <User className="w-6 h-6" />
                           </div>
-                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-zinc-400 font-bold text-[10px] uppercase tracking-widest">
-                            <div className="flex items-center gap-1.5 text-zinc-900">
-                              <Calendar className="w-3.5 h-3.5 text-primary" />
-                              {booking.dates}
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-lg font-bold text-zinc-900">{booking.guest}</h3>
+                              <span className={cn(
+                                "text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border",
+                                booking.status === "Pending" ? "bg-amber-50 text-amber-600 border-amber-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                              )}>
+                                {booking.status}
+                              </span>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                              <Info className="w-3.5 h-3.5" />
-                              {booking.item}
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-zinc-400 font-bold text-[10px] uppercase tracking-widest">
+                              <div className="flex items-center gap-1.5 text-zinc-900">
+                                <Calendar className="w-3.5 h-3.5 text-primary" />
+                                {booking.dates}
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Info className="w-3.5 h-3.5" />
+                                {booking.item}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex flex-col sm:flex-row items-center gap-6 xl:pl-6 xl:border-l border-zinc-50">
-                        <div className="text-center sm:text-right">
-                          <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Payout</p>
-                          <p className="text-lg font-black text-zinc-900 italic">{booking.amount}</p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {booking.status === "Pending" ? (
-                            <>
-                              <Button className="h-10 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 gap-1.5">
-                                <Check className="w-3.5 h-3.5" />
-                                Accept
+                        <div className="flex flex-col sm:flex-row items-center gap-6 xl:pl-6 xl:border-l border-zinc-50">
+                          <div className="text-center sm:text-right">
+                            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Payout</p>
+                            <p className="text-lg font-black text-zinc-900 italic">{booking.amount}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {booking.status === "Pending" ? (
+                              <>
+                                <Button className="h-10 px-4 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 gap-1.5">
+                                  <Check className="w-3.5 h-3.5" />
+                                  Accept
+                                </Button>
+                                <Button variant="outline" className="h-10 px-4 rounded-xl text-xs font-bold border-rose-100 text-rose-500 hover:bg-rose-50 gap-1.5">
+                                  <X className="w-3.5 h-3.5" />
+                                  Reject
+                                </Button>
+                              </>
+                            ) : (
+                              <Button variant="outline" onClick={() => setSelectedBooking(booking)} className="h-10 px-5 rounded-xl text-xs font-bold border-zinc-100 gap-1.5">
+                                Manage
+                                <ChevronRight className="w-3.5 h-3.5" />
                               </Button>
-                              <Button variant="outline" className="h-10 px-4 rounded-xl text-xs font-bold border-rose-100 text-rose-500 hover:bg-rose-50 gap-1.5">
-                                <X className="w-3.5 h-3.5" />
-                                Reject
-                              </Button>
-                            </>
-                          ) : (
-                            <Button variant="outline" onClick={() => setSelectedBooking(booking)} className="h-10 px-5 rounded-xl text-xs font-bold border-zinc-100 gap-1.5">
-                              Manage
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            </Button>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

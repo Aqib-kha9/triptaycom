@@ -3,14 +3,14 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
-import { 
-  TrendingUp, 
-  Users, 
-  Calendar, 
+import {
+  TrendingUp,
+  Users,
+  Calendar,
   Plus,
   ArrowUpRight,
   DollarSign,
-  MoreVertical
+  MoreVertical,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -23,6 +23,7 @@ const RECENT_BOOKINGS = [
   { id: "BOK-7712", guest: "Rahul Verma", item: "The Creek Villa", date: "22-25 Oct", amount: "₹18,200", status: "Confirmed" },
 ];
 
+// KYC guard is now handled by vendor/layout.tsx — this page only renders for Approved vendors
 export default function VendorDashboardPage() {
   return (
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
@@ -30,12 +31,12 @@ export default function VendorDashboardPage() {
 
       <main className="flex-grow pt-20 pb-12">
         <div className="container mx-auto px-4">
-          
+
           <div className="flex flex-col lg:flex-row gap-6">
             <VendorSidebar />
 
             <div className="flex-grow space-y-6">
-              
+
               {/* Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
                 <div>
@@ -94,7 +95,7 @@ export default function VendorDashboardPage() {
 
               {/* Recent Bookings & Chart Area */}
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                
+
                 <div className="xl:col-span-2 space-y-4">
                   <div className="flex items-center justify-between px-1">
                     <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-widest">Recent Bookings</h2>

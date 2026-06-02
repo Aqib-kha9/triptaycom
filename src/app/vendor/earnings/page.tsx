@@ -3,28 +3,24 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
-import { 
-  DollarSign, 
-  TrendingUp, 
-  ArrowUpRight, 
-  ArrowDownLeft, 
-  Download, 
-  Building2, 
-  Clock, 
+import {
+  DollarSign,
+  TrendingUp,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Download,
+  Building2,
+  Clock,
   ShieldCheck,
-  ChevronRight
+  ChevronRight,
+  Inbox
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { useState } from "react";
 import { VendorSidebar } from "@/components/navigation/vendor-sidebar";
 import { cn } from "@/lib/utils";
 
-const TRANSACTIONS = [
-  { id: "TXN-77021", date: "05 Oct, 2024", type: "Credit", item: "Mountain Whisper Villa", amount: "+₹13,440", status: "Paid" },
-  { id: "TXN-77019", date: "02 Oct, 2024", type: "Credit", item: "River Rafting", amount: "+₹2,400", status: "Paid" },
-  { id: "TXN-77012", date: "25 Sep, 2024", type: "Credit", item: "The Creek Villa", amount: "+₹18,200", status: "Pending" },
-];
-
 export default function VendorEarningsPage() {
+  const [transactions] = useState<any[]>([]);
   return (
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
       <Navbar />
@@ -35,7 +31,7 @@ export default function VendorEarningsPage() {
             <VendorSidebar />
 
             <div className="flex-grow space-y-6">
-              
+
               {/* Header */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
                 <div>
@@ -111,54 +107,66 @@ export default function VendorEarningsPage() {
               {/* Transaction History */}
               <div className="space-y-4">
                 <h2 className="text-sm font-bold text-zinc-900 px-1 uppercase tracking-widest">History</h2>
-                <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-zinc-50">
-                          <th className="px-6 py-4 text-left font-black text-zinc-400 uppercase tracking-widest">Date</th>
-                          <th className="px-6 py-4 text-left font-black text-zinc-400 uppercase tracking-widest">Item</th>
-                          <th className="px-6 py-4 text-left font-black text-zinc-400 uppercase tracking-widest">Status</th>
-                          <th className="px-6 py-4 text-right font-black text-zinc-400 uppercase tracking-widest">Amount</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-50">
-                        {TRANSACTIONS.map((txn) => (
-                          <tr key={txn.id} className="hover:bg-zinc-50/50 transition-colors">
-                            <td className="px-6 py-4">
-                              <p className="font-bold text-zinc-900">{txn.date}</p>
-                              <p className="text-[9px] text-zinc-400">{txn.id}</p>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-2">
-                                <div className={cn(
-                                  "w-6 h-6 rounded flex items-center justify-center shrink-0",
-                                  txn.type === "Credit" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-500"
-                                )}>
-                                  {txn.type === "Credit" ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownLeft className="w-3 h-3" />}
-                                </div>
-                                <span className="font-bold text-zinc-900">{txn.item}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <span className={cn(
-                                "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded",
-                                txn.status === "Paid" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
-                              )}>
-                                {txn.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <p className={cn("font-black italic", txn.type === "Credit" ? "text-zinc-900" : "text-rose-500")}>
-                                {txn.amount}
-                              </p>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                {transactions.length === 0 ? (
+                  <div className="bg-white rounded-2xl border border-zinc-100 p-12 flex flex-col items-center justify-center text-center space-y-4">
+                    <div className="w-16 h-16 rounded-2xl bg-zinc-50 flex items-center justify-center text-zinc-300">
+                      <Inbox className="w-8 h-8" />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-sm font-bold text-zinc-900">No transactions yet</h3>
+                      <p className="text-xs text-zinc-500 font-medium max-w-xs">Earnings from bookings will appear here once you start receiving payouts.</p>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-zinc-50">
+                            <th className="px-6 py-4 text-left font-black text-zinc-400 uppercase tracking-widest">Date</th>
+                            <th className="px-6 py-4 text-left font-black text-zinc-400 uppercase tracking-widest">Item</th>
+                            <th className="px-6 py-4 text-left font-black text-zinc-400 uppercase tracking-widest">Status</th>
+                            <th className="px-6 py-4 text-right font-black text-zinc-400 uppercase tracking-widest">Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-50">
+                          {transactions.map((txn) => (
+                            <tr key={txn.id} className="hover:bg-zinc-50/50 transition-colors">
+                              <td className="px-6 py-4">
+                                <p className="font-bold text-zinc-900">{txn.date}</p>
+                                <p className="text-[9px] text-zinc-400">{txn.id}</p>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex items-center gap-2">
+                                  <div className={cn(
+                                    "w-6 h-6 rounded flex items-center justify-center shrink-0",
+                                    txn.type === "Credit" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-500"
+                                  )}>
+                                    {txn.type === "Credit" ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownLeft className="w-3 h-3" />}
+                                  </div>
+                                  <span className="font-bold text-zinc-900">{txn.item}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={cn(
+                                  "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded",
+                                  txn.status === "Paid" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+                                )}>
+                                  {txn.status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <p className={cn("font-black italic", txn.type === "Credit" ? "text-zinc-900" : "text-rose-500")}>
+                                  {txn.amount}
+                                </p>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>

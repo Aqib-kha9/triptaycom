@@ -5,12 +5,12 @@ import { SearchForm } from "./search-form";
 
 export function Hero() {
   return (
-    <section className="relative pt-24 pb-6 md:pb-10 overflow-hidden bg-white w-full">
+    <section className="relative pt-24 pb-6 md:pb-10 bg-white w-full">
       <div className="container mx-auto px-4">
         <div className="flex flex-col lg:flex-row items-start justify-between w-full gap-4 lg:gap-12">
-          
+
           {/* Left: Content Section */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -40 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
@@ -28,18 +28,18 @@ export function Hero() {
           </motion.div>
 
           {/* Right: Integrated Image (Hidden on Mobile) */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="hidden lg:flex lg:flex-[1] justify-center lg:justify-end lg:mt-3"
           >
             <div className="w-full max-w-[450px] md:max-w-[650px] lg:max-w-[900px]">
-              <img 
-                src="/hero_image.png" 
-                alt="Travel Memories" 
+              <img
+                src="/hero_image.png"
+                alt="Travel Memories"
                 className="w-full h-auto object-contain pointer-events-none"
-                style={{ 
+                style={{
                   // Cropping only the bottom-left corner where the black line starts
                   clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 32% 100%, 6% 92%, 0% 92%)'
                 }}

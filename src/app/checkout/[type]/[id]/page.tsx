@@ -5,14 +5,14 @@ import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  CreditCard, 
-  ChevronLeft, 
-  Zap, 
-  CheckCircle2, 
-  Info, 
-  Plus, 
-  Tag, 
+import {
+  CreditCard,
+  ChevronLeft,
+  Zap,
+  CheckCircle2,
+  Info,
+  Plus,
+  Tag,
   ShieldCheck,
   MapPin,
   Calendar,
@@ -22,25 +22,13 @@ import {
   Wallet,
   Building2,
   Smartphone,
-  X
+  X,
+  Inbox
 } from "lucide-react";
-import { useState, use } from "react";
+import { useState, useEffect, use } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-
-const ADD_ONS = [
-  { id: "breakfast", name: "Organic Breakfast", desc: "Farm-to-table breakfast served daily.", price: 450, icon: "🍳" },
-  { id: "transfer", name: "Airport Transfer", desc: "Private pickup and drop from the airport.", price: 1200, icon: "🚗" },
-  { id: "guide", name: "Local Guide", desc: "A half-day tour with a professional guide.", price: 1500, icon: "🧭" },
-];
-
-const PAYMENT_METHODS = [
-  { id: "card", name: "Credit/Debit Card", icon: <CreditCard className="w-5 h-5" />, desc: "Visa, Mastercard, RuPay" },
-  { id: "upi", name: "UPI Payment", icon: <Smartphone className="w-5 h-5" />, desc: "Google Pay, PhonePe, Paytm" },
-  { id: "wallet", name: "Triptay Wallet", icon: <Wallet className="w-5 h-5" />, desc: "Balance: ₹4,500" },
-  { id: "netbanking", name: "Net Banking", icon: <Building2 className="w-5 h-5" />, desc: "All major Indian banks" },
-];
 
 export default function CheckoutPage({ params: paramsPromise }: { params: Promise<{ type: string, id: string }> }) {
   const params = use(paramsPromise);
@@ -48,10 +36,18 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [coupon, setCoupon] = useState("");
   const [couponApplied, setCouponApplied] = useState(false);
+  const [addons] = useState<any[]>([]);
+  const [basePrice] = useState(0);
 
-  const basePrice = params.type === "activity" ? 2400 : 12000;
+  const paymentMethods = [
+    { id: "card", name: "Credit/Debit Card", icon: <CreditCard className="w-5 h-5" />, desc: "Visa, Mastercard, RuPay" },
+    { id: "upi", name: "UPI Payment", icon: <Smartphone className="w-5 h-5" />, desc: "Google Pay, PhonePe, Paytm" },
+    { id: "wallet", name: "Triptay Wallet", icon: <Wallet className="w-5 h-5" />, desc: "Wallet balance" },
+    { id: "netbanking", name: "Net Banking", icon: <Building2 className="w-5 h-5" />, desc: "All major Indian banks" },
+  ];
+
   const addonTotal = selectedAddons.reduce((sum, id) => {
-    const addon = ADD_ONS.find(a => a.id === id);
+    const addon = addons.find((a: any) => a.id === id);
     return sum + (addon?.price || 0);
   }, 0);
   const gst = Math.round((basePrice + addonTotal) * 0.12);
@@ -59,7 +55,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
   const total = basePrice + addonTotal + gst - discount;
 
   const toggleAddon = (id: string) => {
-    setSelectedAddons(prev => 
+    setSelectedAddons(prev =>
       prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
     );
   };
@@ -70,7 +66,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
 
       <main className="flex-grow pt-24 pb-20">
         <div className="container mx-auto px-4">
-          
+
           <div className="mb-10">
             <Link href={`/${params.type}s/${params.id}`} className="text-zinc-400 hover:text-zinc-900 transition-colors flex items-center gap-2 font-bold text-sm mb-4">
               <ChevronLeft className="w-4 h-4" />
@@ -80,10 +76,10 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
           </div>
 
           <div className="flex flex-col lg:flex-row gap-12">
-            
+
             {/* Left Column: Forms */}
             <div className="flex-grow space-y-12">
-              
+
               {/* Guest Details */}
               <section className="space-y-8">
                 <div className="flex items-center gap-3">
@@ -92,7 +88,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
                   </div>
                   <h2 className="text-2xl font-bold text-zinc-900">Guest Details</h2>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-xs font-bold uppercase tracking-widest text-zinc-400 ml-1">Full Name</label>
@@ -121,36 +117,44 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
                   </div>
                   <h2 className="text-2xl font-bold text-zinc-900">Enhance your stay</h2>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {ADD_ONS.map((addon) => (
-                    <button
-                      key={addon.id}
-                      onClick={() => toggleAddon(addon.id)}
-                      className={cn(
-                        "p-6 rounded-[32px] border text-left transition-all space-y-4 group",
-                        selectedAddons.includes(addon.id) 
-                          ? "bg-zinc-900 border-zinc-900 text-white shadow-xl shadow-zinc-200" 
-                          : "bg-white border-zinc-100 hover:border-primary/20 shadow-sm"
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-3xl">{addon.icon}</span>
-                        {selectedAddons.includes(addon.id) ? (
-                          <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                            <CheckCircle2 className="w-4 h-4 text-white" />
-                          </div>
-                        ) : (
-                          <Plus className="w-5 h-5 text-zinc-300 group-hover:text-primary transition-colors" />
+                  {addons.length === 0 ? (
+                    <div className="col-span-3 bg-white rounded-2xl border border-zinc-100 p-10 flex flex-col items-center justify-center text-center space-y-3">
+                      <Inbox className="w-8 h-8 text-zinc-300" />
+                      <p className="text-sm font-bold text-zinc-400">No add-ons available</p>
+                      <p className="text-xs text-zinc-400 font-medium">Optional enhancements will appear here</p>
+                    </div>
+                  ) : (
+                    addons.map((addon) => (
+                      <button
+                        key={addon.id}
+                        onClick={() => toggleAddon(addon.id)}
+                        className={cn(
+                          "p-6 rounded-[32px] border text-left transition-all space-y-4 group",
+                          selectedAddons.includes(addon.id)
+                            ? "bg-zinc-900 border-zinc-900 text-white shadow-xl shadow-zinc-200"
+                            : "bg-white border-zinc-100 hover:border-primary/20 shadow-sm"
                         )}
-                      </div>
-                      <div>
-                        <h4 className="font-bold">₹{addon.price}</h4>
-                        <p className={cn("text-sm font-bold", selectedAddons.includes(addon.id) ? "text-white" : "text-zinc-900")}>{addon.name}</p>
-                        <p className={cn("text-xs mt-1 leading-relaxed", selectedAddons.includes(addon.id) ? "text-white/60" : "text-zinc-400")}>{addon.desc}</p>
-                      </div>
-                    </button>
-                  ))}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-3xl">{addon.icon}</span>
+                          {selectedAddons.includes(addon.id) ? (
+                            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                              <CheckCircle2 className="w-4 h-4 text-white" />
+                            </div>
+                          ) : (
+                            <Plus className="w-5 h-5 text-zinc-300 group-hover:text-primary transition-colors" />
+                          )}
+                        </div>
+                        <div>
+                          <h4 className="font-bold">₹{addon.price}</h4>
+                          <p className={cn("text-sm font-bold", selectedAddons.includes(addon.id) ? "text-white" : "text-zinc-900")}>{addon.name}</p>
+                          <p className={cn("text-xs mt-1 leading-relaxed", selectedAddons.includes(addon.id) ? "text-white/60" : "text-zinc-400")}>{addon.desc}</p>
+                        </div>
+                      </button>
+                    ))
+                  )}
                 </div>
               </section>
 
@@ -162,16 +166,16 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
                   </div>
                   <h2 className="text-2xl font-bold text-zinc-900">Payment Method</h2>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {PAYMENT_METHODS.map((method) => (
+                  {paymentMethods.map((method) => (
                     <button
                       key={method.id}
                       onClick={() => setPaymentMethod(method.id)}
                       className={cn(
                         "p-6 rounded-3xl border flex items-center gap-4 transition-all text-left",
-                        paymentMethod === method.id 
-                          ? "border-primary bg-primary/5 ring-1 ring-primary/20" 
+                        paymentMethod === method.id
+                          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
                           : "border-zinc-100 bg-white hover:border-zinc-200"
                       )}
                     >
@@ -201,7 +205,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
             {/* Right Column: Order Summary */}
             <div className="lg:w-[420px] flex-shrink-0">
               <div className="sticky top-28 bg-white rounded-[40px] border border-zinc-100 shadow-2xl shadow-zinc-200/50 overflow-hidden">
-                
+
                 {/* Summary Header */}
                 <div className="p-8 pb-0 space-y-6">
                   <div className="flex gap-4">
@@ -244,7 +248,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
                       <span>₹{basePrice.toLocaleString()}</span>
                     </div>
                     {selectedAddons.map(id => {
-                      const addon = ADD_ONS.find(a => a.id === id);
+                      const addon = addons.find((a: any) => a.id === id);
                       return (
                         <div key={id} className="flex justify-between text-zinc-500 font-medium text-sm">
                           <span>{addon?.name}</span>
@@ -270,15 +274,15 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
                       <div className="flex gap-2">
                         <div className="relative flex-1">
                           <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                          <Input 
-                            placeholder="Enter coupon code" 
-                            className="h-10 pl-10 rounded-xl border-zinc-100 bg-zinc-50 focus:bg-white text-xs font-bold uppercase tracking-wider" 
+                          <Input
+                            placeholder="Enter coupon code"
+                            className="h-10 pl-10 rounded-xl border-zinc-100 bg-zinc-50 focus:bg-white text-xs font-bold uppercase tracking-wider"
                             value={coupon}
                             onChange={(e) => setCoupon(e.target.value)}
                           />
                         </div>
-                        <Button 
-                          onClick={() => setCouponApplied(true)} 
+                        <Button
+                          onClick={() => setCouponApplied(true)}
                           className="rounded-xl h-10 px-4 text-xs font-bold"
                           disabled={!coupon}
                         >

@@ -4,11 +4,11 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { ItemCard } from "@/components/cards";
-import { 
-  Star, 
-  MapPin, 
-  Share2, 
-  Heart, 
+import {
+  Star,
+  MapPin,
+  Share2,
+  Heart,
   Zap,
   Clock,
   Navigation,
@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Info,
   ArrowRight,
+  Inbox,
   Mountain,
   Waves,
   Camera,
@@ -33,35 +34,14 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
-const IMAGES = [
-  "https://images.unsplash.com/photo-1530866495547-084969f682ba?auto=format&fit=crop&q=80&w=1200",
-  "https://images.unsplash.com/photo-1544131464-f999185b3400?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1533130061792-64b345e4a833?auto=format&fit=crop&q=80&w=800",
-  "https://images.unsplash.com/photo-1464410151706-6705f3d4c944?auto=format&fit=crop&q=80&w=800",
-];
-
-const FEATURES = [
-  { icon: <Clock className="w-5 h-5" />, label: "4-5 Hours Duration" },
-  { icon: <Mountain className="w-5 h-5" />, label: "Moderate Difficulty" },
-  { icon: <ShieldCheck className="w-5 h-5" />, label: "Certified Instructor" },
-  { icon: <Zap className="w-5 h-5" />, label: "Equipment Included" },
-];
-
-const REVIEWS = [
-  { name: "Rahul Sharma", rating: 5, date: "April 2024", comment: "Absolutely thrilling! The guides were professional and the safety standards were top-notch. Highly recommended for adventure seekers." },
-  { name: "Ananya Iyer", rating: 4, date: "March 2024", comment: "Great experience. The rapids were exciting and the scenery was beautiful. Make sure to carry a change of clothes!" },
-];
-
-const SIMILAR_ACTIVITIES = [
-  { title: "Mountain Trek", location: "Triund, HP", price: "1,500", rating: "4.5", image: "https://images.unsplash.com/photo-1551632432-c7359b243b4d?auto=format&fit=crop&q=80&w=600" },
-  { title: "Paragliding", location: "Bir Billing, HP", price: "3,000", rating: "4.9", image: "https://images.unsplash.com/photo-1516245556508-7d6004ff0f39?auto=format&fit=crop&q=80&w=600" },
-  { title: "Bungee Jumping", location: "Rishikesh, UK", price: "3,500", rating: "4.9", image: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&q=80&w=600" },
-];
-
 export default function ActivityDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [personCount, setPersonCount] = useState(2);
+  const [images] = useState<any[]>([]);
+  const [features] = useState<any[]>([]);
+  const [reviews] = useState<any[]>([]);
+  const [similarActivities] = useState<any[]>([]);
 
   return (
     <div className="flex min-h-screen flex-col bg-white">
@@ -90,14 +70,14 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <Button variant="outline" className="rounded-full gap-2 border-zinc-200 font-bold text-xs uppercase">
                 <Share2 className="w-4 h-4" />
                 Share
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setIsWishlisted(!isWishlisted)}
                 className={cn(
                   "rounded-full gap-2 border-zinc-200 font-bold text-xs uppercase transition-all",
@@ -115,14 +95,14 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
         <div className="container mx-auto px-4 mb-16">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-[400px] md:h-[500px] rounded-[40px] overflow-hidden relative shadow-2xl shadow-zinc-200">
             <div className="md:col-span-2 relative overflow-hidden group">
-              <img src={IMAGES[0]} alt="Rafting" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 cursor-pointer" />
+              {images[0] ? <img src={images[0]} alt="Rafting" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 cursor-pointer" /> : <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-zinc-300"><Inbox className="w-10 h-10" /></div>}
             </div>
             <div className="grid grid-rows-2 gap-4">
               <div className="relative overflow-hidden group">
-                <img src={IMAGES[1]} alt="River" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 cursor-pointer" />
+                {images[1] ? <img src={images[1]} alt="River" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 cursor-pointer" /> : <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-zinc-300"><Inbox className="w-8 h-8" /></div>}
               </div>
               <div className="relative overflow-hidden group">
-                <img src={IMAGES[2]} alt="Tents" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 cursor-pointer" />
+                {images[2] ? <img src={images[2]} alt="Tents" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 cursor-pointer" /> : <div className="w-full h-full bg-zinc-100 flex items-center justify-center text-zinc-300"><Inbox className="w-8 h-8" /></div>}
               </div>
             </div>
           </div>
@@ -131,30 +111,38 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
         {/* Content Section */}
         <div className="container mx-auto px-4">
           <div className="flex flex-col lg:flex-row gap-20 relative">
-            
+
             {/* Left Column: Info */}
             <div className="lg:flex-[1.5] space-y-16">
-              
+
               {/* Quick Features Bento */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {FEATURES.map((feature, i) => (
-                  <div key={i} className="p-6 rounded-[28px] bg-zinc-50 border border-zinc-100 flex flex-col items-center text-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-primary shadow-sm">{feature.icon}</div>
-                    <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-tight leading-tight">{feature.label}</span>
+                {features.length === 0 ? (
+                  <div className="col-span-2 md:col-span-4 bg-white rounded-[28px] border border-zinc-100 p-12 flex flex-col items-center justify-center text-center space-y-3">
+                    <Inbox className="w-8 h-8 text-zinc-300" />
+                    <p className="text-sm font-bold text-zinc-400">No features listed</p>
+                    <p className="text-xs text-zinc-400 font-medium">Activity details will appear here once available</p>
                   </div>
-                ))}
+                ) : (
+                  features.map((feature, i) => (
+                    <div key={i} className="p-6 rounded-[28px] bg-zinc-50 border border-zinc-100 flex flex-col items-center text-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-primary shadow-sm">{feature.icon}</div>
+                      <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-tight leading-tight">{feature.label}</span>
+                    </div>
+                  ))
+                )}
               </div>
 
               {/* Description */}
               <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-zinc-900">Experience Description</h2>
                 <p className="text-zinc-600 leading-relaxed text-lg font-medium">
-                  Prepare for the ultimate adrenaline rush as you navigate through the Grade III 
-                  and IV rapids of the holy Ganges. This 16km stretch from Shivpuri to Rishikesh 
+                  Prepare for the ultimate adrenaline rush as you navigate through the Grade III
+                  and IV rapids of the holy Ganges. This 16km stretch from Shivpuri to Rishikesh
                   is perfect for both beginners and seasoned rafters.
                   <br /><br />
-                  You'll be guided by certified rafting experts who ensure your safety while 
-                  providing an unforgettable adventure. Highlights include the famous 'Golf Course' 
+                  You'll be guided by certified rafting experts who ensure your safety while
+                  providing an unforgettable adventure. Highlights include the famous 'Golf Course'
                   and 'Roller Coaster' rapids.
                 </p>
               </div>
@@ -248,20 +236,28 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
                   </h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                  {REVIEWS.map((review, i) => (
-                    <div key={i} className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-400 font-bold">
-                          {review.name[0]}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-zinc-900">{review.name}</h4>
-                          <p className="text-xs text-zinc-400 font-medium">{review.date}</p>
-                        </div>
-                      </div>
-                      <p className="text-zinc-600 font-medium leading-relaxed italic">"{review.comment}"</p>
+                  {reviews.length === 0 ? (
+                    <div className="col-span-2 bg-white rounded-2xl border border-zinc-100 p-10 flex flex-col items-center justify-center text-center space-y-3">
+                      <Inbox className="w-8 h-8 text-zinc-300" />
+                      <p className="text-sm font-bold text-zinc-400">No reviews yet</p>
+                      <p className="text-xs text-zinc-400 font-medium">Be the first to share your experience</p>
                     </div>
-                  ))}
+                  ) : (
+                    reviews.map((review, i) => (
+                      <div key={i} className="space-y-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-400 font-bold">
+                            {review.name?.[0] ?? '?'}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-zinc-900">{review.name}</h4>
+                            <p className="text-xs text-zinc-400 font-medium">{review.date}</p>
+                          </div>
+                        </div>
+                        <p className="text-zinc-600 font-medium leading-relaxed italic">"{review.comment}"</p>
+                      </div>
+                    ))
+                  )}
                 </div>
                 <Button variant="ghost" className="text-primary font-bold hover:bg-primary/5">Show all reviews</Button>
               </div>
@@ -273,7 +269,7 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
               <div className="sticky top-28 space-y-6">
                 <div className="bg-white border border-zinc-100 rounded-[40px] p-8 shadow-2xl shadow-zinc-200/50 space-y-8 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -translate-y-12 translate-x-12 blur-2xl" />
-                  
+
                   <div className="flex justify-between items-end">
                     <div>
                       <span className="text-3xl font-bold text-zinc-900">₹1,200</span>
@@ -350,17 +346,25 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
               </Link>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-              {SIMILAR_ACTIVITIES.map((act, i) => (
-                <ItemCard 
-                  key={i}
-                  type="activity"
-                  title={act.title}
-                  location={act.location}
-                  price={act.price}
-                  rating={act.rating}
-                  image={act.image}
-                />
-              ))}
+              {similarActivities.length === 0 ? (
+                <div className="col-span-full bg-white rounded-2xl border border-zinc-100 p-12 flex flex-col items-center justify-center text-center space-y-3">
+                  <Inbox className="w-8 h-8 text-zinc-300" />
+                  <p className="text-sm font-bold text-zinc-400">No similar activities found</p>
+                  <p className="text-xs text-zinc-400 font-medium">Check back later for more adventures</p>
+                </div>
+              ) : (
+                similarActivities.map((act, i) => (
+                  <ItemCard
+                    key={i}
+                    type="activity"
+                    title={act.title}
+                    location={act.location}
+                    price={act.price}
+                    rating={act.rating}
+                    image={act.image}
+                  />
+                ))
+              )}
             </div>
           </div>
         </div>

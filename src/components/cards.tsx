@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Star, MapPin, Heart } from "lucide-react";
+import { Star, MapPin, Heart, Navigation } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -14,15 +14,16 @@ interface CardProps {
   price: string;
   rating: string;
   type?: "homestay" | "activity";
+  distanceKm?: number;
 }
 
-export function ItemCard({ id = "1", image, title, location, price, rating, type = "homestay" }: CardProps) {
+export function ItemCard({ id = "1", image, title, location, price, rating, type = "homestay", distanceKm }: CardProps) {
   const [isLiked, setIsLiked] = useState(false);
   const href = type === "homestay" ? `/stays/${id}` : `/activities/${id}`;
 
   return (
     <Link href={href} className="block">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 10 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
@@ -30,12 +31,12 @@ export function ItemCard({ id = "1", image, title, location, price, rating, type
       >
         {/* Compact Image Area */}
         <div className="relative aspect-[1.5/1] w-full overflow-hidden rounded-xl bg-zinc-100">
-          <img 
-            src={image} 
+          <img
+            src={image}
             alt={title}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
-          <button 
+          <button
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -45,6 +46,13 @@ export function ItemCard({ id = "1", image, title, location, price, rating, type
           >
             <Heart className={cn("h-4 w-4 transition-colors", isLiked ? "fill-red-500 text-red-500" : "text-zinc-400")} />
           </button>
+          {/* Distance badge */}
+          {distanceKm !== undefined && (
+            <div className="absolute top-3 left-3 z-10 flex items-center gap-1 px-2 py-1 rounded-full bg-primary/90 backdrop-blur-sm text-white text-[10px] font-bold shadow-sm">
+              <Navigation className="w-2.5 h-2.5" />
+              {distanceKm < 1 ? `${(distanceKm * 1000).toFixed(0)}m` : `${distanceKm} km`}
+            </div>
+          )}
         </div>
 
         {/* Balanced Information Section */}
@@ -57,7 +65,7 @@ export function ItemCard({ id = "1", image, title, location, price, rating, type
               <span className="text-[11px] font-bold text-zinc-900">{rating}</span>
             </div>
           </div>
-          
+
           {/* Row 2: Location and Price */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-1 text-zinc-500 overflow-hidden">
@@ -78,18 +86,18 @@ export function ItemCard({ id = "1", image, title, location, price, rating, type
 export function DestinationCard({ id = "1", image, name, province }: { id?: string, image: string, name: string, province: string }) {
   return (
     <Link href={`/destinations/${id}`} className="block">
-      <motion.div 
+      <motion.div
         whileHover={{ y: -4 }}
         transition={{ duration: 0.3 }}
         className="relative aspect-[1.5/1] rounded-[2rem] overflow-hidden cursor-pointer group shadow-sm"
       >
-        <img 
-          src={image} 
+        <img
+          src={image}
           alt={name}
           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-        
+
         <div className="absolute bottom-6 left-6 text-white">
           <h4 className="text-[22px] font-bold tracking-tight leading-none mb-1">{name}</h4>
           <p className="text-[13px] font-medium opacity-80">{province}</p>
