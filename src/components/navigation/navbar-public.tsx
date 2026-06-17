@@ -27,11 +27,11 @@ export function NavbarPublic() {
   }, [pathname]);
 
   return (
-    <nav className="fixed top-0 z-[110] w-full border-b border-zinc-100 bg-white shadow-sm">
+    <nav className="fixed top-0 z-[110] w-full border-b border-zinc-200 bg-white">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-primary/20">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white">
             <span className="text-2xl font-bold italic">T</span>
           </div>
           <span className="text-2xl font-bold tracking-tight text-zinc-900 hidden sm:block">Triptay</span>
@@ -46,7 +46,7 @@ export function NavbarPublic() {
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0, x: -20, scale: 0.95 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
-                className="flex items-center bg-white border border-zinc-200 rounded-full p-1 shadow-md hover:border-zinc-300 transition-all w-[320px] lg:w-[380px] h-10"
+                className="flex items-center bg-white border border-zinc-200 rounded-full p-1 hover:border-zinc-300 transition-all w-[320px] lg:w-[380px] h-10"
               >
                 {/* Location */}
                 <div className="flex-1 cursor-pointer px-3 border-r border-zinc-100 flex items-center">
@@ -90,7 +90,7 @@ export function NavbarPublic() {
             </Button>
           </Link>
           <Link href="/login">
-            <Button className="rounded-full px-8 h-11 font-bold shadow-lg shadow-primary/20">
+            <Button className="rounded-full px-8 h-11 font-bold">
               Login / Sign Up
             </Button>
           </Link>

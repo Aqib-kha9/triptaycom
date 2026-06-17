@@ -311,7 +311,7 @@ function ExploreContent() {
 
       {/* Global Search Bar — hidden in nearby mode */}
       {activeTab !== "nearby" && (
-        <div className="sticky top-16 z-40 bg-white shadow-sm">
+        <div className="sticky top-16 z-40 bg-white max-h-[calc(100vh-4rem)] overflow-y-auto no-scrollbar pt-2 pb-2">
           <ListingSearch
             mode={activeTab}
             locationParam={locationParam}
@@ -321,88 +321,162 @@ function ExploreContent() {
       )}
 
       <main className="flex-grow">
-        <div className="container mx-auto px-4 md:px-8 py-8 md:py-12">
+        <div className="container mx-auto px-4 md:px-8 pt-2 pb-8 md:pt-4 md:pb-12">
           {/* Search Header & Tab Switcher */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-12">
-            <div className="px-2">
-              <h1 className="text-3xl md:text-5xl font-black text-zinc-900 tracking-tighter mb-2">
-                {activeTab === "nearby" ? (
-                  <>
-                    <Navigation className="w-8 h-8 md:w-10 md:h-10 inline-block text-primary mr-1 -mt-1" />
-                    Explore <span className="text-primary">Nearby</span>
-                  </>
-                ) : locationParam || filters.location ? (
-                  <>
-                    {activeTab === "stays" ? "Stays" : "Activities"} in{" "}
-                    <span className="text-primary">
-                      {filters.location || locationParam}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    Explore <span className="text-primary">Triptay.</span>
-                  </>
-                )}
-              </h1>
-              <p className="text-sm text-zinc-500 font-medium mb-4">
-                {activeTab === "nearby"
-                  ? nearbyCenter
-                    ? `Stays & activities within ${nearbyRadius} km of your location`
-                    : `Discover stays and activities near you`
-                  : locationParam || filters.location
-                    ? `Discover the best ${activeTab === "stays" ? "homestays" : "activities"} in ${filters.location || locationParam}`
-                    : "Discover amazing stays and activities across India"}
-              </p>
-              <div className="flex items-center p-1.5 bg-zinc-100 rounded-2xl w-fit">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-8 mb-6 md:mb-8">
+            <div className="px-1 md:px-2 flex flex-col items-start justify-between md:block">
+              <div className="flex w-full items-center justify-between md:block">
+                <div>
+                  <h1 className="text-3xl md:text-5xl font-black text-zinc-900 tracking-tighter mb-2">
+                    {activeTab === "nearby" ? (
+                      <>
+                        <Navigation className="w-8 h-8 md:w-10 md:h-10 inline-block text-primary mr-1 -mt-1" />
+                        Explore <span className="text-primary">Nearby</span>
+                      </>
+                    ) : locationParam || filters.location ? (
+                      <>
+                        {activeTab === "stays" ? "Stays" : "Activities"} in{" "}
+                        <span className="text-primary">
+                          {filters.location || locationParam}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        Explore <span className="text-primary">Triptay.</span>
+                      </>
+                    )}
+                  </h1>
+                  <p className="text-sm text-zinc-500 font-medium mb-4">
+                    {activeTab === "nearby"
+                      ? nearbyCenter
+                        ? `Stays & activities within ${nearbyRadius} km of your location`
+                        : `Discover stays and activities near you`
+                      : locationParam || filters.location
+                        ? `Discover the best ${activeTab === "stays" ? "homestays" : "activities"} in ${filters.location || locationParam}`
+                        : "Discover amazing stays and activities across India"}
+                  </p>
+                </div>
+                
+                {/* Mobile Sort Icon Button */}
+                <div ref={sortRef} className="relative md:hidden shrink-0 mt-2">
+                  <button
+                    className="flex items-center justify-center w-10 h-10 rounded-full bg-white border border-zinc-200 text-zinc-900 shadow-sm"
+                    onClick={() => setSortOpen((prev) => !prev)}
+                  >
+                    <ArrowUpDown className="w-4 h-4" />
+                  </button>
+
+                  <AnimatePresence>
+                    {sortOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                        transition={{ duration: 0.15, ease: "easeOut" }}
+                        className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl border border-zinc-200 shadow-md py-2 z-50 overflow-hidden"
+                      >
+                        {SORT_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => handleSortChange(opt.value)}
+                            className={cn(
+                              "w-full text-left px-4 py-3 flex items-center justify-between text-[13px] font-bold transition-colors",
+                              sortBy === opt.value
+                                ? "text-primary bg-primary/5"
+                                : "text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900"
+                            )}
+                          >
+                            {opt.label}
+                            {sortBy === opt.value && <Check className="w-4 h-4 text-primary" />}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 md:gap-4 w-full sm:w-auto max-w-[500px] mb-2 px-0 md:px-0 pb-2 border-b border-zinc-100/50 md:border-none mt-2">
                 <button
                   onClick={() => handleTabChange("stays")}
                   className={cn(
-                    "flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all",
-                    activeTab === "stays"
-                      ? "bg-white text-zinc-900 shadow-md"
-                      : "text-zinc-500 hover:text-zinc-700"
+                    "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-0 md:gap-1.5 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
+                    activeTab === "stays" ? "text-zinc-900 !border-zinc-300 md:!border-transparent" : "text-zinc-400 hover:text-zinc-600"
                   )}
                 >
-                  <Home className="w-4 h-4" />
-                  Stays
+                  <img
+                    src="/icons/homestay2.png"
+                    alt="Homestays"
+                    className={cn(
+                      "h-6 w-6 md:h-8 md:w-8 object-contain transition-all duration-300",
+                      activeTab === "stays" ? "scale-[2.2] -translate-y-4 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
+                    )}
+                  />
+                  Homestays
+                  {activeTab === "stays" && (
+                    <motion.div
+                      layoutId="exploreActiveTab"
+                      className="hidden md:block absolute -bottom-1 left-0 w-full h-0.5 bg-primary"
+                    />
+                  )}
                 </button>
                 <button
                   onClick={() => handleTabChange("activities")}
                   className={cn(
-                    "flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all",
-                    activeTab === "activities"
-                      ? "bg-white text-zinc-900 shadow-md"
-                      : "text-zinc-500 hover:text-zinc-700"
+                    "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-0 md:gap-1.5 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
+                    activeTab === "activities" ? "text-zinc-900 !border-zinc-300 md:!border-transparent" : "text-zinc-400 hover:text-zinc-600"
                   )}
                 >
-                  <Zap className="w-4 h-4" />
-                  Activities
-                </button>
-                {nearbyCenter && (
-                  <button
-                    onClick={() => handleTabChange("nearby")}
+                  <img
+                    src="/icons/activities.png"
+                    alt="Activities"
                     className={cn(
-                      "flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-bold transition-all",
-                      activeTab === "nearby"
-                        ? "bg-white text-zinc-900 shadow-md"
-                        : "text-zinc-500 hover:text-zinc-700"
+                      "h-6 w-6 md:h-8 md:w-8 object-contain transition-all duration-300",
+                      activeTab === "activities" ? "scale-[2.2] -translate-y-4 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
                     )}
-                  >
-                    <Navigation className="w-4 h-4" />
-                    Nearby
-                  </button>
-                )}
+                  />
+                  Activities
+                  {activeTab === "activities" && (
+                    <motion.div
+                      layoutId="exploreActiveTab"
+                      className="hidden md:block absolute -bottom-1 left-0 w-full h-0.5 bg-primary"
+                    />
+                  )}
+                </button>
+                <button
+                  onClick={() => handleTabChange("nearby")}
+                  className={cn(
+                    "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-0 md:gap-1.5 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
+                    activeTab === "nearby" ? "text-zinc-900 !border-zinc-300 md:!border-transparent" : "text-zinc-400 hover:text-zinc-600"
+                  )}
+                >
+                  <img
+                    src="/icons/nearby.png"
+                    alt="Find Nearby"
+                    className={cn(
+                      "h-6 w-6 md:h-8 md:w-8 object-contain transition-all duration-300",
+                      activeTab === "nearby" ? "scale-[2.2] -translate-y-4 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
+                    )}
+                  />
+                  Nearby
+                  {activeTab === "nearby" && (
+                    <motion.div
+                      layoutId="exploreActiveTab"
+                      className="hidden md:block absolute -bottom-1 left-0 w-full h-0.5 bg-primary"
+                    />
+                  )}
+                </button>
               </div>
             </div>
 
-            {/* Sort & Quick Info */}
-            <div className="flex items-center gap-4 px-2">
+            {/* Desktop Sort & Count */}
+            <div className="hidden md:flex items-center gap-4 px-2">
               <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest hidden sm:block">
                 Showing {results.length} result{results.length !== 1 ? "s" : ""}
               </p>
 
               {/* ---- Sort Dropdown ---- */}
-              <div ref={sortRef} className="relative">
+              <div className="relative">
                 <Button
                   variant="outline"
                   className="rounded-xl border-zinc-200 gap-2 h-12 px-6 font-bold text-sm"
@@ -425,7 +499,7 @@ function ExploreContent() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: -4, scale: 0.98 }}
                       transition={{ duration: 0.15, ease: "easeOut" }}
-                      className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl border border-zinc-200 shadow-2xl shadow-zinc-200/50 py-2 z-50 overflow-hidden"
+                      className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl border border-zinc-200 shadow-md py-2 z-50 overflow-hidden"
                     >
                       {SORT_OPTIONS.map((opt) => (
                         <button

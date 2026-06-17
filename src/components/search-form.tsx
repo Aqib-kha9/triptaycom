@@ -458,84 +458,84 @@ export function SearchForm() {
 
   return (
     <div className="w-full max-w-[850px]">
-      {/* Left-Aligned Minimal Tabs - Scrollable on Mobile */}
-      <div className="flex gap-6 md:gap-10 mb-4 ml-2 md:ml-6 overflow-x-auto no-scrollbar pb-2">
+      {/* 3-Column Grid Tabs on Mobile, Flex on Desktop */}
+      <div className="grid grid-cols-3 gap-2 md:gap-4 w-full mb-6 px-4 md:px-0 pb-2 border-b border-zinc-100/50 md:border-none">
         <button
           onClick={() => setActiveTab("homestays")}
           className={cn(
-            "text-[14px] md:text-[15px] font-bold transition-all relative flex items-center gap-3 pb-1 flex-shrink-0",
-            activeTab === "homestays" ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-600"
+            "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-0 md:gap-1.5 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
+            activeTab === "homestays" ? "text-zinc-900 !border-zinc-300 md:!border-transparent" : "text-zinc-400 hover:text-zinc-600"
           )}
         >
           <img
-            src="/icons/stays-3d.png"
+            src="/icons/homestay2.png"
             alt="Homestays"
             className={cn(
-              "h-8 w-8 object-contain transition-all duration-300",
-              activeTab === "homestays" ? "scale-110 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
+              "h-6 w-6 md:h-8 md:w-8 object-contain transition-all duration-300",
+              activeTab === "homestays" ? "scale-[2.2] -translate-y-4 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
             )}
           />
           Homestays
           {activeTab === "homestays" && (
             <motion.div
               layoutId="activeTab"
-              className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary"
+              className="hidden md:block absolute -bottom-1 left-0 w-full h-0.5 bg-primary"
             />
           )}
         </button>
         <button
           onClick={() => setActiveTab("activities")}
           className={cn(
-            "text-[14px] md:text-[15px] font-bold transition-all relative flex items-center gap-3 pb-1 flex-shrink-0",
-            activeTab === "activities" ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-600"
+            "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-0 md:gap-1.5 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
+            activeTab === "activities" ? "text-zinc-900 !border-zinc-300 md:!border-transparent" : "text-zinc-400 hover:text-zinc-600"
           )}
         >
           <img
-            src="/icons/activities-3d.png"
+            src="/icons/activities.png"
             alt="Activities"
             className={cn(
-              "h-8 w-8 object-contain transition-all duration-300",
-              activeTab === "activities" ? "scale-110 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
+              "h-6 w-6 md:h-8 md:w-8 object-contain transition-all duration-300",
+              activeTab === "activities" ? "scale-[2.2] -translate-y-4 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
             )}
           />
           Activities
           {activeTab === "activities" && (
             <motion.div
               layoutId="activeTab"
-              className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary"
+              className="hidden md:block absolute -bottom-1 left-0 w-full h-0.5 bg-primary"
             />
           )}
         </button>
         <button
           onClick={() => setActiveTab("nearby")}
           className={cn(
-            "text-[14px] md:text-[15px] font-bold transition-all relative flex items-center gap-3 pb-1 flex-shrink-0",
-            activeTab === "nearby" ? "text-zinc-900" : "text-zinc-400 hover:text-zinc-600"
+            "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-0 md:gap-1.5 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
+            activeTab === "nearby" ? "text-zinc-900 !border-zinc-300 md:!border-transparent" : "text-zinc-400 hover:text-zinc-600"
           )}
         >
           <img
-            src="/icons/nearby-3d.png"
+            src="/icons/nearby.png"
             alt="Find Nearby"
             className={cn(
-              "h-8 w-8 object-contain transition-all duration-300",
-              activeTab === "nearby" ? "scale-110 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
+              "h-6 w-6 md:h-8 md:w-8 object-contain transition-all duration-300",
+              activeTab === "nearby" ? "scale-[2.2] -translate-y-4 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
             )}
           />
-          Find Nearby
+          Nearby
           {activeTab === "nearby" && (
             <motion.div
               layoutId="activeTab"
-              className="absolute -bottom-1 left-0 w-full h-0.5 bg-primary"
+              className="hidden md:block absolute -bottom-1 left-0 w-full h-0.5 bg-primary"
             />
           )}
         </button>
       </div>
 
-      {/* Modern Pill Search Bar */}
-      <div className="bg-white border border-zinc-200 rounded-[24px] p-1 md:rounded-full flex flex-col md:flex-row items-stretch md:items-center hover:border-zinc-300 transition-all shadow-xl shadow-zinc-200/50 md:shadow-none">
+      {/* Modern Grid Search Form */}
+      <div className="bg-white border border-zinc-200 rounded-[24px] p-2 md:p-1 md:rounded-full grid grid-cols-2 md:flex md:flex-row items-stretch md:items-center hover:border-zinc-300 transition-all gap-2 md:gap-0">
 
-        {/* Where */}
-        <div ref={locationRef} className="relative flex-1 py-3 md:py-2 px-6 md:pl-8 md:pr-4 border-b md:border-b-0 md:border-r border-zinc-100">
+        {/* Where - Full width on mobile */}
+        <div ref={locationRef} className="col-span-2 md:col-span-1 relative flex-1 py-3 md:py-2 px-4 md:pl-8 md:pr-4 bg-zinc-50 rounded-2xl md:bg-transparent md:rounded-none md:border-r border-zinc-100">
           <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-zinc-900">Location</p>
           {activeTab === "nearby" ? (
             <div className="flex items-center gap-2 mt-0.5">
@@ -582,7 +582,7 @@ export function SearchForm() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.98 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
-                className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-zinc-200 shadow-2xl shadow-zinc-200/50 py-1 z-50 overflow-hidden"
+                className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl border border-zinc-200 shadow-md py-1 z-50 overflow-hidden"
               >
                 {isFetchingLocations && locationSuggestions.length === 0 ? (
                   <div className="px-4 py-3 text-sm text-zinc-400 font-medium">Searching…</div>
@@ -603,20 +603,20 @@ export function SearchForm() {
           </AnimatePresence>
         </div>
 
-        {/* When — Date Picker */}
-        <div ref={dateRef} className="relative flex-1 border-b md:border-b-0 md:border-r border-zinc-100">
+        {/* When — Date Picker (1 column on mobile) */}
+        <div ref={dateRef} className="col-span-1 relative flex-1 bg-zinc-50 rounded-2xl md:bg-transparent md:rounded-none md:border-r border-zinc-100">
           <button
             onClick={() => {
               setShowDatePicker((v) => !v);
               setShowGuestPicker(false);
             }}
-            className="w-full text-left py-3 md:py-2 px-6 md:px-4 cursor-pointer"
+            className="w-full text-left py-3 md:py-2 px-4 md:px-4 cursor-pointer"
           >
             <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-zinc-900">Date</p>
             <p
               className={cn(
-                "text-[14px] md:text-[15px] mt-0.5 font-medium",
-                checkIn ? "text-zinc-700" : "text-zinc-300"
+                "text-[13px] md:text-[15px] mt-0.5 font-medium truncate",
+                checkIn ? "text-zinc-700" : "text-zinc-400"
               )}
             >
               {dateSummary}
@@ -635,8 +635,8 @@ export function SearchForm() {
           </AnimatePresence>
         </div>
 
-        {/* Who — Guest Selector */}
-        <div ref={guestRef} className="relative flex-1 cursor-pointer py-3 md:py-2 px-6 md:px-4 flex items-center justify-between pr-4">
+        {/* Who — Guest Selector (1 column on mobile) */}
+        <div ref={guestRef} className="col-span-1 relative flex-1 bg-zinc-50 rounded-2xl md:bg-transparent md:rounded-none cursor-pointer py-3 md:py-2 px-4 md:px-4 flex items-center justify-between pr-4">
           <button
             onClick={() => {
               setShowGuestPicker((v) => !v);
@@ -644,18 +644,18 @@ export function SearchForm() {
             }}
             className="flex-1 text-left flex items-center justify-between"
           >
-            <div>
+            <div className="overflow-hidden">
               <p className="text-[10px] md:text-[11px] font-bold uppercase tracking-wider text-zinc-900">Guests</p>
               <p
                 className={cn(
-                  "text-[14px] md:text-[15px] mt-0.5 font-medium",
-                  totalGuests > 0 ? "text-zinc-700" : "text-zinc-300"
+                  "text-[13px] md:text-[15px] mt-0.5 font-medium truncate",
+                  totalGuests > 0 ? "text-zinc-700" : "text-zinc-400"
                 )}
               >
                 {guestSummary}
               </p>
             </div>
-            <ChevronDown className="h-4 w-4 text-zinc-300" />
+            <ChevronDown className="h-4 w-4 text-zinc-300 ml-1 shrink-0" />
           </button>
 
           <AnimatePresence>
@@ -669,24 +669,27 @@ export function SearchForm() {
           </AnimatePresence>
         </div>
 
-        {/* Circular Search Button */}
-        <button
-          onClick={handleSearch}
-          disabled={activeTab === "nearby" && isLocating}
-          title={activeTab === "nearby" ? "Search Nearby" : "Search"}
-          className="bg-primary hover:bg-primary/90 text-white h-14 md:h-auto p-4 md:p-4 rounded-xl md:rounded-full transition-all flex items-center justify-center active:scale-95 mt-2 md:mt-0 disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {activeTab === "nearby" && isLocating ? (
-            <Loader2 className="h-5 w-5 md:h-5 md:w-5 stroke-[3] animate-spin" />
-          ) : (
-            <>
-              <Search className="h-5 w-5 md:h-5 md:w-5 stroke-[3]" />
-              <span className="md:hidden ml-2 font-bold uppercase tracking-wider text-sm">
-                {activeTab === "nearby" ? "Nearby" : "Search"}
-              </span>
-            </>
-          )}
-        </button>
+        {/* Circular Search Button (Full width on mobile) */}
+        <div className="col-span-2 md:col-span-1 md:flex-shrink-0 flex items-center justify-center p-1 md:p-0">
+          <button
+            onClick={handleSearch}
+            disabled={activeTab === "nearby" && isLocating}
+            title={activeTab === "nearby" ? "Search Nearby" : "Search"}
+            className="bg-primary hover:bg-primary/90 text-white h-14 md:h-auto p-4 md:p-4 rounded-[16px] md:rounded-full transition-all flex items-center justify-center active:scale-95 w-full md:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {activeTab === "nearby" && isLocating ? (
+              <Loader2 className="h-5 w-5 md:h-5 md:w-5 stroke-[3] animate-spin" />
+            ) : (
+              <>
+                <Search className="h-5 w-5 md:h-5 md:w-5 stroke-[3]" />
+                <span className="md:hidden ml-2 font-bold uppercase tracking-wider text-sm">
+                  {activeTab === "nearby" ? "Nearby" : "Search"}
+                </span>
+              </>
+            )}
+          </button>
+        </div>
+
       </div>
     </div>
   );

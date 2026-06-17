@@ -16,9 +16,9 @@ export function Hero() {
             transition={{ duration: 0.8, ease: "easeOut" }}
             className="lg:flex-[1.2] flex flex-col items-center lg:items-start z-10 w-full"
           >
-            <h1 className="text-[38px] sm:text-[48px] md:text-[68px] lg:text-[84px] font-extrabold tracking-[-0.04em] leading-[0.95] text-zinc-900 mb-8 lg:mb-12 text-center lg:text-left">
+            <h1 className="text-[40px] sm:text-[48px] md:text-[68px] lg:text-[84px] font-extrabold tracking-[-0.04em] leading-[1.05] text-zinc-900 mb-8 lg:mb-12 text-center lg:text-left">
               <span className="block lg:whitespace-nowrap">Travel Beyond Your</span>
-              <span className="text-primary tracking-tight block mt-2">Imagination.</span>
+              <span className="text-primary tracking-tight block mt-1">Imagination.</span>
             </h1>
 
             {/* Search Bar: Stretched and Overlapping on Desktop, Full Width on Mobile */}

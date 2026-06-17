@@ -225,7 +225,7 @@ export default function VendorActivitiesPage() {
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
       <Navbar />
 
-      <main className="flex-grow pt-20 pb-12">
+      <main className="flex-grow pt-20 pb-28 lg:pb-12">
         <div className="container mx-auto px-4">
           <div className="flex flex-col lg:flex-row gap-6">
             <VendorSidebar />
@@ -246,7 +246,7 @@ export default function VendorActivitiesPage() {
                       placeholder="Search activities..."
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
-                      className="pl-9 h-10 rounded-xl text-xs bg-white border-zinc-200 w-52"
+                      className="pl-9 h-10 rounded-xl text-xs bg-white border-zinc-200 w-full sm:w-52"
                     />
                   </div>
                   <Link href="/vendor/activities/new">

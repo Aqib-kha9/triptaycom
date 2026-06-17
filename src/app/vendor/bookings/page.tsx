@@ -32,7 +32,7 @@ export default function VendorBookingsPage() {
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
       <Navbar />
 
-      <main className="flex-grow pt-20 pb-12">
+      <main className="flex-grow pt-20 pb-28 lg:pb-12">
         <div className="container mx-auto px-4">
           <div className="flex flex-col lg:flex-row gap-6">
             <VendorSidebar />
@@ -43,7 +43,7 @@ export default function VendorBookingsPage() {
                   <h1 className="text-xl font-bold text-zinc-900">Reservations</h1>
                   <p className="text-xs text-zinc-500 font-medium italic">Manage incoming bookings.</p>
                 </div>
-                <div className="flex items-center gap-1 p-1 bg-zinc-100 rounded-xl">
+                <div className="flex items-center gap-1 p-1 bg-zinc-100 rounded-xl overflow-x-auto no-scrollbar snap-x snap-mandatory">
                   {["Pending", "Confirmed", "All"].map((tab) => (
                     <button
                       key={tab}

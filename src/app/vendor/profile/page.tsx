@@ -375,7 +375,7 @@ export default function VendorProfilePage() {
     return (
       <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
         <Navbar />
-        <main className="flex-grow pt-20 pb-12">
+        <main className="flex-grow pt-20 pb-28 lg:pb-12">
           <div className="container mx-auto px-4">
             <div className="flex flex-col lg:flex-row gap-6">
               <VendorSidebar />
@@ -440,7 +440,7 @@ export default function VendorProfilePage() {
     return (
       <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
         <Navbar />
-        <main className="flex-grow pt-20 pb-12 flex items-center justify-center">
+        <main className="flex-grow pt-20 pb-28 lg:pb-12 flex items-center justify-center">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -496,7 +496,7 @@ export default function VendorProfilePage() {
         )}
       </AnimatePresence>
 
-      <main className="flex-grow pt-20 pb-12">
+      <main className="flex-grow pt-20 pb-28 lg:pb-12">
         <div className="container mx-auto px-4">
           <div className="flex flex-col lg:flex-row gap-6">
             <VendorSidebar />

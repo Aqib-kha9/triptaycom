@@ -106,7 +106,7 @@ export function NavbarVendor() {
   }, [fetchUnreadCounts]);
 
   return (
-    <nav className="fixed top-0 z-[110] w-full border-b border-zinc-100 bg-white shadow-sm text-zinc-800">
+    <nav className="fixed top-0 z-[110] w-full border-b border-zinc-200 bg-white text-zinc-800">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo & Role Badge */}
         <div className="flex items-center gap-4">
@@ -146,7 +146,7 @@ export function NavbarVendor() {
             <Link href="/vendor/notifications" className="text-zinc-400 hover:text-primary transition-colors hidden md:block relative">
               <Bell className="w-5 h-5" />
               {notifUnread > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 leading-none shadow-sm">
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 leading-none">
                   {notifUnread > 99 ? "99+" : notifUnread}
                 </span>
               )}
@@ -156,7 +156,7 @@ export function NavbarVendor() {
             <Link href="/vendor/messages" className="text-zinc-400 hover:text-primary transition-colors relative">
               <MessageSquare className="w-5 h-5" />
               {msgUnread > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-primary text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 leading-none shadow-sm">
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-primary text-white text-[9px] font-black rounded-full flex items-center justify-center px-1 leading-none">
                   {msgUnread > 99 ? "99+" : msgUnread}
                 </span>
               )}
@@ -166,7 +166,7 @@ export function NavbarVendor() {
             <div className="relative ml-1">
               <button
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                className="flex items-center gap-1.5 rounded-full border border-zinc-100 bg-zinc-50 px-2 py-1 hover:shadow-md transition-all cursor-pointer"
+                className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-2 py-1 hover:border-zinc-300 transition-all cursor-pointer"
               >
                 <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center">
                   <User className="w-4 h-4" />
@@ -182,7 +182,7 @@ export function NavbarVendor() {
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-2 w-48 bg-white rounded-2xl border border-zinc-100 shadow-2xl shadow-zinc-200/50 p-2 z-10"
+                      className="absolute right-0 mt-2 w-48 bg-white rounded-2xl border border-zinc-200 shadow-md p-2 z-10"
                     >
                       <Link
                         href="/vendor/profile"

@@ -29,7 +29,7 @@ export default function ProfilePage() {
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
       <Navbar />
 
-      <main className="flex-grow pt-20 pb-12">
+      <main className="flex-grow pt-20 pb-28 lg:pb-12">
         <div className="container mx-auto px-4">
           
           <div className="flex flex-col lg:flex-row gap-6">

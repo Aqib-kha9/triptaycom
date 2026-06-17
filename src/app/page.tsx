@@ -11,6 +11,7 @@ import { Footer } from "@/components/footer";
 import { HowItWorks } from "@/components/how-it-works";
 import { FaqSection } from "@/components/faq-section";
 import { NearbyAttractions } from "@/components/nearby-attractions";
+import { StackedDestinations } from "@/components/stacked-destinations";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -118,24 +119,34 @@ export default function Home() {
         <Hero />
         <TrustBar />
 
-        {/* ── Popular Destinations — Row 1 (first 4) ── */}
+        {/* Popular Destinations */}
         <Section title="Popular Destinations" viewAll="/destinations">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {destLoading ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="aspect-[1.5/1] rounded-[2rem] bg-zinc-100 animate-pulse" />
-              ))
-            ) : hasDests1 ? (
-              mappedDests1!.map(d => (
-                <DestinationCard key={d.id} id={d.id} name={d.name} province={d.province} image={d.image} />
-              ))
-            ) : (
-              <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
-                <p className="text-zinc-400 text-sm font-medium">No destinations available yet.</p>
-                <p className="text-zinc-300 text-xs mt-1">Check back soon for exciting places to explore.</p>
+          {destLoading ? (
+            <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 gap-3 sm:gap-6 sm:grid sm:grid-cols-2 md:grid-cols-4 pb-2 sm:pb-0">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="w-[65vw] sm:w-auto min-w-[200px] shrink-0 snap-center aspect-[4/5] sm:aspect-[1.5/1] rounded-3xl sm:rounded-[2rem] bg-zinc-100 animate-pulse" />
+              ))}
+            </div>
+          ) : destinations && destinations.length > 0 ? (
+            <>
+              {/* Desktop Grid */}
+              <div className="hidden md:grid grid-cols-2 md:grid-cols-4 gap-6">
+                {destinations.map(d => (
+                  <DestinationCard key={d.slug} id={d.slug} name={d.name} province={d.state} image={d.image} />
+                ))}
               </div>
-            )}
-          </div>
+              
+              {/* Mobile Stacked Swipe */}
+              <div className="block md:hidden -mx-4">
+                <StackedDestinations destinations={destinations} />
+              </div>
+            </>
+          ) : (
+            <div className="col-span-full w-full flex flex-col items-center justify-center py-16 text-center">
+              <p className="text-zinc-400 text-sm font-medium">No destinations available yet.</p>
+              <p className="text-zinc-300 text-xs mt-1">Check back soon for exciting places to explore.</p>
+            </div>
+          )}
         </Section>
 
         <OffersSection />
@@ -198,17 +209,6 @@ export default function Home() {
           </div>
         </Section>
 
-        {/* ── Popular Destinations — Row 2 (next 4) ── */}
-        {hasDests2 && (
-          <Section title="More Destinations" viewAll="/destinations">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {mappedDests2!.map(d => (
-                <DestinationCard key={d.id} id={d.id} name={d.name} province={d.province} image={d.image} />
-              ))}
-            </div>
-          </Section>
-        )}
-
         {/* ── What They Say ── */}
         <Testimonials />
 
@@ -224,13 +224,16 @@ export default function Home() {
 
 function Section({ title, children, viewAll }: { title: string, children: React.ReactNode, viewAll: string }) {
   return (
-    <section className="container mx-auto px-4 py-4">
-      <div className="flex justify-between items-end mb-8">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight mb-2">{title}</h2>
-        </div>
-        <Link href={viewAll} className="flex items-center gap-1 text-sm font-bold text-primary hover:underline">
-          View all <ChevronRight className="h-4 w-4" />
+    <section className="container mx-auto px-4 py-4 sm:py-6">
+      <div className="flex items-center justify-between mb-4 sm:mb-8">
+        <h2 className="text-lg sm:text-2xl font-black text-zinc-900 uppercase tracking-widest leading-tight">
+          {title}
+        </h2>
+        <Link
+          href={viewAll}
+          className="flex items-center gap-0.5 text-[10px] sm:text-xs font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors shrink-0"
+        >
+          View all <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />
         </Link>
       </div>
       {children}

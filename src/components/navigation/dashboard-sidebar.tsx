@@ -53,15 +53,15 @@ export function DashboardSidebar() {
                 key={link.name} 
                 href={link.href}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-xl transition-all font-bold text-xs",
+                  "flex items-center gap-3 px-3 py-2 rounded-xl transition-all font-bold text-xs group",
                   isActive 
-                    ? "bg-zinc-50 text-zinc-900" 
+                    ? "bg-zinc-900 text-white shadow-sm" 
                     : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
                 )}
               >
                 <div className={cn(
                   "transition-colors",
-                  isActive ? "text-primary" : "text-zinc-400"
+                  isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-600"
                 )}>
                   {link.icon}
                 </div>

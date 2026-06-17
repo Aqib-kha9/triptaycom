@@ -41,11 +41,11 @@ export function NavbarUser() {
   ];
 
   return (
-    <nav className="fixed top-0 z-[110] w-full border-b border-zinc-100 bg-white shadow-sm">
+    <nav className="fixed top-0 z-[110] w-full border-b border-zinc-200 bg-white">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white shadow-lg shadow-primary/20">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white">
             <span className="text-2xl font-bold italic">T</span>
           </div>
           <span className="text-2xl font-bold tracking-tight text-zinc-900 hidden sm:block">Triptay</span>
@@ -60,7 +60,7 @@ export function NavbarUser() {
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0, x: -20, scale: 0.95 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
-                className="flex items-center bg-white border border-zinc-200 rounded-full p-1 shadow-md hover:border-zinc-300 transition-all w-[320px] lg:w-[380px] h-10"
+                className="flex items-center bg-white border border-zinc-200 rounded-full p-1 hover:border-zinc-300 transition-all w-[320px] lg:w-[380px] h-10"
               >
                 {/* Location */}
                 <div className="flex-1 cursor-pointer px-3 border-r border-zinc-100 flex items-center">
@@ -135,7 +135,7 @@ export function NavbarUser() {
             <div className="relative ml-2">
               <button
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="flex items-center gap-2 bg-zinc-50 border border-zinc-100 rounded-full px-3 py-1.5 hover:shadow-md transition-all cursor-pointer"
+                className="flex items-center gap-2 bg-white border border-zinc-200 rounded-full px-3 py-1.5 hover:border-zinc-300 transition-all cursor-pointer"
               >
                 <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center overflow-hidden">
                   <User className="w-4 h-4" />
@@ -151,7 +151,7 @@ export function NavbarUser() {
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-3 w-64 bg-white rounded-[24px] border border-zinc-100 shadow-2xl shadow-zinc-200/50 p-3 z-10"
+                      className="absolute right-0 mt-3 w-64 bg-white rounded-[24px] border border-zinc-200 shadow-md p-3 z-10"
                     >
                       <div className="p-4 border-b border-zinc-50 mb-2">
                         <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">Signed in as</p>

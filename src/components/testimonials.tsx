@@ -51,8 +51,8 @@ export function Testimonials() {
   if (loading) {
     return (
       <section className="container mx-auto px-4 py-16 bg-white overflow-hidden">
-        <div className="flex justify-between items-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-bold text-zinc-900 tracking-tight">
+        <div className="flex items-center justify-between mb-6 sm:mb-10">
+          <h2 className="text-lg sm:text-2xl md:text-3xl font-black text-zinc-900 uppercase tracking-widest leading-tight">
             What they say
           </h2>
           <div className="flex gap-2">
@@ -84,8 +84,8 @@ export function Testimonials() {
   if (error) {
     return (
       <section className="container mx-auto px-4 py-16 bg-white overflow-hidden">
-        <div className="flex justify-between items-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-bold text-zinc-900 tracking-tight">
+        <div className="flex items-center justify-between mb-6 sm:mb-10">
+          <h2 className="text-lg sm:text-2xl md:text-3xl font-black text-zinc-900 uppercase tracking-widest leading-tight">
             What they say
           </h2>
         </div>
@@ -100,8 +100,8 @@ export function Testimonials() {
   if (testimonials.length === 0) {
     return (
       <section className="container mx-auto px-4 py-16 bg-white overflow-hidden">
-        <div className="flex justify-between items-center mb-10">
-          <h2 className="text-2xl md:text-3xl font-bold text-zinc-900 tracking-tight">
+        <div className="flex items-center justify-between mb-6 sm:mb-10">
+          <h2 className="text-lg sm:text-2xl md:text-3xl font-black text-zinc-900 uppercase tracking-widest leading-tight">
             What they say
           </h2>
         </div>
@@ -119,8 +119,8 @@ export function Testimonials() {
   return (
     <section className="container mx-auto px-4 py-16 bg-white overflow-hidden">
       {/* Title & Nav */}
-      <div className="flex justify-between items-center mb-10">
-        <h2 className="text-2xl md:text-3xl font-bold text-zinc-900 tracking-tight">
+      <div className="flex items-center justify-between mb-6 sm:mb-10">
+        <h2 className="text-lg sm:text-2xl md:text-3xl font-black text-zinc-900 uppercase tracking-widest leading-tight">
           What they say
         </h2>
         <div className="flex gap-2">

@@ -37,7 +37,7 @@ export default function MyBookingsPage() {
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
       <Navbar />
 
-      <main className="flex-grow pt-20 pb-12">
+      <main className="flex-grow pt-20 pb-28 lg:pb-12">
         <div className="container mx-auto px-4">
           
           <div className="flex flex-col lg:flex-row gap-6">
@@ -60,13 +60,13 @@ export default function MyBookingsPage() {
               </div>
 
               {/* Status Tabs */}
-              <div className="flex items-center p-1 bg-zinc-100 rounded-xl w-fit overflow-x-auto max-w-full">
+              <div className="flex items-center p-1 bg-zinc-100 rounded-xl w-fit overflow-x-auto max-w-full no-scrollbar snap-x">
                 {(["upcoming", "completed", "cancelled"] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={cn(
-                      "flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all capitalize shrink-0",
+                      "flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all capitalize shrink-0 snap-start",
                       activeTab === tab ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
                     )}
                   >
@@ -130,7 +130,7 @@ export default function MyBookingsPage() {
                             </div>
                           </div>
 
-                          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 mt-3 border-t border-zinc-50">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 mt-3 border-t border-zinc-50">
                             <div className="text-sm font-black text-zinc-900">
                               {booking.price}
                             </div>

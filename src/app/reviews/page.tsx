@@ -34,7 +34,7 @@ export default function ReviewsPage() {
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
       <Navbar />
 
-      <main className="flex-grow pt-20 pb-12">
+      <main className="flex-grow pt-20 pb-28 lg:pb-12">
         <div className="container mx-auto px-4">
           
           <div className="flex flex-col lg:flex-row gap-6">
@@ -52,13 +52,13 @@ export default function ReviewsPage() {
               </div>
 
               {/* Status Tabs */}
-              <div className="flex items-center p-1 bg-zinc-100 rounded-xl w-fit">
+              <div className="flex items-center p-1 bg-zinc-100 rounded-xl w-fit max-w-full overflow-x-auto no-scrollbar snap-x">
                 {(["pending", "published"] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={cn(
-                      "flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all capitalize shrink-0",
+                      "flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition-all capitalize shrink-0 snap-start",
                       activeTab === tab ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
                     )}
                   >
@@ -84,7 +84,7 @@ export default function ReviewsPage() {
                   {activeTab === "pending" ? (
                     PENDING_REVIEWS.map((item) => (
                       <div key={item.id} className="bg-white rounded-2xl border border-zinc-100 p-4 sm:p-5 flex flex-col md:flex-row gap-5">
-                        <div className="w-full md:w-32 h-24 rounded-xl overflow-hidden shrink-0">
+                        <div className="w-full md:w-32 h-40 md:h-24 rounded-xl overflow-hidden shrink-0">
                           <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 flex flex-col justify-between py-1">
@@ -107,7 +107,7 @@ export default function ReviewsPage() {
                   ) : (
                     MY_REVIEWS.map((review) => (
                       <div key={review.id} className="bg-white rounded-2xl border border-zinc-100 p-4 sm:p-5 flex flex-col md:flex-row gap-5 group hover:border-primary/20 transition-all">
-                        <div className="w-full md:w-24 h-24 rounded-xl overflow-hidden shrink-0">
+                        <div className="w-full md:w-24 h-40 md:h-24 rounded-xl overflow-hidden shrink-0">
                           <img src={review.image} alt={review.title} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 space-y-2">

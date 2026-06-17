@@ -29,7 +29,7 @@ export default function VendorDashboardPage() {
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
       <Navbar />
 
-      <main className="flex-grow pt-20 pb-12">
+      <main className="flex-grow pt-20 pb-28 lg:pb-12">
         <div className="container mx-auto px-4">
 
           <div className="flex flex-col lg:flex-row gap-6">
@@ -52,8 +52,8 @@ export default function VendorDashboardPage() {
               </div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-zinc-100 space-y-3">
+              <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-4 pb-2 sm:pb-0 snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+                <div className="bg-white p-5 rounded-2xl border border-zinc-100 space-y-3 min-w-[150px] flex-shrink-0 snap-center">
                   <div className="flex items-center justify-between">
                     <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                       <DollarSign className="w-4 h-4" />
@@ -66,7 +66,7 @@ export default function VendorDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-zinc-100 space-y-3">
+                <div className="bg-white p-5 rounded-2xl border border-zinc-100 space-y-3 min-w-[150px] flex-shrink-0 snap-center">
                   <div className="flex items-center justify-between">
                     <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
                       <Users className="w-4 h-4" />
@@ -79,7 +79,7 @@ export default function VendorDashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-white p-5 rounded-2xl border border-zinc-100 space-y-3">
+                <div className="bg-white p-5 rounded-2xl border border-zinc-100 space-y-3 min-w-[150px] flex-shrink-0 snap-center">
                   <div className="flex items-center justify-between">
                     <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
                       <TrendingUp className="w-4 h-4" />

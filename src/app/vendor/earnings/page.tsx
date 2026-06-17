@@ -25,7 +25,7 @@ export default function VendorEarningsPage() {
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
       <Navbar />
 
-      <main className="flex-grow pt-20 pb-12">
+      <main className="flex-grow pt-20 pb-28 lg:pb-12">
         <div className="container mx-auto px-4">
           <div className="flex flex-col lg:flex-row gap-6">
             <VendorSidebar />
@@ -45,8 +45,8 @@ export default function VendorEarningsPage() {
               </div>
 
               {/* Financial Stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-zinc-900 rounded-2xl p-5 text-white space-y-3 relative overflow-hidden group">
+              <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-4 pb-2 sm:pb-0 snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+                <div className="bg-zinc-900 rounded-2xl p-5 text-white space-y-3 relative overflow-hidden group min-w-[200px] flex-shrink-0 snap-center">
                   <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-primary">
                     <DollarSign className="w-4 h-4" />
                   </div>
@@ -60,7 +60,7 @@ export default function VendorEarningsPage() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-zinc-100 p-5 space-y-3">
+                <div className="bg-white rounded-2xl border border-zinc-100 p-5 space-y-3 min-w-[200px] flex-shrink-0 snap-center">
                   <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
                     <ArrowDownLeft className="w-4 h-4" />
                   </div>
@@ -73,7 +73,7 @@ export default function VendorEarningsPage() {
                   </button>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-zinc-100 p-5 space-y-3">
+                <div className="bg-white rounded-2xl border border-zinc-100 p-5 space-y-3 min-w-[200px] flex-shrink-0 snap-center">
                   <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
                     <Clock className="w-4 h-4" />
                   </div>

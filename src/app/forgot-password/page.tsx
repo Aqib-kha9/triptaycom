@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
                   <label className="text-xs font-bold uppercase tracking-widest text-zinc-400 ml-1">Email Address</label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                    <Input required type="email" placeholder="name@example.com" className="h-16 pl-12 rounded-2xl border-zinc-100 bg-zinc-50 focus:bg-white transition-all" />
+                    <Input required type="email" placeholder="name@example.com" className="h-16 pl-12 rounded-2xl border border-zinc-200 bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none" />
                   </div>
                 </div>
 

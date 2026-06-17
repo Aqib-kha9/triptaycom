@@ -124,7 +124,7 @@ export default function VendorStaysPage() {
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
       <Navbar />
 
-      <main className="flex-grow pt-20 pb-12">
+      <main className="flex-grow pt-20 pb-28 lg:pb-12">
         <div className="container mx-auto px-4">
           <div className="flex flex-col lg:flex-row gap-6">
             <VendorSidebar />
@@ -144,7 +144,7 @@ export default function VendorStaysPage() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
                     <Input
                       placeholder="Search stays..."
-                      className="h-10 pl-9 rounded-xl border-zinc-100 bg-white w-48 text-xs"
+                      className="h-10 pl-9 rounded-xl border-zinc-100 bg-white w-full sm:w-48 text-xs"
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                     />

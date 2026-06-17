@@ -37,7 +37,7 @@ export default function NotificationsPage() {
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
       <Navbar />
 
-      <main className="flex-grow pt-20 pb-12">
+      <main className="flex-grow pt-20 pb-28 lg:pb-12">
         <div className="container mx-auto px-4">
           
           <div className="flex flex-col lg:flex-row gap-6">
@@ -63,13 +63,13 @@ export default function NotificationsPage() {
               </div>
 
               {/* Filters */}
-              <div className="flex items-center gap-2 px-1 overflow-x-auto pb-1 scrollbar-hide">
+              <div className="flex items-center gap-2 px-1 overflow-x-auto pb-1 no-scrollbar snap-x">
                 {(["all", "booking", "promo"] as const).map((f) => (
                   <button
                     key={f}
                     onClick={() => setFilter(f)}
                     className={cn(
-                      "px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                      "px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap snap-start",
                       filter === f ? "bg-zinc-900 text-white shadow-sm" : "bg-white border border-zinc-100 text-zinc-400 hover:border-zinc-200"
                     )}
                   >
@@ -110,7 +110,7 @@ export default function NotificationsPage() {
                                 </span>
                                 <button 
                                   onClick={() => deleteNotification(n.id)}
-                                  className="opacity-0 group-hover:opacity-100 text-zinc-300 hover:text-rose-500 transition-all p-1"
+                                  className="opacity-100 md:opacity-0 md:group-hover:opacity-100 text-zinc-300 hover:text-rose-500 transition-all p-1"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>

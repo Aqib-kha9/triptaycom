@@ -30,22 +30,22 @@ export function FilterBar() {
     <div className="sticky top-16 z-40 bg-white/90 backdrop-blur-xl border-b border-zinc-100 py-6">
       <div className="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-6">
         
-        {/* Categories: Modern Pill Design */}
-        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar pb-1 w-full md:w-auto">
+        {/* Categories: Minimalist Tab Design */}
+        <div className="flex items-center gap-6 overflow-x-auto no-scrollbar pb-0 w-full md:w-auto pt-2">
           {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
               className={cn(
-                "flex items-center gap-2.5 px-5 py-2.5 rounded-full transition-all duration-300 whitespace-nowrap border-2 font-bold text-sm group",
+                "flex items-center gap-2 pb-4 transition-all duration-300 whitespace-nowrap border-b-2 font-bold text-sm group relative",
                 activeCategory === cat.id 
-                  ? "bg-zinc-900 border-zinc-900 text-white shadow-xl shadow-zinc-200" 
-                  : "bg-white border-zinc-100 text-zinc-500 hover:border-zinc-200 hover:text-zinc-900 hover:shadow-lg hover:shadow-zinc-100"
+                  ? "border-zinc-900 text-zinc-900" 
+                  : "border-transparent text-zinc-400 hover:text-zinc-600 hover:border-zinc-200"
               )}
             >
               <div className={cn(
                 "transition-transform duration-300 group-hover:scale-110",
-                activeCategory === cat.id ? "text-primary" : "text-zinc-400"
+                activeCategory === cat.id ? "text-zinc-900" : "text-zinc-400"
               )}>
                 {cat.icon}
               </div>
@@ -55,13 +55,13 @@ export function FilterBar() {
         </div>
 
         {/* Action Buttons: Unified Style */}
-        <div className="flex items-center gap-3 w-full md:w-auto justify-end">
-          <button className="flex items-center gap-2 px-5 py-2.5 rounded-full border-2 border-zinc-100 font-bold text-sm text-zinc-600 hover:bg-zinc-50 hover:border-zinc-200 transition-all flex-1 md:flex-none justify-center">
+        <div className="flex items-center gap-3 w-full md:w-auto justify-end pb-2 md:pb-0">
+          <button className="flex items-center gap-2 px-5 py-2 rounded-xl border border-zinc-200 font-bold text-sm text-zinc-600 hover:bg-zinc-50 transition-all flex-1 md:flex-none justify-center bg-white">
             <SlidersHorizontal className="w-4 h-4" />
             <span>Filters</span>
           </button>
           
-          <button className="flex items-center gap-2 px-5 py-2.5 rounded-full border-2 border-zinc-100 font-bold text-sm text-zinc-600 hover:bg-zinc-50 hover:border-zinc-200 transition-all flex-1 md:flex-none justify-center">
+          <button className="flex items-center gap-2 px-5 py-2 rounded-xl border border-zinc-200 font-bold text-sm text-zinc-600 hover:bg-zinc-50 transition-all flex-1 md:flex-none justify-center bg-white">
             <span>Featured</span>
             <ChevronDown className="w-4 h-4" />
           </button>

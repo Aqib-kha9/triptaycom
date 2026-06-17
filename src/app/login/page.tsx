@@ -22,6 +22,96 @@ import { cn } from "@/lib/utils";
 import { useRole } from "@/components/role-provider";
 import { useRouter } from "next/navigation";
 
+const OTPInput = ({ otp, setOtp, error, setError }: { otp: string, setOtp: (val: string) => void, error: string, setError: (val: string) => void }) => {
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const val = e.target.value.replace(/[^0-9]/g, "");
+
+    if (!val) {
+      const newOtp = otp.split("");
+      newOtp[index] = "";
+      setOtp(newOtp.join(""));
+      return;
+    }
+
+    if (val.length > 1) {
+      // Check if user just typed an extra digit without selecting
+      if (val.length === 2 && otp[index] && val.startsWith(otp[index])) {
+        const newOtp = otp.split("");
+        newOtp[index] = val[1];
+        setOtp(newOtp.join(""));
+        if (error) setError("");
+        if (index < 5) inputRefs.current[index + 1]?.focus();
+        return;
+      }
+
+      // Treat as full paste / autofill
+      const pastedData = val.slice(0, 6);
+      setOtp(pastedData);
+      if (error) setError("");
+      inputRefs.current[Math.min(pastedData.length, 5)]?.focus();
+      return;
+    }
+
+    // Single character entered
+    const newOtp = otp.split("");
+    newOtp[index] = val;
+    setOtp(newOtp.join(""));
+    if (error) setError("");
+
+    if (index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (e.key === "Backspace") {
+      if (!otp[index] && index > 0) {
+        inputRefs.current[index - 1]?.focus();
+      } else {
+        const newOtp = otp.split("");
+        newOtp[index] = "";
+        setOtp(newOtp.join(""));
+      }
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    const paste = e.clipboardData.getData("text").replace(/[^0-9]/g, "").slice(0, 6);
+    if (paste) {
+      setOtp(paste);
+      if (error) setError("");
+      inputRefs.current[Math.min(paste.length - 1, 5)]?.focus();
+    }
+  };
+
+  return (
+    <div className="flex justify-between gap-1 sm:gap-2 w-full">
+      {[0, 1, 2, 3, 4, 5].map((index) => (
+        <input
+          key={index}
+          ref={(el) => { inputRefs.current[index] = el; }}
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+          autoFocus={index === 0}
+          value={otp[index] || ""}
+          onChange={(e) => handleChange(e, index)}
+          onKeyDown={(e) => handleKeyDown(e, index)}
+          onPaste={handlePaste}
+          className={cn(
+            "w-[45px] h-[55px] sm:w-[50px] sm:h-[60px] md:w-[60px] md:h-[70px] text-center text-xl md:text-3xl font-black rounded-xl border-2 transition-all outline-none",
+            error ? "border-rose-300 focus:border-rose-500 bg-rose-50" : "border-zinc-200 bg-zinc-50 focus:bg-white focus:border-zinc-900 focus:ring-4 focus:ring-zinc-900/10"
+          )}
+        />
+      ))}
+    </div>
+  );
+};
+
 export default function LoginPage() {
   const [step, setStep] = useState<"identifier" | "otp" | "register">("identifier");
   const [identifier, setIdentifier] = useState("");
@@ -493,11 +583,11 @@ export default function LoginPage() {
                         if (error) setError("");
                       }}
                       className={cn(
-                        "h-14 pl-12 pr-12 rounded-2xl bg-zinc-50 focus:bg-white transition-all text-sm font-semibold border-2 duration-300 outline-none w-full",
+                        "h-14 pl-12 pr-12 rounded-2xl bg-white transition-all text-sm font-semibold border duration-300 outline-none w-full",
                         getIdentifierStatus() === "valid-email" || getIdentifierStatus() === "valid-mobile"
-                          ? "border-emerald-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:bg-white"
+                          ? "border-emerald-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
                           : getIdentifierStatus() === "invalid-email" || getIdentifierStatus() === "invalid-mobile" || getIdentifierStatus() === "mobile-too-long"
-                            ? "border-rose-200 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 focus:bg-white"
+                            ? "border-rose-200 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
                             : "border-zinc-200 focus:border-primary focus:ring-4 focus:ring-primary/10"
                       )}
                     />
@@ -606,24 +696,13 @@ export default function LoginPage() {
                           setPassword(e.target.value);
                           if (error) setError("");
                         }}
-                        className="h-14 px-4 rounded-2xl border-zinc-200 bg-zinc-50 focus:bg-white transition-all text-sm font-semibold"
+                        className="h-14 px-4 rounded-2xl border border-zinc-200 bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all text-sm font-semibold outline-none"
                       />
                     </div>
                   ) : (
                     <div className="space-y-2">
                       <label className="text-xs font-bold uppercase tracking-widest text-zinc-400 ml-1">Enter 6-digit OTP</label>
-                      <Input
-                        required
-                        autoFocus
-                        maxLength={6}
-                        placeholder="0 0 0 0 0 0"
-                        value={otp}
-                        onChange={(e) => {
-                          setOtp(e.target.value);
-                          if (error) setError("");
-                        }}
-                        className="h-16 text-center text-3xl font-black tracking-[1em] rounded-2xl border-zinc-200 bg-zinc-50 focus:bg-white transition-all pl-4"
-                      />
+                      <OTPInput otp={otp} setOtp={setOtp} error={error} setError={setError} />
                     </div>
                   )}
                   {/* Dev OTP banner — shows the OTP code during development (no SMS gateway) */}
@@ -696,7 +775,7 @@ export default function LoginPage() {
                       placeholder="John Doe"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="h-14 pl-12 rounded-2xl border-zinc-200 bg-zinc-50 focus:bg-white transition-all text-sm font-semibold"
+                      className="h-14 pl-12 rounded-2xl border border-zinc-200 bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all text-sm font-semibold outline-none"
                     />
                   </div>
                 </div>

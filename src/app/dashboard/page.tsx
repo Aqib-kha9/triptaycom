@@ -34,7 +34,7 @@ export default function UserDashboardPage() {
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
       <Navbar />
 
-      <main className="flex-grow pt-20 pb-12">
+      <main className="flex-grow pt-20 pb-28 lg:pb-12">
         <div className="container mx-auto px-4">
           
           <div className="flex flex-col lg:flex-row gap-6">
@@ -43,8 +43,8 @@ export default function UserDashboardPage() {
             <div className="flex-grow space-y-8">
               
               {/* Summary Stats */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-zinc-100 space-y-3">
+              <div className="flex overflow-x-auto sm:grid sm:grid-cols-3 gap-4 pb-2 sm:pb-0 snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
+                <div className="bg-white p-5 rounded-2xl border border-zinc-100 space-y-3 min-w-[140px] flex-shrink-0 snap-center">
                   <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
                     <Calendar className="w-5 h-5" />
                   </div>
@@ -53,7 +53,7 @@ export default function UserDashboardPage() {
                     <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Total Bookings</p>
                   </div>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-zinc-100 space-y-3">
+                <div className="bg-white p-5 rounded-2xl border border-zinc-100 space-y-3 min-w-[140px] flex-shrink-0 snap-center">
                   <div className="w-9 h-9 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
                     <Heart className="w-5 h-5" />
                   </div>
@@ -62,7 +62,7 @@ export default function UserDashboardPage() {
                     <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Wishlist</p>
                   </div>
                 </div>
-                <div className="bg-white p-5 rounded-2xl border border-zinc-100 space-y-3">
+                <div className="bg-white p-5 rounded-2xl border border-zinc-100 space-y-3 min-w-[140px] flex-shrink-0 snap-center">
                   <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
                     <CreditCard className="w-5 h-5" />
                   </div>
@@ -81,8 +81,8 @@ export default function UserDashboardPage() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {UPCOMING_TRIPS.map((trip) => (
-                    <div key={trip.id} className="bg-white p-4 rounded-2xl border border-zinc-100 flex gap-4 hover:border-primary/20 transition-all group">
-                      <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0">
+                    <div key={trip.id} className="bg-white p-3 sm:p-4 rounded-2xl border border-zinc-100 flex gap-3 sm:gap-4 hover:border-primary/20 transition-all group">
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden shrink-0">
                         <img src={trip.image} alt={trip.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                       </div>
                       <div className="flex-1 space-y-1.5 py-0.5">
@@ -112,15 +112,15 @@ export default function UserDashboardPage() {
                       { title: "River Rafting", date: "Yesterday", price: "₹1,200", icon: <Zap className="w-4 h-4 text-primary" /> },
                       { title: "Village Walk", date: "2 days ago", price: "₹500", icon: <MapPin className="w-4 h-4 text-emerald-500" /> },
                     ].map((item, i) => (
-                      <div key={i} className="p-4 flex items-center justify-between hover:bg-zinc-50 transition-colors">
+                      <div key={i} className="p-3 sm:p-4 flex items-center justify-between hover:bg-zinc-50 transition-colors">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-lg bg-zinc-50 flex items-center justify-center shrink-0">{item.icon}</div>
                           <div>
-                            <p className="font-bold text-zinc-900 text-xs">{item.title}</p>
+                            <p className="font-bold text-zinc-900 text-xs line-clamp-1">{item.title}</p>
                             <p className="text-[10px] text-zinc-400 font-medium">{item.date}</p>
                           </div>
                         </div>
-                        <span className="text-xs font-black text-zinc-900">{item.price}</span>
+                        <span className="text-xs font-black text-zinc-900 shrink-0">{item.price}</span>
                       </div>
                     ))}
                   </div>
@@ -131,14 +131,14 @@ export default function UserDashboardPage() {
                   <h2 className="text-sm font-bold text-zinc-900 px-1 uppercase tracking-widest">Alerts</h2>
                   <div className="bg-white rounded-2xl border border-zinc-100 divide-y divide-zinc-50 overflow-hidden">
                     {NOTIFICATIONS.map((notif, i) => (
-                      <div key={i} className="p-4 space-y-1 hover:bg-zinc-50 transition-colors">
-                        <div className="flex items-center justify-between">
+                      <div key={i} className="p-3 sm:p-4 space-y-1 hover:bg-zinc-50 transition-colors">
+                        <div className="flex items-start sm:items-center justify-between gap-2 flex-col sm:flex-row">
                           <h4 className="text-xs font-bold text-zinc-900 flex items-center gap-2">
                             {notif.icon} {notif.title}
                           </h4>
-                          <span className="text-[9px] text-zinc-400 font-bold uppercase">{notif.time}</span>
+                          <span className="text-[9px] text-zinc-400 font-bold uppercase shrink-0">{notif.time}</span>
                         </div>
-                        <p className="text-[10px] text-zinc-500 font-medium">{notif.desc}</p>
+                        <p className="text-[10px] text-zinc-500 font-medium ml-5 sm:ml-5">{notif.desc}</p>
                       </div>
                     ))}
                   </div>
