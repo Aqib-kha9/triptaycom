@@ -306,6 +306,7 @@ export interface BookingItem {
   checkInOtp?: string | null;
   checkInStatus?: string;
   userId: string;
+  hostId: string;
   createdAt: string;
 }
 

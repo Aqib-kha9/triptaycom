@@ -115,14 +115,15 @@ export default function BookingFailurePage() {
                   if (booking.guests) query.append("guests", booking.guests.toString());
                   if (booking.couponCode) query.append("coupon", booking.couponCode);
                   if (booking.specialRequests) query.append("specialRequests", booking.specialRequests);
-                  if (booking.itemType === "stay") {
+                  if (booking.itemType === "listing") {
                     if (booking.checkIn) query.append("checkIn", booking.checkIn.split("T")[0]);
                     if (booking.checkOut) query.append("checkOut", booking.checkOut.split("T")[0]);
                   } else {
                     if (booking.activityDate) query.append("activityDate", booking.activityDate.split("T")[0]);
                     if (booking.startTime) query.append("startTime", booking.startTime);
                   }
-                  router.push(`/checkout/${booking.itemType}/${booking.itemId}?${query.toString()}`);
+                  const checkoutType = booking.itemType === "listing" ? "stay" : "activity";
+                  router.push(`/checkout/${checkoutType}/${booking.itemId}?${query.toString()}`);
                 } else {
                   router.back();
                 }

@@ -102,12 +102,9 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
     if (queryCoupon && item) {
       couponsApi.validate({
         code: queryCoupon.toUpperCase().trim(),
+        orderValue: getSubtotalBeforeDiscount(),
         itemId: item.id,
         itemType: itemType === "stay" ? "listing" : "activity",
-        checkIn: checkIn ? new Date(checkIn).toISOString() : undefined,
-        checkOut: checkOut ? new Date(checkOut).toISOString() : undefined,
-        activityDate: activityDate ? new Date(activityDate).toISOString() : undefined,
-        guests,
       }).then(res => {
         if (res.status === "success") {
           setCoupon(queryCoupon.toUpperCase().trim());
@@ -176,7 +173,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
 
     if (itemType === "stay") {
       if (!checkIn || !checkOut) return;
-      
+
       const checkInDate = new Date(checkIn);
       const checkOutDate = new Date(checkOut);
       const today = new Date();
@@ -212,7 +209,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
       }
     } else {
       if (!activityDate) return;
-      
+
       const actDateObj = new Date(activityDate);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -453,8 +450,8 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
     if (userProfile) {
       const isPlaceholder = userProfile.email?.endsWith("@triptay.com");
       const isModified = guestEmail.trim().toLowerCase() !== userProfile.email?.trim().toLowerCase() ||
-                         guestPhone.trim() !== (userProfile.phone || "").trim() ||
-                         guestName.trim() !== (userProfile.name || "").trim();
+        guestPhone.trim() !== (userProfile.phone || "").trim() ||
+        guestName.trim() !== (userProfile.name || "").trim();
 
       if (isPlaceholder || isModified) {
         try {
@@ -589,7 +586,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
                 <Sparkles className="w-6 h-6 text-primary fill-primary/10 hidden md:block" />
               </h1>
             </div>
-            
+
             {/* Quick trust tag */}
             <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-2xl border border-emerald-100 text-xs font-semibold">
               <Lock className="w-3.5 h-3.5" />
@@ -600,7 +597,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left Columns: Forms */}
             <div className="lg:col-span-7 xl:col-span-8 space-y-8">
-              
+
               {/* Trip details preview card */}
               <section className="bg-white rounded-3xl border border-zinc-100 p-6 md:p-8 shadow-sm">
                 <div className="flex items-center justify-between border-b border-zinc-50 pb-5 mb-6">
@@ -659,10 +656,10 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
                       onChange={(e) => setGuests(Math.max(1, Number(e.target.value)))}
                       className="h-12 pl-4 rounded-xl border-zinc-200 bg-zinc-50/50 hover:bg-zinc-50 focus:bg-white text-zinc-800 font-bold focus:ring-1 focus:ring-primary/20 transition-all text-xs"
                     />
+                  </div>
                 </div>
-              </div>
 
-              {validationError && (
+                {validationError && (
                   <motion.div
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -815,8 +812,8 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
                           isDisabled
                             ? "bg-zinc-50/50 border-zinc-100 opacity-60 cursor-not-allowed"
                             : paymentMethod === method.id
-                            ? "border-primary bg-primary/[0.02] shadow-sm ring-[1.5px] ring-primary"
-                            : "border-zinc-200 bg-white hover:border-zinc-300"
+                              ? "border-primary bg-primary/[0.02] shadow-sm ring-[1.5px] ring-primary"
+                              : "border-zinc-200 bg-white hover:border-zinc-300"
                         )}
                       >
                         <div className="flex items-start justify-between w-full">
@@ -869,7 +866,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
             {/* Right Column: Order Summary (Sticky card) */}
             <div className="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-28">
               <div className="bg-white rounded-[32px] border border-zinc-100 shadow-xl shadow-zinc-200/40 overflow-hidden">
-                
+
                 {/* Summary Header */}
                 <div className="p-6 md:p-8 pb-5 border-b border-zinc-50 space-y-4">
                   <div className="flex gap-4 items-start">
@@ -882,7 +879,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="flex-1 min-w-0">
                       <div className="inline-flex px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[8px] font-black uppercase tracking-widest mb-1.5">
                         {itemType === "activity" ? "Activity" : "Stay"}

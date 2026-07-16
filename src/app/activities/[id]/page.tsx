@@ -230,7 +230,7 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
   useEffect(() => {
     const activityId = activity?.id;
     if (!activityId) return;
-    async function fetchAvailability() {
+    async function fetchAvailability(activityId: string) {
       setAvailabilityLoading(true);
       try {
         const res = await activitiesApi.getActivityAvailability(activityId);
@@ -244,7 +244,7 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
         setAvailabilityLoading(false);
       }
     }
-    fetchAvailability();
+    fetchAvailability(activityId);
   }, [activity]);
 
   // ── Fetch activity detail ──
@@ -396,9 +396,8 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
                 {images.slice(1, 5).map((img, i) => (
                   <div
                     key={i}
-                    className={`relative overflow-hidden bg-gray-100 ${
-                      i === 0 ? "md:col-span-1" : "hidden md:block"
-                    } ${i === 0 ? "" : ""} rounded-xl`}
+                    className={`relative overflow-hidden bg-gray-100 ${i === 0 ? "md:col-span-1" : "hidden md:block"
+                      } ${i === 0 ? "" : ""} rounded-xl`}
                   >
                     <img
                       src={img.url}
@@ -713,7 +712,7 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
                     {activity.nearbyPlaces.map((place: any, i) => {
                       const distance = place.distance ?? place.distanceKm ?? 0;
                       const category = place.type || place.category || "attraction";
-                      
+
                       return (
                         <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                           <div>
@@ -741,10 +740,10 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
                       const fromVal = sp.from || sp.startDate || "";
                       const toVal = sp.to || sp.endDate || "";
                       const priceVal = sp.price ?? sp.pricePerPerson ?? 0;
-                      
+
                       const startDateStr = fromVal ? new Date(fromVal).toLocaleDateString() : "Invalid Date";
                       const endDateStr = toVal ? new Date(toVal).toLocaleDateString() : "Invalid Date";
-                      
+
                       return (
                         <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                           <div>
@@ -951,7 +950,7 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
                           setSelectedDate(dateVal);
                           setSelectedSlot(""); // reset slot on date change
                           setAvailabilityError("");
-                          
+
                           if (blockedDates.includes(dateVal)) {
                             setAvailabilityError("This date is blocked by the host.");
                           }
@@ -968,7 +967,7 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
                             activity.startTimes.map((time) => {
                               const isFull = bookedSlots[selectedDate]?.includes(time);
                               const isSelected = selectedSlot === time;
-                              
+
                               return (
                                 <button
                                   key={time}
@@ -1077,7 +1076,7 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
                     You won't be charged yet
                   </p>
 
-                   {/* Price breakdown */}
+                  {/* Price breakdown */}
                   <div className={cn("mt-6 space-y-3 pt-4 border-t border-gray-100", previewLoading && "opacity-45 transition-opacity")}>
                     {previewData ? (
                       <>
