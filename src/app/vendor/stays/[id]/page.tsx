@@ -3,8 +3,7 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+import { listingsApi } from "@/lib/api-client";
 import {
     ArrowLeft,
     Edit2,
@@ -230,18 +229,10 @@ export default function ViewListingPage() {
         try {
             setIsLoading(true);
             setError("");
-            const token = localStorage.getItem("token");
-            const res = await fetch(`${API_BASE}/listings/${listingId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const json = await res.json();
-            if (json.status === "success") {
-                setListing(json.data.listing);
-            } else {
-                setError(json.message || "Failed to load listing.");
-            }
-        } catch {
-            setError("Could not connect to server.");
+            const res = await listingsApi.getById(listingId);
+            setListing(res.data.listing as unknown as ListingData);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Could not connect to server.");
         } finally {
             setIsLoading(false);
         }
@@ -255,15 +246,8 @@ export default function ViewListingPage() {
         if (!deleteId) return;
         try {
             setIsDeleting(true);
-            const token = localStorage.getItem("token");
-            const res = await fetch(`${API_BASE}/listings/${deleteId}`, {
-                method: "DELETE",
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const json = await res.json();
-            if (json.status === "success") {
-                router.push("/vendor/stays");
-            }
+            await listingsApi.delete(deleteId);
+            router.push("/vendor/stays");
         } catch {
             // silently fail
         } finally {
@@ -392,7 +376,7 @@ export default function ViewListingPage() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <span className={getStatusBadge(listing.status)}>{listing.status}</span>
-                                    <Link href={`/vendor/listings/edit/${listing._id}`}>
+                                    <Link href={`/vendor/stays/edit/${listing._id}`}>
                                         <Button variant="outline" className="rounded-xl h-9 text-xs font-bold gap-1.5">
                                             <Edit2 className="w-3.5 h-3.5" /> Edit
                                         </Button>
@@ -521,7 +505,7 @@ export default function ViewListingPage() {
                                             <InfoRow label="State" value={listing.state} />
                                             <InfoRow label="Country" value={listing.country} />
                                             <InfoRow label="ZIP Code" value={listing.zipCode} />
-                                            <InfoRow label="GPS" value={`${listing.coordinates.lat.toFixed(4)}, ${listing.coordinates.lng.toFixed(4)}`} />
+                                            <InfoRow label="GPS" value={listing.coordinates?.lat !== undefined && listing.coordinates?.lng !== undefined ? `${listing.coordinates.lat.toFixed(4)}, ${listing.coordinates.lng.toFixed(4)}` : "N/A"} />
                                             {listing.landmark && <InfoRow label="Landmark" value={listing.landmark} />}
                                         </div>
 

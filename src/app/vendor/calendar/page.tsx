@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { VendorSidebar } from "@/components/navigation/vendor-sidebar";
+import { availabilityApi } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 // ──────────────────────── Types ────────────────────────
@@ -44,7 +45,6 @@ interface AvailabilityData {
 
 // ──────────────────────── Constants ────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -112,24 +112,18 @@ export default function VendorCalendarPage() {
     setItemsLoading(true);
     setItemsError("");
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/availability/items`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (data.status === "success") {
-        setItems(data.data.items);
-        // Auto-select first item if none selected
-        if (data.data.items.length > 0 && !activeItemId) {
-          const first = data.data.items[0];
-          setActiveItemId(first._id);
-          setActiveItemType(first.type);
-        }
-      } else {
-        setItemsError(data.message || "Failed to load items.");
+      const res = await availabilityApi.getVendorItems();
+      const fetchedItems = res.data.items as unknown as VendorItem[];
+      setItems(fetchedItems);
+      // Auto-select first item if none selected
+      if (fetchedItems.length > 0 && !activeItemId) {
+        const first = fetchedItems[0];
+        setActiveItemId(first._id);
+        setActiveItemType(first.type);
       }
-    } catch {
-      setItemsError("Network error. Could not load your listings & activities.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Network error. Could not load your listings & activities.";
+      setItemsError(message);
     } finally {
       setItemsLoading(false);
     }
@@ -143,24 +137,18 @@ export default function VendorCalendarPage() {
     setAvailError("");
     setSelectedDates(new Set());
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/availability/${itemType}/${itemId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (data.status === "success") {
-        setAvailability(data.data.availability);
-      } else {
-        setAvailError(data.message || "Failed to load availability.");
-        setAvailability(null);
-      }
-    } catch {
-      setAvailError("Network error. Could not load availability data.");
+      const month = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
+      const res = await availabilityApi.getAvailability(itemId, itemType as "listing" | "activity", month);
+      const avail = (res.data as any)?.availability || res.data;
+      setAvailability(avail as AvailabilityData);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Network error. Could not load availability data.";
+      setAvailError(message);
       setAvailability(null);
     } finally {
       setAvailLoading(false);
     }
-  }, []);
+  }, [viewYear, viewMonth]);
 
   // ──────────────────────── Effects ────────────────────────
 
@@ -229,26 +217,15 @@ export default function VendorCalendarPage() {
     if (selectedDates.size === 0) return;
     setBlocking(true);
     try {
-      const token = localStorage.getItem("token");
       const dates = Array.from(selectedDates);
-      const res = await fetch(`${API_BASE}/availability/${activeItemType}/${activeItemId}/block`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ dates }),
-      });
-      const data = await res.json();
-      if (data.status === "success") {
-        setAvailability(data.data.availability);
-        setSelectedDates(new Set());
-        showToast("success", `${dates.length} date(s) blocked successfully.`);
-      } else {
-        showToast("error", data.message || "Failed to block dates.");
-      }
-    } catch {
-      showToast("error", "Network error. Please try again.");
+      const res = await availabilityApi.blockDates(activeItemId, activeItemType, dates);
+      const avail = (res.data as any)?.availability || res.data;
+      setAvailability(avail as AvailabilityData);
+      setSelectedDates(new Set());
+      showToast("success", `${dates.length} date(s) blocked successfully.`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Network error. Please try again.";
+      showToast("error", message);
     } finally {
       setBlocking(false);
     }
@@ -258,26 +235,15 @@ export default function VendorCalendarPage() {
     if (selectedDates.size === 0) return;
     setUnblocking(true);
     try {
-      const token = localStorage.getItem("token");
       const dates = Array.from(selectedDates);
-      const res = await fetch(`${API_BASE}/availability/${activeItemType}/${activeItemId}/unblock`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ dates }),
-      });
-      const data = await res.json();
-      if (data.status === "success") {
-        setAvailability(data.data.availability);
-        setSelectedDates(new Set());
-        showToast("success", `${dates.length} date(s) unblocked successfully.`);
-      } else {
-        showToast("error", data.message || "Failed to unblock dates.");
-      }
-    } catch {
-      showToast("error", "Network error. Please try again.");
+      const res = await availabilityApi.unblockDates(activeItemId, activeItemType, dates);
+      const avail = (res.data as any)?.availability || res.data;
+      setAvailability(avail as AvailabilityData);
+      setSelectedDates(new Set());
+      showToast("success", `${dates.length} date(s) unblocked successfully.`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Network error. Please try again.";
+      showToast("error", message);
     } finally {
       setUnblocking(false);
     }
@@ -288,30 +254,27 @@ export default function VendorCalendarPage() {
   const bulkAction = async (action: "all-weekends" | "all-weekdays" | "full-month") => {
     setBulkBlocking(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/availability/${activeItemType}/${activeItemId}/bulk-block`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ action, year: viewYear, month: viewMonth }),
-      });
-      const data = await res.json();
-      if (data.status === "success") {
-        setAvailability(data.data.availability);
-        setSelectedDates(new Set());
-        const labels: Record<string, string> = {
-          "all-weekends": "All weekends",
-          "all-weekdays": "All weekdays",
-          "full-month": "Full month",
-        };
-        showToast("success", `${labels[action]} blocked successfully.`);
-      } else {
-        showToast("error", data.message || "Bulk action failed.");
-      }
-    } catch {
-      showToast("error", "Network error. Please try again.");
+      const res = await availabilityApi.bulkBlock(
+        activeItemId,
+        activeItemType,
+        {
+          action,
+          year: viewYear,
+          month: viewMonth,
+        }
+      );
+      const avail = (res.data as any)?.availability || res.data;
+      setAvailability(avail as AvailabilityData);
+      setSelectedDates(new Set());
+      const labels: Record<string, string> = {
+        "all-weekends": "All weekends",
+        "all-weekdays": "All weekdays",
+        "full-month": "Full month",
+      };
+      showToast("success", `${labels[action]} blocked successfully.`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Network error. Please try again.";
+      showToast("error", message);
     } finally {
       setBulkBlocking(false);
     }
@@ -320,21 +283,13 @@ export default function VendorCalendarPage() {
   const clearAllBlocked = async () => {
     setClearing(true);
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/availability/${activeItemType}/${activeItemId}/clear`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (data.status === "success") {
-        setAvailability(data.data.availability);
-        setSelectedDates(new Set());
-        showToast("success", "All blocked dates cleared.");
-      } else {
-        showToast("error", data.message || "Failed to clear dates.");
-      }
-    } catch {
-      showToast("error", "Network error. Please try again.");
+      const res = await availabilityApi.clearBlockedDates(activeItemId, activeItemType);
+      setAvailability((prev) => (prev ? { ...prev, blockedDates: [] } : null));
+      setSelectedDates(new Set());
+      showToast("success", "All blocked dates cleared.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Network error. Please try again.";
+      showToast("error", message);
     } finally {
       setClearing(false);
     }

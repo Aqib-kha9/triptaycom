@@ -4,7 +4,7 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+import { listingsApi, publicApi } from "@/lib/api-client";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -250,20 +250,21 @@ export default function EditListingPage() {
     const [loadError, setLoadError] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    // ── Cancellation Policy Admin Config ──
+    const [vendorOverrideEnabled, setVendorOverrideEnabled] = useState(true);
+    const [globalDefaultPolicy, setGlobalDefaultPolicy] = useState("Moderate");
+
     // ── Fetch existing listing ──
     const fetchListing = useCallback(async () => {
         try {
             setIsLoadingListing(true);
-            const token = localStorage.getItem("token");
-            const res = await fetch(`${API_BASE}/listings/${listingId}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const json = await res.json();
-            if (json.status !== "success") {
-                setLoadError(json.message || "Failed to load listing.");
+            const res = await listingsApi.getMyListings();
+            const found = res.data.listings.find((l: any) => l.id === listingId || l._id === listingId);
+            if (!found) {
+                setLoadError("Listing not found.");
                 return;
             }
-            const l = json.data.listing;
+            const l = found as any;
             setFormData({
                 name: l.name || "", summary: l.summary || "", description: l.description || "",
                 propertyType: l.propertyType || "Homestay", isEntirePlace: l.isEntirePlace ?? true,
@@ -272,19 +273,34 @@ export default function EditListingPage() {
                 address: l.address || "", city: l.city || "", state: l.state || "",
                 country: l.country || "India", zipCode: l.zipCode || "", landmark: l.landmark || "",
                 lat: l.coordinates?.lat?.toString() || "", lng: l.coordinates?.lng?.toString() || "",
-                nearbyPlaces: l.nearbyPlaces || [],
+                nearbyPlaces: (l.nearbyPlaces || []).map((np: any) => ({
+                    name: np.name || "",
+                    distanceKm: np.distance !== undefined ? np.distance : (np.distanceKm || 0),
+                    category: np.type || np.category || "Restaurant",
+                })),
                 maxGuests: l.maxGuests?.toString() || "", bedrooms: l.bedrooms?.toString() || "",
                 beds: l.beds?.toString() || "", bathrooms: l.bathrooms?.toString() || "",
                 extraMattresses: l.extraMattresses?.toString() || "",
                 basePrice: l.basePrice?.toString() || "", weekendPrice: l.weekendPrice?.toString() || "",
-                seasonalPrices: l.seasonalPrices || [], cleaningFee: l.cleaningFee?.toString() || "",
+                seasonalPrices: (l.seasonalPrices || []).map((sp: any) => ({
+                    seasonName: sp.seasonName || "",
+                    startDate: sp.from || sp.startDate || "",
+                    endDate: sp.to || sp.endDate || "",
+                    pricePerNight: sp.price || sp.pricePerNight || 0,
+                })),
+                cleaningFee: l.cleaningFee?.toString() || "",
                 securityDeposit: l.securityDeposit?.toString() || "",
                 extraGuestPrice: l.extraGuestPrice?.toString() || "", taxes: l.taxes?.toString() || "",
                 minStay: l.minStay?.toString() || "1", maxStay: l.maxStay?.toString() || "0",
                 checkInTime: l.checkInTime || "12:00 PM", checkOutTime: l.checkOutTime || "11:00 AM",
                 flexibleCheckIn: l.flexibleCheckIn ?? false, flexibleCheckOut: l.flexibleCheckOut ?? false,
                 amenities: l.amenities || [],
-                meals: l.meals || [], hasKitchen: l.hasKitchen ?? false,
+                meals: (l.meals || []).map((m: any) => ({
+                    mealType: m.type || m.mealType,
+                    included: m.available !== undefined ? m.available : (m.included ?? true),
+                    extraPrice: m.price || m.extraPrice || 0,
+                })),
+                hasKitchen: l.hasKitchen ?? false,
                 kitchenDetails: l.kitchenDetails || "",
                 houseRules: l.houseRules || [], cancellationPolicy: l.cancellationPolicy || "Moderate",
                 cancellationDetails: l.cancellationDetails || "",
@@ -295,7 +311,7 @@ export default function EditListingPage() {
                 instantBook: l.instantBook ?? true, advanceNoticeHours: l.advanceNoticeHours?.toString() || "",
                 maxGuestsPerBooking: l.maxGuestsPerBooking?.toString() || "", videoTourUrl: l.videoTourUrl || "",
             });
-            setExistingMedia(l.media || []);
+            setExistingMedia((l.media || []) as any);
         } catch {
             setLoadError("Could not connect to server.");
         } finally {
@@ -304,6 +320,31 @@ export default function EditListingPage() {
     }, [listingId]);
 
     useEffect(() => { fetchListing(); }, [fetchListing]);
+
+    // ── Fetch cancellation policy config from admin ──
+    useEffect(() => {
+        async function fetchCancellationConfig() {
+            try {
+                const res = await publicApi.getConfigurations();
+                if (res?.status === "success" && res.data?.configuration) {
+                    const overrideEnabled = res.data.configuration.cancellation_vendor_override_enabled;
+                    const defaultPolicy = res.data.configuration.cancellation_default_policy;
+                    if (overrideEnabled !== undefined) setVendorOverrideEnabled(Boolean(overrideEnabled));
+                    if (defaultPolicy !== undefined) setGlobalDefaultPolicy(String(defaultPolicy));
+                }
+            } catch (err) {
+                console.error("Failed to load cancellation config:", err);
+            }
+        }
+        fetchCancellationConfig();
+    }, []);
+
+    // Force global default when vendor override is disabled
+    useEffect(() => {
+        if (!vendorOverrideEnabled) {
+            setFormData((prev) => ({ ...prev, cancellationPolicy: globalDefaultPolicy as any }));
+        }
+    }, [vendorOverrideEnabled, globalDefaultPolicy]);
 
     const next = () => { if (step < totalSteps) { setStep(step + 1); setErrors({}); } };
     const prev = () => { if (step > 1) { setStep(step - 1); setErrors({}); } };
@@ -467,7 +508,6 @@ export default function EditListingPage() {
         setIsSubmitting(true);
         setSubmitError("");
         try {
-            const token = localStorage.getItem("token");
             const payload: any = {
                 name: formData.name.trim(), summary: formData.summary.trim(),
                 description: formData.description.trim(), propertyType: formData.propertyType,
@@ -485,13 +525,24 @@ export default function EditListingPage() {
                 extraMattresses: parseInt(formData.extraMattresses) || 0,
                 basePrice: parseFloat(formData.basePrice),
                 weekendPrice: formData.weekendPrice ? parseFloat(formData.weekendPrice) : undefined,
-                seasonalPrices: formData.seasonalPrices, cleaningFee: parseFloat(formData.cleaningFee) || 0,
+                seasonalPrices: (formData.seasonalPrices || []).map((sp: any) => ({
+                    seasonName: sp.seasonName || "",
+                    from: sp.startDate || sp.from,
+                    to: sp.endDate || sp.to,
+                    price: Number(sp.pricePerNight || sp.price),
+                })),
+                cleaningFee: parseFloat(formData.cleaningFee) || 0,
                 securityDeposit: parseFloat(formData.securityDeposit) || 0,
                 extraGuestPrice: parseFloat(formData.extraGuestPrice) || 0, taxes: parseFloat(formData.taxes) || 0,
                 minStay: parseInt(formData.minStay) || 1, maxStay: parseInt(formData.maxStay) || 0,
                 checkInTime: formData.checkInTime, checkOutTime: formData.checkOutTime,
                 flexibleCheckIn: formData.flexibleCheckIn, flexibleCheckOut: formData.flexibleCheckOut,
-                amenities: formData.amenities, meals: formData.meals,
+                amenities: formData.amenities,
+                meals: (formData.meals || []).map((m: any) => ({
+                    type: m.mealType || m.type,
+                    available: m.included !== undefined ? m.included : m.available,
+                    price: Number(m.extraPrice || m.price || 0),
+                })),
                 hasKitchen: formData.hasKitchen, kitchenDetails: formData.kitchenDetails.trim() || undefined,
                 houseRules: formData.houseRules, cancellationPolicy: formData.cancellationPolicy,
                 cancellationDetails: formData.cancellationDetails.trim() || undefined,
@@ -499,7 +550,12 @@ export default function EditListingPage() {
                 isSmokingAllowed: formData.isSmokingAllowed, isPartyAllowed: formData.isPartyAllowed,
                 quietHoursStart: formData.quietHoursStart || undefined,
                 quietHoursEnd: formData.quietHoursEnd || undefined,
-                nearbyPlaces: formData.nearbyPlaces, languagesSpoken: formData.languagesSpoken,
+                nearbyPlaces: (formData.nearbyPlaces || []).map((np: any) => ({
+                    name: np.name || "",
+                    type: np.category || np.type,
+                    distance: Number(np.distanceKm || np.distance),
+                })),
+                languagesSpoken: formData.languagesSpoken,
                 instantBook: formData.instantBook,
                 advanceNoticeHours: parseInt(formData.advanceNoticeHours) || 0,
                 maxGuestsPerBooking: formData.maxGuestsPerBooking ? parseInt(formData.maxGuestsPerBooking) : parseInt(formData.maxGuests),
@@ -507,44 +563,24 @@ export default function EditListingPage() {
             };
 
             // Step 1: Update listing data
-            const res = await fetch(`${API_BASE}/listings/${listingId}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                credentials: "include",
-                body: JSON.stringify(payload),
-            });
-            const json = await res.json();
-            if (!res.ok) throw new Error(json.message || "Failed to update listing");
+            await listingsApi.update(listingId, payload as any);
 
             // Step 2: Delete removed media
             for (const md of mediaToDelete) {
                 try {
-                    await fetch(`${API_BASE}/listings/${listingId}/media/${md._id}`, {
-                        method: "DELETE",
-                        headers: { Authorization: `Bearer ${token}` },
-                    });
+                    await listingsApi.deleteMedia(listingId, md._id);
                 } catch { /* non-fatal */ }
             }
 
             // Step 3: Upload new media
             if (mediaFiles.length > 0) {
-                const fd = new FormData();
-                mediaFiles.forEach((m) => {
-                    fd.append("files", m.file);
-                    if (m.caption) fd.append("captions", m.caption);
-                    if (m.isCover) fd.append("isCover", "true");
-                });
-                await fetch(`${API_BASE}/listings/${listingId}/media`, {
-                    method: "POST",
-                    headers: { Authorization: `Bearer ${token}` },
-                    credentials: "include",
-                    body: fd,
-                });
+                const files = mediaFiles.map((m) => m.file);
+                await listingsApi.uploadMedia(listingId, files);
             }
 
             setSubmitSuccess(true);
-        } catch (err: any) {
-            setSubmitError(err.message || "Something went wrong.");
+        } catch (err: unknown) {
+            setSubmitError(err instanceof Error ? err.message : "Something went wrong.");
         } finally {
             setIsSubmitting(false);
         }
@@ -676,7 +712,7 @@ export default function EditListingPage() {
                             <p className="text-xs text-zinc-500 font-medium">Your changes have been saved successfully.</p>
                         </div>
                         <div className="flex gap-3">
-                            <Link href={`/vendor/listings/${listingId}`}>
+                            <Link href={`/stays/${listingId}`}>
                                 <Button variant="outline" className="rounded-xl h-10 text-xs font-bold gap-2"><Eye className="w-3.5 h-3.5" /> View</Button>
                             </Link>
                             <Link href="/vendor/stays">
@@ -710,7 +746,7 @@ export default function EditListingPage() {
                                         <p className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider">Step {step} of {totalSteps} — {STEPS[step - 1]}</p>
                                     </div>
                                 </div>
-                                <Link href={`/vendor/listings/${listingId}`}>
+                                <Link href={`/stays/${listingId}`}>
                                     <Button variant="outline" className="rounded-xl h-9 text-xs font-bold gap-1.5"><Eye className="w-3.5 h-3.5" /> View</Button>
                                 </Link>
                             </div>
@@ -952,10 +988,18 @@ export default function EditListingPage() {
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Cancellation Policy</label>
+                                                    {!vendorOverrideEnabled && (
+                                                        <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                                                            <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                                                            <p className="text-[10px] font-medium text-amber-700">
+                                                                Admin has disabled vendor override. Using global default policy: <span className="font-bold">{globalDefaultPolicy}</span>
+                                                            </p>
+                                                        </div>
+                                                    )}
                                                     <div className="space-y-2">
                                                         {CANCELLATION_POLICIES.map((policy) => (
-                                                            <button key={policy.value} type="button" onClick={() => update("cancellationPolicy", policy.value)}
-                                                                className={cn("w-full text-left p-3 rounded-xl border text-xs transition-all", formData.cancellationPolicy === policy.value ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-zinc-100 bg-zinc-50/50 hover:border-zinc-200")}>
+                                                            <button key={policy.value} type="button" disabled={!vendorOverrideEnabled} onClick={() => update("cancellationPolicy", policy.value)}
+                                                                className={cn("w-full text-left p-3 rounded-xl border text-xs transition-all", !vendorOverrideEnabled && "opacity-50 cursor-not-allowed", formData.cancellationPolicy === policy.value ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-zinc-100 bg-zinc-50/50 hover:border-zinc-200")}>
                                                                 <span className="font-bold text-zinc-800">{policy.label}</span> — <span className="text-zinc-500 font-medium">{policy.desc}</span>
                                                             </button>
                                                         ))}

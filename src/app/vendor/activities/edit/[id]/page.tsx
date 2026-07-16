@@ -4,7 +4,7 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { useState, useEffect, useCallback, use } from "react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+import { activitiesApi, publicApi } from "@/lib/api-client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -108,6 +108,7 @@ interface FormData {
     maxGuestsPerBooking: string;
     languagesSpoken: string[];
     videoTourUrl: string;
+    nearbyPlaces?: any[];
 }
 
 interface MediaPreview {
@@ -240,70 +241,76 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
     const [mediaFiles, setMediaFiles] = useState<MediaPreview[]>([]);
     const [mediaToDelete, setMediaToDelete] = useState<string[]>([]);
 
+    // ── Cancellation Policy Admin Config ──
+    const [vendorOverrideEnabled, setVendorOverrideEnabled] = useState(true);
+    const [globalDefaultPolicy, setGlobalDefaultPolicy] = useState("Moderate");
+
     // ─── Fetch Existing Activity ──────────────────────────────────────────────
 
     const fetchActivity = useCallback(async () => {
         try {
             setIsLoading(true);
             setLoadError("");
-            const token = localStorage.getItem("token");
-            const res = await fetch(`${API_BASE}/activities/${params.id}`, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            const json = await res.json();
-            if (json.status === "success") {
-                const a = json.data.activity;
-                setFormData({
-                    name: a.name || "", summary: a.summary || "", description: a.description || "",
-                    activityType: a.activityType || "Rafting", difficulty: a.difficulty || "Moderate",
-                    address: a.address || "", city: a.city || "", state: a.state || "",
-                    country: a.country || "India", zipCode: a.zipCode || "",
-                    landmark: a.landmark || "", meetingPoint: a.meetingPoint || "",
-                    lat: a.coordinates?.lat?.toString() || "", lng: a.coordinates?.lng?.toString() || "",
-                    durationHours: a.durationHours?.toString() || "3",
-                    durationDays: a.durationDays?.toString() || "0",
-                    startTimes: a.startTimes || [],
-                    availability: a.availability || "Daily",
-                    availabilityNotes: a.availabilityNotes || "",
-                    minAge: a.minAge?.toString() || "12",
-                    maxGroupSize: a.maxGroupSize?.toString() || "20",
-                    minGroupSize: a.minGroupSize?.toString() || "2",
-                    basePrice: a.basePrice?.toString() || "",
-                    weekendPrice: a.weekendPrice?.toString() || "",
-                    childPrice: a.childPrice?.toString() || "",
-                    foreignerPrice: a.foreignerPrice?.toString() || "",
-                    seasonalPrices: (a.seasonalPrices || []).map((sp: any) => ({
+            const res = await activitiesApi.getPublic(params.id);
+            const a = res.data.activity as any;
+            setFormData({
+                name: a.name || "", summary: a.summary || "", description: a.description || "",
+                activityType: a.activityType || "Rafting", difficulty: a.difficulty || "Moderate",
+                address: a.address || "", city: a.city || "", state: a.state || "",
+                country: a.country || "India", zipCode: a.zipCode || "",
+                landmark: a.landmark || "", meetingPoint: a.meetingPoint || "",
+                lat: a.coordinates?.lat?.toString() || "", lng: a.coordinates?.lng?.toString() || "",
+                durationHours: a.durationHours?.toString() || "3",
+                durationDays: a.durationDays?.toString() || "0",
+                startTimes: a.startTimes || [],
+                availability: a.availability || "Daily",
+                availabilityNotes: a.availabilityNotes || "",
+                minAge: a.minAge?.toString() || "12",
+                maxGroupSize: a.maxGroupSize?.toString() || "20",
+                minGroupSize: a.minGroupSize?.toString() || "2",
+                basePrice: a.basePrice?.toString() || "",
+                weekendPrice: a.weekendPrice?.toString() || "",
+                childPrice: a.childPrice?.toString() || "",
+                foreignerPrice: a.foreignerPrice?.toString() || "",
+                seasonalPrices: (a.seasonalPrices || []).map((sp: any) => {
+                    const fromVal = sp.from || sp.startDate || "";
+                    const toVal = sp.to || sp.endDate || "";
+                    const priceVal = sp.price ?? sp.pricePerPerson ?? 0;
+                    return {
                         seasonName: sp.seasonName || "",
-                        startDate: sp.startDate ? new Date(sp.startDate).toISOString().split("T")[0] : "",
-                        endDate: sp.endDate ? new Date(sp.endDate).toISOString().split("T")[0] : "",
-                        pricePerPerson: sp.pricePerPerson?.toString() || "",
-                    })),
-                    taxes: a.taxes?.toString() || "0",
-                    securityDeposit: a.securityDeposit?.toString() || "0",
-                    equipmentProvided: a.equipmentProvided || [],
-                    equipmentRequired: a.equipmentRequired || [],
-                    safetyGuidelines: a.safetyGuidelines || "",
-                    hasInsurance: a.hasInsurance ?? true,
-                    certifiedGuides: a.certifiedGuides ?? true,
-                    guideRatio: a.guideRatio || "1:5",
-                    included: a.included || [],
-                    excluded: a.excluded || [],
-                    houseRules: a.houseRules || [],
-                    cancellationPolicy: a.cancellationPolicy || "Moderate",
-                    cancellationDetails: a.cancellationDetails || "",
-                    isPetFriendly: a.isPetFriendly ?? false,
-                    petRules: a.petRules || "",
-                    restrictions: a.restrictions || "",
-                    instantBook: a.instantBook ?? false,
-                    advanceNoticeHours: a.advanceNoticeHours?.toString() || "24",
-                    maxGuestsPerBooking: a.maxGuestsPerBooking?.toString() || "20",
-                    languagesSpoken: a.languagesSpoken || ["English", "Hindi"],
-                    videoTourUrl: a.videoTourUrl || "",
-                });
-                setExistingMedia(a.media || []);
-            } else {
-                setLoadError(json.message || "Activity not found");
-            }
+                        startDate: fromVal ? new Date(fromVal).toISOString().split("T")[0] : "",
+                        endDate: toVal ? new Date(toVal).toISOString().split("T")[0] : "",
+                        pricePerPerson: priceVal.toString(),
+                    };
+                }),
+                taxes: a.taxes?.toString() || "0",
+                securityDeposit: a.securityDeposit?.toString() || "0",
+                equipmentProvided: a.equipmentProvided || [],
+                equipmentRequired: a.equipmentRequired || [],
+                safetyGuidelines: a.safetyGuidelines || "",
+                hasInsurance: a.hasInsurance ?? true,
+                certifiedGuides: a.certifiedGuides ?? true,
+                guideRatio: a.guideRatio || "1:5",
+                included: a.included || [],
+                excluded: a.excluded || [],
+                houseRules: a.houseRules || [],
+                cancellationPolicy: a.cancellationPolicy || "Moderate",
+                cancellationDetails: a.cancellationDetails || "",
+                isPetFriendly: a.isPetFriendly ?? false,
+                petRules: a.petRules || "",
+                restrictions: a.restrictions || "",
+                nearbyPlaces: (a.nearbyPlaces || []).map((np: any) => ({
+                    name: np.name || "",
+                    distanceKm: np.distance ?? np.distanceKm ?? 0,
+                    category: np.type || np.category || "Other",
+                })),
+                instantBook: a.instantBook ?? false,
+                advanceNoticeHours: a.advanceNoticeHours?.toString() || "24",
+                maxGuestsPerBooking: a.maxGuestsPerBooking?.toString() || "20",
+                languagesSpoken: a.languagesSpoken || ["English", "Hindi"],
+                videoTourUrl: a.videoTourUrl || "",
+            });
+            setExistingMedia(a.media || []);
         } catch {
             setLoadError("Could not connect to server.");
         } finally {
@@ -312,6 +319,31 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
     }, [params.id]);
 
     useEffect(() => { fetchActivity(); }, [fetchActivity]);
+
+    // ── Fetch cancellation policy config from admin ──
+    useEffect(() => {
+        async function fetchCancellationConfig() {
+            try {
+                const res = await publicApi.getConfigurations();
+                if (res?.status === "success" && res.data?.configuration) {
+                    const overrideEnabled = res.data.configuration.cancellation_vendor_override_enabled;
+                    const defaultPolicy = res.data.configuration.cancellation_default_policy;
+                    if (overrideEnabled !== undefined) setVendorOverrideEnabled(Boolean(overrideEnabled));
+                    if (defaultPolicy !== undefined) setGlobalDefaultPolicy(String(defaultPolicy));
+                }
+            } catch (err) {
+                console.error("Failed to load cancellation config:", err);
+            }
+        }
+        fetchCancellationConfig();
+    }, []);
+
+    // Force global default when vendor override is disabled
+    useEffect(() => {
+        if (!vendorOverrideEnabled) {
+            setFormData((prev) => ({ ...prev, cancellationPolicy: globalDefaultPolicy as any }));
+        }
+    }, [vendorOverrideEnabled, globalDefaultPolicy]);
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
@@ -479,8 +511,6 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
         if (!validateStep()) return;
         setIsSubmitting(true);
         try {
-            const token = localStorage.getItem("token");
-
             // 1) Update activity
             const payload: any = {
                 name: formData.name.trim(),
@@ -495,7 +525,9 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
                 zipCode: formData.zipCode.trim(),
                 landmark: formData.landmark.trim() || undefined,
                 meetingPoint: formData.meetingPoint.trim() || undefined,
-                coordinates: { lat: parseFloat(formData.lat), lng: parseFloat(formData.lng) },
+                lat: Number(formData.lat),
+                lng: Number(formData.lng),
+                coordinates: { lat: Number(formData.lat), lng: Number(formData.lng) },
                 durationHours: parseInt(formData.durationHours) || 0,
                 durationDays: parseInt(formData.durationDays) || 0,
                 startTimes: formData.startTimes,
@@ -510,9 +542,9 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
                 foreignerPrice: formData.foreignerPrice ? parseFloat(formData.foreignerPrice) : undefined,
                 seasonalPrices: formData.seasonalPrices.map((sp) => ({
                     seasonName: sp.seasonName,
-                    startDate: sp.startDate,
-                    endDate: sp.endDate,
-                    pricePerPerson: parseFloat(sp.pricePerPerson) || 0,
+                    from: sp.startDate,
+                    to: sp.endDate,
+                    price: Number(sp.pricePerPerson) || 0,
                 })),
                 taxes: parseFloat(formData.taxes) || 0,
                 securityDeposit: parseFloat(formData.securityDeposit) || 0,
@@ -532,9 +564,8 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
                 restrictions: formData.restrictions.trim() || undefined,
                 nearbyPlaces: ((formData as any).nearbyPlaces || []).map((np: any) => ({
                     name: np.name,
-                    distanceKm: parseFloat(np.distanceKm) || 0,
-                    category: np.category,
-                    description: np.description || undefined,
+                    type: np.category || "attraction",
+                    distance: Number(np.distanceKm) || 0,
                 })),
                 instantBook: formData.instantBook,
                 advanceNoticeHours: parseInt(formData.advanceNoticeHours) || 24,
@@ -543,40 +574,24 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
                 videoTourUrl: formData.videoTourUrl.trim() || undefined,
             };
 
-            const res = await fetch(`${API_BASE}/activities/${params.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify(payload),
-            });
-            const json = await res.json();
-            if (json.status !== "success") throw new Error(json.message || "Update failed");
+            await activitiesApi.update(params.id, payload as any);
 
             // 2) Delete removed media
             for (const publicId of mediaToDelete) {
-                await fetch(`${API_BASE}/activities/${params.id}/media/${publicId}`, {
-                    method: "DELETE",
-                    headers: { Authorization: `Bearer ${token}` },
-                });
+                try {
+                    await activitiesApi.deleteMedia(params.id, publicId);
+                } catch { /* non-fatal */ }
             }
 
             // 3) Upload new media
             if (mediaFiles.length > 0) {
-                const formData2 = new FormData();
-                mediaFiles.forEach((m) => {
-                    formData2.append("files", m.file);
-                    formData2.append("captions", m.caption);
-                    formData2.append("isCover", m.isCover ? "true" : "false");
-                });
-                await fetch(`${API_BASE}/activities/${params.id}/media`, {
-                    method: "POST",
-                    headers: { Authorization: `Bearer ${token}` },
-                    body: formData2,
-                });
+                const files = mediaFiles.map((m) => m.file);
+                await activitiesApi.uploadMedia(params.id, files);
             }
 
             setIsSuccess(true);
-        } catch (err: any) {
-            alert(err.message || "Failed to update activity");
+        } catch (err: unknown) {
+            alert(err instanceof Error ? err.message : "Failed to update activity");
         } finally {
             setIsSubmitting(false);
         }
@@ -1070,10 +1085,19 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
                                         {/* Cancellation */}
                                         <div>
                                             <label className="text-[11px] font-bold text-zinc-700 mb-2 block">Cancellation Policy</label>
+                                            {!vendorOverrideEnabled && (
+                                                <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 mb-2">
+                                                    <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                                                    <p className="text-[10px] font-medium text-amber-700">
+                                                        Admin has disabled vendor override. Using global default policy: <span className="font-bold">{globalDefaultPolicy}</span>
+                                                    </p>
+                                                </div>
+                                            )}
                                             <div className="space-y-2">
                                                 {CANCELLATION_POLICIES.map((policy) => (
-                                                    <button key={policy.value} type="button" onClick={() => update("cancellationPolicy", policy.value)}
+                                                    <button key={policy.value} type="button" disabled={!vendorOverrideEnabled} onClick={() => update("cancellationPolicy", policy.value)}
                                                         className={cn("w-full text-left p-3 rounded-xl border text-[11px] font-bold transition-all",
+                                                            !vendorOverrideEnabled && "opacity-50 cursor-not-allowed",
                                                             formData.cancellationPolicy === policy.value ? "border-primary bg-primary/5 text-primary" : "border-zinc-200 text-zinc-600")}>
                                                         {policy.value} <span className="font-medium text-zinc-400 ml-1">— {policy.description}</span>
                                                     </button>

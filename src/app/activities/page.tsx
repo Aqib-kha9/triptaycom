@@ -6,14 +6,14 @@ import { ItemCard } from "@/components/cards";
 import { Button } from "@/components/ui/button";
 import { ListingSearch } from "@/components/listing-search";
 import { cn } from "@/lib/utils";
+import { activitiesApi } from "@/lib/api-client";
+import type { ActivityItem } from "@/types/api";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap, Mountain, Compass, Waves, Camera, SlidersHorizontal,
   Inbox, ArrowUpDown, SearchIcon, Loader2, Check, ChevronDown,
 } from "lucide-react";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -30,7 +30,7 @@ interface FilterParams {
   sort?: string;
 }
 
-interface ActivityItem {
+interface ActivityCardItem {
   id: string;
   image: string;
   title: string;
@@ -57,12 +57,27 @@ const SORT_OPTIONS = [
 ];
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function mapApiActivity(item: ActivityItem): ActivityCardItem {
+  return {
+    id: item.id,
+    image: item.media?.[0]?.url || "/placeholder.jpg",
+    title: item.name,
+    location: [item.city, item.state].filter(Boolean).join(", ") || "Unknown",
+    price: String(item.basePrice || item.effectiveWeekendPrice || 0),
+    rating: item.avgRating ? String(item.avgRating) : "New",
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Activities Page
 // ---------------------------------------------------------------------------
 
 export default function ActivitiesPage() {
   // ---- Data ----
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [activities, setActivities] = useState<ActivityCardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -83,7 +98,8 @@ export default function ActivitiesPage() {
   // Click-outside for sort dropdown
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
+      const target = e.target as HTMLElement;
+      if (sortRef.current && !sortRef.current.contains(target) && !target.closest(".sort-container")) {
         setSortOpen(false);
       }
     };
@@ -117,43 +133,34 @@ export default function ActivitiesPage() {
       }
 
       try {
-        const params = new URLSearchParams();
+        const params: Record<string, string | number | undefined> = {
+          city: activeFilters.location,
+          activityType: activeFilters.activityType,
+          difficulty: activeFilters.difficulty,
+          minPrice: activeFilters.minPrice,
+          maxPrice: activeFilters.maxPrice,
+          sort: activeSort,
+          page: pageNum,
+          limit: 20,
+        };
 
-        if (activeFilters.location) params.set("city", activeFilters.location);
-        if (activeFilters.activityType) params.set("activityType", activeFilters.activityType);
-        if (activeFilters.difficulty) params.set("difficulty", activeFilters.difficulty);
-        if (activeFilters.minPrice !== undefined) params.set("minPrice", String(activeFilters.minPrice));
-        if (activeFilters.maxPrice !== undefined) params.set("maxPrice", String(activeFilters.maxPrice));
-        params.set("sort", activeSort);
-        params.set("page", String(pageNum));
-        params.set("limit", "20");
+        const res = await activitiesApi.browse(params);
 
-        const res = await fetch(`${API_BASE}/activities/browse?${params.toString()}`);
-        const json = await res.json().catch(() => null);
-
-        if (!res.ok || !json) {
-          throw new Error(json?.message || "Failed to fetch activities");
-        }
-
-        const rawItems: any[] = json.data?.activities || [];
-
-        const mapped: ActivityItem[] = rawItems.map((item: any) => ({
-          id: item._id,
-          image: item.media?.[0]?.url || "/placeholder.jpg",
-          title: item.name,
-          location: [item.city, item.state].filter(Boolean).join(", ") || "Unknown",
-          price: String(item.effectiveWeekendPrice || item.basePrice || 0),
-          rating: item.avgRating ? String(item.avgRating) : "New",
-        }));
+        const rawItems: ActivityItem[] = res.data?.activities || [];
+        const mapped: ActivityCardItem[] = rawItems.map(mapApiActivity);
 
         if (append) {
           setActivities((prev) => [...prev, ...mapped]);
         } else {
           setActivities(mapped);
         }
-        setTotalPages(json.totalPages || 1);
-      } catch (err: any) {
-        setError(err.message || "Something went wrong");
+        setTotalPages(res.pagination?.totalPages || 1);
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Failed to fetch activities");
+        }
       } finally {
         setLoading(false);
         setLoadingMore(false);
@@ -253,7 +260,7 @@ export default function ActivitiesPage() {
               </div>
 
               {/* Mobile Sort Icon Button */}
-              <div ref={sortRef} className="relative md:hidden">
+              <div ref={sortRef} className="relative md:hidden sort-container">
                 <button
                   className="flex items-center justify-center w-10 h-10 rounded-full bg-white border border-zinc-200 text-zinc-900"
                   onClick={() => setSortOpen((prev) => !prev)}
@@ -297,7 +304,7 @@ export default function ActivitiesPage() {
                 {activities.length} experience{activities.length !== 1 ? "s" : ""}
               </p>
 
-              <div className="relative">
+              <div className="relative sort-container">
                 <Button
                   variant="outline"
                   className="rounded-xl border-zinc-200 gap-2 h-12 px-6 font-bold text-sm"

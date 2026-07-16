@@ -9,6 +9,7 @@ import { useWishlist } from "@/context/WishlistContext";
 
 interface CardProps {
   id?: string;
+  slug?: string;
   image: string;
   title: string;
   location: string;
@@ -18,11 +19,11 @@ interface CardProps {
   distanceKm?: number;
 }
 
-export function ItemCard({ id = "1", image, title, location, price, rating, type = "homestay", distanceKm }: CardProps) {
+export function ItemCard({ id = "1", slug, image, title, location, price, rating, type = "homestay", distanceKm }: CardProps) {
   const { isWishlisted, toggleWishlist } = useWishlist();
   const wishlistType = type === "homestay" ? "stay" : "activity";
   const liked = isWishlisted(id, wishlistType as "stay" | "activity");
-  const href = type === "homestay" ? `/stays/${id}` : `/activities/${id}`;
+  const href = type === "homestay" ? `/stays/${slug || id}` : `/activities/${slug || id}`;
 
   const handleHeartClick = useCallback(
     (e: React.MouseEvent) => {
@@ -50,7 +51,7 @@ export function ItemCard({ id = "1", image, title, location, price, rating, type
           />
           <button
             onClick={handleHeartClick}
-            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center border border-zinc-200"
+            className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center border border-zinc-200 cursor-pointer"
           >
             <Heart className={cn("h-4 w-4 transition-colors", liked ? "fill-red-500 text-red-500" : "text-zinc-400")} />
           </button>

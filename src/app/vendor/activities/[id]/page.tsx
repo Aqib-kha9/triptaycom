@@ -725,15 +725,20 @@ export default function ViewActivityPage({ params: paramsPromise }: { params: Pr
                                                 <div className="mt-4 pt-4 border-t border-zinc-50">
                                                     <h4 className="text-[11px] font-black text-zinc-800 mb-2">Seasonal Pricing</h4>
                                                     <div className="space-y-2">
-                                                        {activity.seasonalPrices.map((sp, i) => (
-                                                            <div key={i} className="bg-zinc-50 rounded-xl p-3">
-                                                                <p className="text-[11px] font-bold text-zinc-800">{sp.seasonName}</p>
-                                                                <p className="text-[10px] text-zinc-500">
-                                                                    {formatDate(sp.startDate)} – {formatDate(sp.endDate)}
-                                                                </p>
-                                                                <p className="text-sm font-black text-primary mt-1">{formatPrice(sp.pricePerPerson)} <span className="text-[10px] text-zinc-400">/ person</span></p>
-                                                            </div>
-                                                        ))}
+                                                        {activity.seasonalPrices.map((sp: any, i) => {
+                                                            const fromVal = sp.from || sp.startDate || "";
+                                                            const toVal = sp.to || sp.endDate || "";
+                                                            const priceVal = sp.price ?? sp.pricePerPerson ?? 0;
+                                                            return (
+                                                                <div key={i} className="bg-zinc-50 rounded-xl p-3">
+                                                                    <p className="text-[11px] font-bold text-zinc-800">{sp.seasonName}</p>
+                                                                    <p className="text-[10px] text-zinc-500">
+                                                                        {formatDate(fromVal)} – {formatDate(toVal)}
+                                                                    </p>
+                                                                    <p className="text-sm font-black text-primary mt-1">{formatPrice(priceVal)} <span className="text-[10px] text-zinc-400">/ person</span></p>
+                                                                </div>
+                                                            );
+                                                        })}
                                                     </div>
                                                 </div>
                                             )}

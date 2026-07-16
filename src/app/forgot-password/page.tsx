@@ -2,9 +2,9 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Mail, 
-  ArrowRight, 
+import {
+  Mail,
+  ArrowRight,
   ChevronLeft,
   KeyRound,
   ShieldCheck,
@@ -13,9 +13,28 @@ import {
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { authApi, ApiError } from "@/lib/api-client";
+import { Loader2 } from "lucide-react";
 
 export default function ForgotPasswordPage() {
+  const [email, setEmail] = useState("");
   const [isSent, setIsSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      await authApi.forgotPassword(email);
+      setIsSent(true);
+    } catch (err: any) {
+      setError(err instanceof ApiError ? err.message : "Failed to send reset link. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-[#fcfcfc] items-center justify-center p-4">
@@ -24,14 +43,14 @@ export default function ForgotPasswordPage() {
         Back to login
       </Link>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="max-w-md w-full bg-white rounded-[40px] p-10 md:p-14 border border-zinc-100 shadow-2xl shadow-zinc-200/50 text-center space-y-10"
       >
         <AnimatePresence mode="wait">
           {!isSent ? (
-            <motion.div 
+            <motion.div
               key="input"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -48,23 +67,34 @@ export default function ForgotPasswordPage() {
                 </p>
               </div>
 
-              <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); setIsSent(true); }}>
+              <form className="space-y-6" onSubmit={handleSubmit}>
                 <div className="space-y-2 text-left">
                   <label className="text-xs font-bold uppercase tracking-widest text-zinc-400 ml-1">Email Address</label>
                   <div className="relative">
                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                    <Input required type="email" placeholder="name@example.com" className="h-16 pl-12 rounded-2xl border border-zinc-200 bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none" />
+                    <Input
+                      required
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="name@example.com"
+                      className="h-16 pl-12 rounded-2xl border border-zinc-200 bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all outline-none"
+                    />
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full h-16 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20 gap-3 group">
-                  Send Reset Link
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                {error && (
+                  <p className="text-sm font-medium text-red-500 bg-red-50 rounded-2xl px-4 py-3">{error}</p>
+                )}
+
+                <Button type="submit" disabled={loading} className="w-full h-16 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20 gap-3 group">
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Send Reset Link"}
+                  {!loading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
                 </Button>
               </form>
             </motion.div>
           ) : (
-            <motion.div 
+            <motion.div
               key="success"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}

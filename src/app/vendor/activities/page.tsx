@@ -3,9 +3,9 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 import { Input } from "@/components/ui/input";
+import { activitiesApi } from "@/lib/api-client";
+import type { ActivityItem } from "@/types/api";
 import { Badge } from "@/components/ui/badge";
 import {
   Plus,
@@ -26,27 +26,6 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { VendorSidebar } from "@/components/navigation/vendor-sidebar";
-
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-interface ActivityItem {
-  _id: string;
-  name: string;
-  activityType: string;
-  difficulty: string;
-  city: string;
-  state: string;
-  durationHours: number;
-  durationDays: number;
-  basePrice: number;
-  maxGroupSize: number;
-  minAge: number;
-  status: "draft" | "published" | "unpublished";
-  media: { url: string; isCover: boolean }[];
-  avgRating: number;
-  totalReviews: number;
-  createdAt: string;
-}
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -120,18 +99,10 @@ export default function VendorActivitiesPage() {
     try {
       setLoading(true);
       setError("");
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/activities`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      if (json.status === "success") {
-        setListings(json.data.activities);
-      } else {
-        setError(json.message || "Failed to load activities.");
-      }
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+      const res = await activitiesApi.getMyActivities();
+      setListings(res.data.activities);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -147,17 +118,11 @@ export default function VendorActivitiesPage() {
     if (!deleteTarget) return;
     try {
       setIsDeleting(true);
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/activities/${deleteTarget._id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      if (json.status !== "success") throw new Error(json.message || "Delete failed");
-      setListings((prev) => prev.filter((l) => l._id !== deleteTarget._id));
+      await activitiesApi.delete(deleteTarget.id);
+      setListings((prev) => prev.filter((l) => l.id !== deleteTarget.id));
       setDeleteTarget(null);
-    } catch (err: any) {
-      alert(err.message || "Failed to delete activity");
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to delete activity");
     } finally {
       setIsDeleting(false);
     }
@@ -318,7 +283,7 @@ export default function VendorActivitiesPage() {
                     const cover = getCoverImage(listing);
                     return (
                       <motion.div
-                        key={listing._id}
+                        key={listing.id}
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="bg-white rounded-2xl border border-zinc-100 overflow-hidden hover:border-zinc-200 hover:shadow-sm transition-all"
@@ -406,7 +371,7 @@ export default function VendorActivitiesPage() {
 
                             {/* Actions */}
                             <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-zinc-50">
-                              <Link href={`/vendor/activities/${listing._id}`}>
+                              <Link href={`/vendor/activities/${listing.id}`}>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -416,7 +381,7 @@ export default function VendorActivitiesPage() {
                                   View
                                 </Button>
                               </Link>
-                              <Link href={`/vendor/activities/edit/${listing._id}`}>
+                              <Link href={`/vendor/activities/edit/${listing.id}`}>
                                 <Button
                                   variant="ghost"
                                   size="sm"

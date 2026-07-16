@@ -86,7 +86,8 @@ export default function WishlistPage() {
                         return (
                           <div key={entry.wishlistId} className="group relative">
                             <ItemCard
-                              id={item._id}
+                              id={item.id}
+                              slug={item.slug}
                               image={item.image || ""}
                               title={item.title}
                               location={item.location}
@@ -95,7 +96,7 @@ export default function WishlistPage() {
                               type={entry.itemType === "stay" ? "homestay" : "activity"}
                             />
                             <div className="mt-2 px-1 opacity-0 group-hover:opacity-100 transition-opacity translate-y-1 group-hover:translate-y-0 duration-300">
-                              <Link href={`/checkout/${entry.itemType === "stay" ? "stay" : "activity"}/${item._id}`}>
+                              <Link href={`/checkout/${entry.itemType === "stay" ? "stay" : "activity"}/${item.id}`}>
                                 <Button className="w-full rounded-xl gap-1.5 font-bold h-10 text-xs">
                                   Quick Book <ArrowRight className="w-3.5 h-3.5" />
                                 </Button>

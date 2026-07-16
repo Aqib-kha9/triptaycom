@@ -28,24 +28,8 @@ import {
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useWishlist } from "@/context/WishlistContext";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-
-interface DestinationDetail {
-    _id: string;
-    name: string;
-    slug: string;
-    state: string;
-    city: string;
-    image: string;
-    category: "Nature" | "Adventure" | "Historical" | "Spiritual";
-    coordinates: { lat: number; lng: number };
-    description: string;
-    popularityScore: number;
-    nearbyStaysCount: number;
-    createdAt: string;
-    updatedAt: string;
-}
+import { destinationsApi } from "@/lib/api-client";
+import type { DestinationItem } from "@/types/api";
 
 const categoryMeta: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
     Nature: { icon: <Mountain className="w-4 h-4" />, label: "Nature", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
@@ -56,28 +40,24 @@ const categoryMeta: Record<string, { icon: React.ReactNode; label: string; color
 
 export default function DestinationDetailPage({ params: paramsPromise }: { params: Promise<{ slug: string }> }) {
     const params = use(paramsPromise);
-    const [destination, setDestination] = useState<DestinationDetail | null>(null);
+    const [destination, setDestination] = useState<DestinationItem | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const { isWishlisted, toggleWishlist } = useWishlist();
-    const [similarDests, setSimilarDests] = useState<DestinationDetail[]>([]);
+    const [similarDests, setSimilarDests] = useState<DestinationItem[]>([]);
 
     useEffect(() => {
         let cancelled = false;
 
         async function fetchDetail() {
             try {
-                const res = await fetch(`${API_BASE}/destinations/${params.slug}`);
-                const json = await res.json().catch(() => null);
+                const res = await destinationsApi.getBySlug(params.slug);
 
                 if (!cancelled) {
-                    if (!res.ok || !json || json.status !== "success") {
-                        throw new Error(json?.message || "Destination not found");
-                    }
-                    setDestination(json.data.destination);
+                    setDestination(res.data?.destination || null);
                 }
-            } catch (err: any) {
-                if (!cancelled) setError(err.message || "Something went wrong");
+            } catch (err: unknown) {
+                if (!cancelled) setError(err instanceof Error ? err.message : "Something went wrong");
             } finally {
                 if (!cancelled) setLoading(false);
             }
@@ -94,16 +74,16 @@ export default function DestinationDetailPage({ params: paramsPromise }: { param
 
         async function fetchSimilar() {
             try {
-                const params = new URLSearchParams();
-                params.set("limit", "4");
-                if (destination!.category) params.set("category", destination!.category);
+                const params: Record<string, string | number | undefined> = {
+                    limit: 4,
+                };
+                if (destination!.category) params.category = destination!.category;
 
-                const res = await fetch(`${API_BASE}/destinations?${params.toString()}`);
-                const json = await res.json().catch(() => null);
+                const res = await destinationsApi.getAll(params);
 
-                if (!cancelled && json?.status === "success") {
-                    const filtered = json.data.destinations.filter(
-                        (d: any) => d.slug !== destination!.slug
+                if (!cancelled) {
+                    const filtered = (res.data?.destinations || []).filter(
+                        (d) => d.slug !== destination!.slug
                     );
                     setSimilarDests(filtered);
                 }
@@ -201,7 +181,7 @@ export default function DestinationDetailPage({ params: paramsPromise }: { param
                                         </span>
                                         <span className="flex items-center gap-1 text-xs font-bold text-white/80">
                                             <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                                            {destination.popularityScore > 0 ? destination.popularityScore : "New"}
+                                            {(destination.popularityScore || 0) > 0 ? destination.popularityScore : "New"}
                                         </span>
                                     </div>
                                     <h1 className="text-4xl md:text-6xl font-black tracking-tight">{destination.name}</h1>
@@ -225,16 +205,16 @@ export default function DestinationDetailPage({ params: paramsPromise }: { param
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => toggleWishlist(destination?._id || params.slug, "stay")}
+                                        onClick={() => toggleWishlist(destination?.id || params.slug, "stay")}
                                         className={cn(
                                             "rounded-full gap-2 backdrop-blur-md transition-all",
-                                            isWishlisted(destination?._id || params.slug, "stay")
+                                            isWishlisted(destination?.id || params.slug, "stay")
                                                 ? "bg-primary/20 border-primary/30 text-white"
                                                 : "bg-white/10 border-white/20 text-white hover:bg-white/20"
                                         )}
                                     >
-                                        <Heart className={cn("w-4 h-4", isWishlisted(destination?._id || params.slug, "stay") && "fill-white")} />
-                                        {isWishlisted(destination?._id || params.slug, "stay") ? "Saved" : "Save"}
+                                        <Heart className={cn("w-4 h-4", isWishlisted(destination?.id || params.slug, "stay") && "fill-white")} />
+                                        {isWishlisted(destination?.id || params.slug, "stay") ? "Saved" : "Save"}
                                     </Button>
                                 </div>
                             </div>
@@ -291,7 +271,7 @@ export default function DestinationDetailPage({ params: paramsPromise }: { param
                                     <Globe className="w-5 h-5 text-primary mx-auto" />
                                     <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Nearby</p>
                                     <p className="text-sm font-bold text-zinc-900">
-                                        {destination.nearbyStaysCount > 0 ? `${destination.nearbyStaysCount} stays` : "Coming soon"}
+                                        {(destination.nearbyStaysCount || 0) > 0 ? `${destination.nearbyStaysCount} stays` : "Coming soon"}
                                     </p>
                                 </motion.div>
                             </div>
@@ -517,7 +497,7 @@ export default function DestinationDetailPage({ params: paramsPromise }: { param
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                                 {similarDests.slice(0, 4).map((d) => (
                                     <motion.div
-                                        key={d._id}
+                                        key={d.id}
                                         initial={{ opacity: 0, y: 20 }}
                                         whileInView={{ opacity: 1, y: 0 }}
                                         viewport={{ once: true }}

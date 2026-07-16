@@ -2,43 +2,68 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Lock, 
-  ArrowRight, 
+import {
+  Lock,
+  ArrowRight,
   ChevronLeft,
   ShieldCheck,
   CheckCircle2,
   Eye,
-  EyeOff
+  EyeOff,
+  Loader2
 } from "lucide-react";
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { authApi, ApiError } from "@/lib/api-client";
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") || "";
   const [isSuccess, setIsSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
 
-  const handleReset = (e: React.FormEvent) => {
+  const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSuccess(true);
-    setTimeout(() => {
-      router.push("/login");
-    }, 3000);
+    setError("");
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await authApi.resetPassword({ token, password });
+      setIsSuccess(true);
+      setTimeout(() => {
+        router.push("/login");
+      }, 3000);
+    } catch (err: any) {
+      setError(err instanceof ApiError ? err.message : "Failed to reset password. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="flex min-h-screen bg-[#fcfcfc] items-center justify-center p-4">
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         className="max-w-md w-full bg-white rounded-[40px] p-10 md:p-14 border border-zinc-100 shadow-2xl shadow-zinc-200/50 text-center space-y-10"
       >
         <AnimatePresence mode="wait">
           {!isSuccess ? (
-            <motion.div 
+            <motion.div
               key="input"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -60,13 +85,15 @@ export default function ResetPasswordPage() {
                   <label className="text-xs font-bold uppercase tracking-widest text-zinc-400 ml-1">New Password</label>
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                    <Input 
-                      required 
-                      type={showPassword ? "text" : "password"} 
-                      placeholder="••••••••" 
-                      className="h-16 pl-12 pr-12 rounded-2xl border-zinc-100 bg-zinc-50 focus:bg-white transition-all" 
+                    <Input
+                      required
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="h-16 pl-12 pr-12 rounded-2xl border-zinc-100 bg-zinc-50 focus:bg-white transition-all"
                     />
-                    <button 
+                    <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-900 transition-colors"
@@ -80,23 +107,35 @@ export default function ResetPasswordPage() {
                   <label className="text-xs font-bold uppercase tracking-widest text-zinc-400 ml-1">Confirm Password</label>
                   <div className="relative">
                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                    <Input 
-                      required 
-                      type={showPassword ? "text" : "password"} 
-                      placeholder="••••••••" 
-                      className="h-16 pl-12 rounded-2xl border-zinc-100 bg-zinc-50 focus:bg-white transition-all" 
+                    <Input
+                      required
+                      type={showPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="h-16 pl-12 rounded-2xl border-zinc-100 bg-zinc-50 focus:bg-white transition-all"
                     />
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full h-16 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20 gap-3 group">
-                  Update Password
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                {error && (
+                  <p className="text-sm font-medium text-red-500 bg-red-50 rounded-2xl px-4 py-3">{error}</p>
+                )}
+
+                {!token && (
+                  <p className="text-sm font-medium text-amber-600 bg-amber-50 rounded-2xl px-4 py-3">
+                    No reset token found. Please use the link from your email.
+                  </p>
+                )}
+
+                <Button type="submit" disabled={loading || !token} className="w-full h-16 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20 gap-3 group">
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Update Password"}
+                  {!loading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
                 </Button>
               </form>
             </motion.div>
           ) : (
-            <motion.div 
+            <motion.div
               key="success"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -124,5 +163,13 @@ export default function ResetPasswordPage() {
         </AnimatePresence>
       </motion.div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-zinc-400" /></div>}>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

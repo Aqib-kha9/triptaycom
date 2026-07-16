@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VendorSidebar } from "@/components/navigation/vendor-sidebar";
 import { cn } from "@/lib/utils";
+import { authApi, uploadApi } from "@/lib/api-client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -79,16 +80,6 @@ interface ToastState {
 
 // ──────────────────────── Helpers ────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-
-function getToken(): string | null {
-  try {
-    return localStorage.getItem("token");
-  } catch {
-    return null;
-  }
-}
-
 function maskBankAccount(account: string): string {
   if (!account || account.length < 4) return "••••";
   return "••••" + account.slice(-4);
@@ -150,41 +141,28 @@ export default function VendorProfilePage() {
   // ──────────────────────── Fetch Profile ────────────────────────
 
   const fetchProfile = useCallback(async () => {
-    const token = getToken();
-    if (!token) {
-      setError("Authentication required. Please log in again.");
-      setLoading(false);
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
 
-      const res = await fetch(`${API_BASE}/auth/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await authApi.getProfile();
+      const user = res.data?.user as unknown as UserProfile;
 
-      if (!res.ok) {
-        if (res.status === 401) throw new Error("Session expired. Please log in again.");
-        throw new Error("Failed to load profile.");
+      if (user) {
+        setProfile(user);
+        setFormData({
+          name: user.name || "",
+          phone: user.phone || "",
+          website: user.website || "",
+          gstin: user.gstin || "",
+          panNumber: user.panNumber || "",
+          bankAccount: user.bankAccount || "",
+          bankIFSC: user.bankIFSC || "",
+        });
       }
-
-      const json = await res.json();
-      const user: UserProfile = json.data.user;
-
-      setProfile(user);
-      setFormData({
-        name: user.name || "",
-        phone: user.phone || "",
-        website: user.website || "",
-        gstin: user.gstin || "",
-        panNumber: user.panNumber || "",
-        bankAccount: user.bankAccount || "",
-        bankIFSC: user.bankIFSC || "",
-      });
-    } catch (err: any) {
-      setError(err.message || "Something went wrong.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Something went wrong.";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -197,9 +175,6 @@ export default function VendorProfilePage() {
   // ──────────────────────── Save Section ────────────────────────
 
   const handleSave = async (section: string) => {
-    const token = getToken();
-    if (!token) return;
-
     setSaving(true);
     try {
       const body: Record<string, string> = {};
@@ -220,26 +195,15 @@ export default function VendorProfilePage() {
           break;
       }
 
-      const res = await fetch(`${API_BASE}/auth/profile`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || "Failed to save changes.");
+      const res = await authApi.updateProfile(body);
+      if (res.data?.user) {
+        setProfile(res.data.user as unknown as UserProfile);
       }
-
-      const json = await res.json();
-      setProfile(json.data.user);
       setEditingSection(null);
       showToast("success", `${section.charAt(0).toUpperCase() + section.slice(1)} details updated successfully.`);
-    } catch (err: any) {
-      showToast("error", err.message || "Failed to save.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to save.";
+      showToast("error", message);
     } finally {
       setSaving(false);
     }
@@ -266,44 +230,17 @@ export default function VendorProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const token = getToken();
-    if (!token) return;
-
     setUploadingAvatar(true);
     try {
-      const form = new FormData();
-      form.append("file", file);
-
-      const res = await fetch(`${API_BASE}/upload/avatar`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || "Upload failed.");
+      const uploadRes = await uploadApi.uploadAvatar(file);
+      const updateRes = await authApi.updateProfile({ avatar: uploadRes.data.url });
+      if (updateRes.data?.user) {
+        setProfile(updateRes.data.user as unknown as UserProfile);
       }
-
-      const json = await res.json();
-
-      // Update profile via PATCH
-      const updateRes = await fetch(`${API_BASE}/auth/profile`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ avatar: json.data.url }),
-      });
-
-      if (!updateRes.ok) throw new Error("Failed to save avatar URL.");
-
-      const updateJson = await updateRes.json();
-      setProfile(updateJson.data.user);
       showToast("success", "Profile photo updated.");
-    } catch (err: any) {
-      showToast("error", err.message || "Avatar upload failed.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Avatar upload failed.";
+      showToast("error", message);
     } finally {
       setUploadingAvatar(false);
       if (avatarInputRef.current) avatarInputRef.current.value = "";
@@ -330,34 +267,20 @@ export default function VendorProfilePage() {
       return;
     }
 
-    const token = getToken();
-    if (!token) return;
-
     setChangingPassword(true);
     setPasswordError(null);
     setPasswordSuccess(null);
 
     try {
-      const res = await fetch(`${API_BASE}/auth/change-password`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ currentPassword: current, newPassword: newPw }),
-      });
-
-      if (!res.ok) {
-        const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || "Password change failed.");
-      }
+      await authApi.changePassword({ currentPassword: current, newPassword: newPw });
 
       setPasswordSuccess("Password changed successfully.");
       setPasswordData({ current: "", new: "", confirm: "" });
       setShowPasswords({ current: false, new: false, confirm: false });
       showToast("success", "Password updated.");
-    } catch (err: any) {
-      setPasswordError(err.message || "Failed to change password.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to change password.";
+      setPasswordError(message);
     } finally {
       setChangingPassword(false);
     }
@@ -1113,7 +1036,7 @@ export default function VendorProfilePage() {
                         </div>
                         <div>
                           <p className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">Email</p>
-                          <p className="text-xs font-bold text-zinc-900">{profile.email}</p>
+                          <p className="text-xs font-bold text-zinc-900">support@triptay.com</p>
                         </div>
                       </div>
                       <div className="flex gap-3">
@@ -1122,7 +1045,7 @@ export default function VendorProfilePage() {
                         </div>
                         <div>
                           <p className="text-[8px] font-black uppercase text-zinc-400 tracking-widest">Phone</p>
-                          <p className="text-xs font-bold text-zinc-900">{profile.phone || "Not provided"}</p>
+                          <p className="text-xs font-bold text-zinc-900">+91 98765 43210</p>
                         </div>
                       </div>
                     </div>

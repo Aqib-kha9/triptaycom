@@ -16,6 +16,8 @@ import {
   ChevronLeft,
   X,
   Circle,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -30,6 +32,7 @@ interface OtherUser {
   _id: string;
   name: string;
   email: string;
+  avatar?: string | null;
 }
 
 interface BookingContext {
@@ -144,6 +147,7 @@ export default function VendorMessagesPage() {
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showMobileChat, setShowMobileChat] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
 
@@ -230,16 +234,21 @@ export default function VendorMessagesPage() {
         conversationId: string;
         readBy: string;
       }) => {
-        if (activeConversation?._id !== conversationId) return;
         setMessages((prev) =>
           prev.map((m) =>
-            m.sender._id !== readBy && !m.isRead ? { ...m, isRead: true } : m
+            m.conversation === conversationId && m.sender?._id !== readBy && !m.isRead
+              ? { ...m, isRead: true }
+              : m
           )
         );
       }
     );
 
     // Online/offline status
+    newSocket.on("users:online", (userIds: string[]) => {
+      setOnlineUsers(new Set(userIds));
+    });
+
     newSocket.on("user:online", ({ userId }: { userId: string }) => {
       setOnlineUsers((prev) => new Set(prev).add(userId));
     });
@@ -279,7 +288,7 @@ export default function VendorMessagesPage() {
       }
 
       const json = await res.json();
-      setConversations(json.data || []);
+      setConversations(json.data?.conversations || []);
     } catch (err: any) {
       setConversationsError(err.message);
     } finally {
@@ -290,6 +299,18 @@ export default function VendorMessagesPage() {
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
+
+
+  useEffect(() => {
+    if (isFullScreen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isFullScreen]);
 
   // ──────────────────────── Fetch Messages ────────────────────────
 
@@ -313,7 +334,7 @@ export default function VendorMessagesPage() {
         }
 
         const json = await res.json();
-        setMessages(json.data || []);
+        setMessages(json.data?.messages || []);
       } catch (err: any) {
         setMessagesError(err.message);
       } finally {
@@ -351,6 +372,22 @@ export default function VendorMessagesPage() {
     },
     [activeConversation, socket, fetchMessages]
   );
+
+  useEffect(() => {
+    if (conversations.length > 0 && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const convId = params.get("convId");
+      if (convId && activeConversation?._id !== convId) {
+        const found = conversations.find((c) => c._id === convId);
+        if (found) {
+          handleSelectConversation(found);
+          // Remove the convId query parameter from the URL so user can click other chats
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, "", newUrl);
+        }
+      }
+    }
+  }, [conversations, activeConversation, handleSelectConversation]);
 
   const handleBackToList = () => {
     if (activeConversation && socket) {
@@ -529,16 +566,46 @@ export default function VendorMessagesPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
-      <Navbar />
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+          height: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e4e4e7;
+          border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #d4d4d8;
+        }
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #e4e4e7 transparent;
+        }
+      `}</style>
+      {!isFullScreen && <Navbar />}
 
-      <main className="flex-grow pt-20 pb-28 lg:pb-12">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-200px)] lg:h-[calc(100vh-140px)]">
+      <main className={cn("flex-grow", isFullScreen ? "pt-0 pb-0" : "pt-20 pb-28 lg:pb-12")}>
+        <div className={isFullScreen ? "w-screen h-screen" : "container mx-auto px-4"}>
+          <div className={cn(
+            "flex gap-6",
+            isFullScreen
+              ? "h-screen w-screen gap-0"
+              : "flex-col lg:flex-row h-[calc(100vh-200px)] lg:h-[calc(100vh-140px)]"
+          )}>
             {/* ── Sidebar ── */}
-            <VendorSidebar />
+            {!isFullScreen && <VendorSidebar />}
 
             {/* ── Main Chat Container ── */}
-            <div className="flex-grow flex bg-white rounded-2xl border border-zinc-100 overflow-hidden shadow-sm">
+            <div className={cn(
+              "flex bg-white overflow-hidden shadow-sm flex-grow",
+              isFullScreen
+                ? "h-screen w-screen rounded-none border-none"
+                : "rounded-2xl border border-zinc-100"
+            )}>
               {/* ──────────────────── Conversation List ──────────────────── */}
               <div
                 className={cn(
@@ -554,23 +621,36 @@ export default function VendorMessagesPage() {
                     <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-widest">
                       Messages
                     </h2>
-                    <div
-                      className={cn(
-                        "flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider",
-                        isConnected ? "text-emerald-600" : "text-red-500"
-                      )}
-                    >
-                      {isConnected ? (
-                        <>
-                          <Wifi className="w-3 h-3" />
-                          <span>Live</span>
-                        </>
-                      ) : (
-                        <>
-                          <WifiOff className="w-3 h-3" />
-                          <span>Offline</span>
-                        </>
-                      )}
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setIsFullScreen(!isFullScreen)}
+                        className="p-1 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 rounded transition-colors"
+                        title={isFullScreen ? "Minimize Window" : "Maximize Window"}
+                      >
+                        {isFullScreen ? (
+                          <Minimize2 className="w-3.5 h-3.5" />
+                        ) : (
+                          <Maximize2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                      <div
+                        className={cn(
+                          "flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider",
+                          isConnected ? "text-emerald-600" : "text-red-500"
+                        )}
+                      >
+                        {isConnected ? (
+                          <>
+                            <Wifi className="w-3 h-3" />
+                            <span>Live</span>
+                          </>
+                        ) : (
+                          <>
+                            <WifiOff className="w-3 h-3" />
+                            <span>Offline</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="relative">
@@ -593,7 +673,7 @@ export default function VendorMessagesPage() {
                 </div>
 
                 {/* List */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
                   {conversationsLoading ? (
                     <div className="flex items-center justify-center h-32">
                       <Loader2 className="w-5 h-5 text-zinc-400 animate-spin" />
@@ -631,17 +711,25 @@ export default function VendorMessagesPage() {
                           )}
                         >
                           <div className="relative shrink-0">
-                            <div
-                              className={cn(
-                                "w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm",
-                                chat.bookingContext?.type === "listing"
-                                  ? "bg-amber-500"
-                                  : "bg-blue-500"
-                              )}
-                            >
-                              {chat.otherUser?.name?.charAt(0)?.toUpperCase() ||
-                                "?"}
-                            </div>
+                            {chat.otherUser?.avatar ? (
+                              <img
+                                src={chat.otherUser.avatar}
+                                alt={chat.otherUser.name || "User Avatar"}
+                                className="w-10 h-10 rounded-xl object-cover"
+                              />
+                            ) : (
+                              <div
+                                className={cn(
+                                  "w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm",
+                                  chat.bookingContext?.type === "listing"
+                                    ? "bg-amber-500"
+                                    : "bg-blue-500"
+                                )}
+                              >
+                                {chat.otherUser?.name?.charAt(0)?.toUpperCase() ||
+                                  "?"}
+                              </div>
+                            )}
                             {onlineUsers.has(chat.otherUser?._id || "") && (
                               <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
                             )}
@@ -723,19 +811,27 @@ export default function VendorMessagesPage() {
                         >
                           <ChevronLeft className="w-5 h-5 text-zinc-600" />
                         </Button>
-                        <div
-                          className={cn(
-                            "w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0",
-                            activeConversation.bookingContext?.type ===
-                              "listing"
-                              ? "bg-amber-500"
-                              : "bg-blue-500"
-                          )}
-                        >
-                          {activeConversation.otherUser?.name
-                            ?.charAt(0)
-                            ?.toUpperCase() || "?"}
-                        </div>
+                        {activeConversation.otherUser?.avatar ? (
+                          <img
+                            src={activeConversation.otherUser.avatar}
+                            alt={activeConversation.otherUser.name || "User Avatar"}
+                            className="w-9 h-9 rounded-xl object-cover shrink-0"
+                          />
+                        ) : (
+                          <div
+                            className={cn(
+                              "w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0",
+                              activeConversation.bookingContext?.type ===
+                                "listing"
+                                ? "bg-amber-500"
+                                : "bg-blue-500"
+                            )}
+                          >
+                            {activeConversation.otherUser?.name
+                              ?.charAt(0)
+                              ?.toUpperCase() || "?"}
+                          </div>
+                        )}
                         <div>
                           <h3 className="text-xs font-bold text-zinc-900">
                             {activeConversation.otherUser?.name || "Guest"}
@@ -815,7 +911,7 @@ export default function VendorMessagesPage() {
                     )}
 
                     {/* ── Messages ── */}
-                    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+                    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar">
                       {messagesLoading ? (
                         <div className="flex items-center justify-center h-full">
                           <Loader2 className="w-6 h-6 text-zinc-400 animate-spin" />
@@ -919,8 +1015,11 @@ export default function VendorMessagesPage() {
                                     <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest px-1">
                                       {formatTime(msg.createdAt)}
                                       {isMine && (
-                                        <span className="ml-1">
-                                          {msg.isRead ? "✓✓" : "✓"}
+                                        <span className={cn(
+                                          "ml-1 font-bold text-[10px] tracking-tight transition-colors",
+                                          msg.isRead ? "text-emerald-500" : "text-zinc-400"
+                                        )}>
+                                          {msg.isRead ? "✓✓" : (onlineUsers.has(activeConversation.otherUser?._id || "") ? "✓✓" : "✓")}
                                         </span>
                                       )}
                                     </span>
@@ -992,7 +1091,7 @@ export default function VendorMessagesPage() {
         </div>
       </main>
 
-      <Footer />
+      {!isFullScreen && <Footer />}
     </div>
   );
 }

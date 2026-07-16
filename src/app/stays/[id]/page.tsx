@@ -5,6 +5,8 @@ import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { ItemCard } from "@/components/cards";
 import { useWishlist } from "@/context/WishlistContext";
+import { listingsApi, getToken, publicApi, chatApi, reviewsApi } from "@/lib/api-client";
+import type { ListingItem } from "@/types/api";
 import {
   Star,
   MapPin,
@@ -18,6 +20,7 @@ import {
   ShieldCheck,
   Users,
   ChevronRight,
+  ChevronLeft,
   Clock,
   ArrowRight,
   Inbox,
@@ -61,14 +64,13 @@ import {
 import { useState, useEffect, use } from "react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 // ── TypeScript Interfaces ──
 
 interface ListingDetail {
-  _id: string;
+  id: string;
   name: string;
   slug: string;
   summary: string;
@@ -92,7 +94,7 @@ interface ListingDetail {
   amenities: string[];
   media: { url: string; publicId: string; type: string; caption?: string; isCover: boolean }[];
   coordinates: { lat: number; lng: number };
-  host: { _id: string; name: string; avatar?: string; email?: string; phone?: string } | null;
+  host: { id: string; name: string; avatar?: string; email?: string; phone?: string } | null;
   meals: { mealType: string; included: boolean; extraPrice: number; description?: string }[];
   hasKitchen?: boolean;
   kitchenDetails?: string;
@@ -215,15 +217,178 @@ function getAmenityIcon(name: string): React.ReactNode {
 
 export default function StayDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
   const params = use(paramsPromise);
+  const router = useRouter();
 
   const [listing, setListing] = useState<ListingDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { isWishlisted, toggleWishlist } = useWishlist();
   const [guestCount, setGuestCount] = useState(2);
-  const [similarProperties, setSimilarProperties] = useState<any[]>([]);
+  const [similarProperties, setSimilarProperties] = useState<ListingItem[]>([]);
   const [showAllAmenities, setShowAllAmenities] = useState(false);
   const [showFullGallery, setShowFullGallery] = useState(false);
+  const [platformFeeRate, setPlatformFeeRate] = useState(5);
+  const [messageLoading, setMessageLoading] = useState(false);
+
+  // Reviews states
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+
+  // Fetch reviews when listing loads
+  useEffect(() => {
+    const listingId = listing?.id;
+    if (!listingId) return;
+    let active = true;
+    (async () => {
+      setReviewsLoading(true);
+      try {
+        const res = await reviewsApi.getItemReviews("listing", listingId);
+        if (active && res.status === "success") {
+          setReviews(res.data?.reviews || []);
+        }
+      } catch (err) {
+        console.error("Failed to load listing reviews:", err);
+      } finally {
+        if (active) setReviewsLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, [listing]);
+
+  // Availability calendar states
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [blockedDates, setBlockedDates] = useState<string[]>([]);
+  const [bookedDates, setBookedDates] = useState<string[]>([]);
+  const [calendarError, setCalendarError] = useState("");
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+
+  useEffect(() => {
+    async function fetchConfig() {
+      try {
+        const res = await publicApi.getConfigurations();
+        if (res?.status === "success" && res.data?.configuration) {
+          const rate = res.data.configuration.platform_fee_rate;
+          if (rate !== undefined) setPlatformFeeRate(Number(rate));
+        }
+      } catch (err) {
+        console.error("Failed to load public config:", err);
+      }
+    }
+    fetchConfig();
+  }, []);
+
+  // Fetch listing availability (blocked and booked dates)
+  useEffect(() => {
+    const listingId = listing?.id;
+    if (!listingId) return;
+    const id: string = listingId;
+    async function fetchAvailability() {
+      try {
+        const res = await listingsApi.getListingAvailability(id);
+        if (res.status === "success" && res.data) {
+          setBlockedDates(res.data.blockedDates || []);
+          setBookedDates(res.data.bookedDates || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch availability:", err);
+      }
+    }
+    fetchAvailability();
+  }, [listing]);
+
+  // Calendar Helpers
+  const formatDateString = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  const todayStr = formatDateString(new Date());
+
+  const isDateDisabled = (dateStr: string) => {
+    return dateStr < todayStr || blockedDates.includes(dateStr) || bookedDates.includes(dateStr);
+  };
+
+  const handleDateClick = (dateStr: string) => {
+    if (isDateDisabled(dateStr)) return;
+
+    if (!checkIn || (checkIn && checkOut)) {
+      setCheckIn(dateStr);
+      setCheckOut("");
+      setCalendarError("");
+    } else {
+      if (dateStr <= checkIn) {
+        setCheckIn(dateStr);
+      } else {
+        // Check if any date in the range is blocked/booked
+        const start = new Date(checkIn);
+        const end = new Date(dateStr);
+        let hasConflict = false;
+        const current = new Date(start);
+        while (current < end) {
+          if (isDateDisabled(formatDateString(current))) {
+            hasConflict = true;
+            break;
+          }
+          current.setDate(current.getDate() + 1);
+        }
+
+        if (hasConflict) {
+          setCalendarError("Selected range contains booked/blocked dates.");
+        } else {
+          setCheckOut(dateStr);
+          setCalendarError("");
+        }
+      }
+    }
+  };
+
+  const getDaysInMonth = (month: number, year: number) => {
+    const date = new Date(year, month, 1);
+    const days = [];
+    const firstDayIndex = date.getDay();
+    for (let i = 0; i < firstDayIndex; i++) {
+      days.push(null);
+    }
+    while (date.getMonth() === month) {
+      days.push(new Date(date));
+      date.setDate(date.getDate() + 1);
+    }
+    return days;
+  };
+
+  const handleMessageHost = async () => {
+    if (!listing?.host?.id) return;
+    const token = getToken();
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    setMessageLoading(true);
+    try {
+      const res = await chatApi.getOrCreateConversation({
+        participantId: listing.host.id,
+        listingId: listing.id,
+        bookingContext: {
+          title: listing.name,
+          dateRange: checkIn && checkOut ? `${checkIn} to ${checkOut}` : "General Inquiry",
+          type: "Stay Inquiry"
+        }
+      });
+      if (res?.status === "success" && res.data?.conversation?._id) {
+        router.push(`/messages?conversationId=${res.data.conversation._id}`);
+      }
+    } catch (err) {
+      console.error("Failed to start message room with host:", err);
+      alert("Failed to connect with host. Please try again.");
+    } finally {
+      setMessageLoading(false);
+    }
+  };
 
   // ── Fetch listing detail ──
   useEffect(() => {
@@ -233,20 +398,35 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(`${API_BASE}/public/listing/${params.id}`);
-        const json = await res.json().catch(() => null);
-
-        if (!cancelled) {
-          if (json?.status === "success" && json.data?.listing) {
-            setListing(json.data.listing);
-            const l = json.data.listing;
-            fetchSimilar(l.city, l._id);
+        let res;
+        try {
+          res = await listingsApi.getPublic(params.id);
+          if (res?.status !== "success" || !res.data?.listing) {
+            throw new Error(res?.message || "Public stay not found");
+          }
+        } catch (publicErr) {
+          const token = getToken();
+          if (token) {
+            // Attempt to load private details if logged in
+            res = await listingsApi.getById(params.id);
           } else {
-            setError(json?.message || "Stay not found.");
+            throw publicErr;
           }
         }
-      } catch {
-        if (!cancelled) setError("Unable to load stay details. Please try again.");
+
+        if (!cancelled) {
+          if (res?.status === "success" && res.data?.listing) {
+            setListing(res.data.listing as unknown as ListingDetail);
+            const l = res.data.listing as unknown as ListingDetail;
+            fetchSimilar(l.city, l.id);
+          } else {
+            setError(res?.message || "Stay not found.");
+          }
+        }
+      } catch (err: unknown) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Unable to load stay details. Please try again.");
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -254,13 +434,10 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
 
     async function fetchSimilar(city: string, excludeId: string) {
       try {
-        const res = await fetch(
-          `${API_BASE}/listings/browse?city=${encodeURIComponent(city)}&limit=3&sort=-avgRating`
-        );
-        const json = await res.json().catch(() => null);
-        if (!cancelled && json?.status === "success" && Array.isArray(json.data?.listings)) {
+        const res = await listingsApi.browse({ city, limit: 3, sort: "-avgRating" });
+        if (!cancelled && res?.status === "success" && Array.isArray(res.data?.listings)) {
           setSimilarProperties(
-            json.data.listings.filter((l: any) => l._id !== excludeId).slice(0, 3)
+            res.data.listings.filter((l: ListingItem) => l.id !== excludeId).slice(0, 3)
           );
         }
       } catch {
@@ -282,6 +459,16 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
   const hasMoreAmenities = (listing?.amenities?.length ?? 0) > 10;
   const fmt = (n: number) => n?.toLocaleString("en-IN") ?? "0";
 
+  // Dynamic booking details
+  const nights = checkIn && checkOut
+    ? Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24))
+    : listing?.minStay ?? 1;
+
+  const baseTotal = (listing?.basePrice ?? 0) * nights;
+  const platformFee = Math.round(baseTotal * platformFeeRate / 100);
+  const taxesTotal = Math.round((baseTotal + (listing?.cleaningFee ?? 0)) * (listing?.taxes ?? 0) / 100);
+  const grandTotal = baseTotal + (listing?.cleaningFee ?? 0) + (listing?.securityDeposit ?? 0) + platformFee + taxesTotal;
+
   // ── Loading State ──
   if (loading) {
     return (
@@ -296,7 +483,8 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
             <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center mx-auto">
               <Loader2 className="w-8 h-8 animate-spin text-rose-500" />
             </div>
-            <p className="text-gray-600 font-semibold text-lg">Loading stay details...</p>
+            <p className="text-lg font-semibold text-gray-700">Loading stay details...</p>
+            <p className="text-sm text-gray-500">Fetching the best homestay for you</p>
           </motion.div>
         </main>
         <Footer />
@@ -313,18 +501,16 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-center space-y-5 max-w-md"
+            className="text-center space-y-6 max-w-md"
           >
             <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto">
-              <AlertCircle className="w-8 h-8 text-red-400" />
+              <AlertCircle className="w-8 h-8 text-red-500" />
             </div>
-            <p className="text-gray-800 font-semibold text-xl">{error || "Stay not found"}</p>
-            <p className="text-gray-500 text-sm">
-              The stay you're looking for may have been removed or is no longer available.
-            </p>
+            <h2 className="text-xl font-semibold text-gray-900">Oops! Something went wrong</h2>
+            <p className="text-gray-500">{error || "Stay not found"}</p>
             <Link href="/stays">
-              <Button variant="outline" className="rounded-xl mt-2 gap-2 h-12 px-6 font-semibold">
-                <ArrowLeft className="w-4 h-4" /> Browse all stays
+              <Button variant="outline" className="rounded-xl gap-2">
+                <ArrowLeft className="w-4 h-4" /> Back to Stays
               </Button>
             </Link>
           </motion.div>
@@ -340,30 +526,40 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
 
       <main className="flex-grow">
         {/* ================================================================ */}
-        {/* IMAGE GALLERY — Airbnb‑style grid                                */}
+        {/* GALLERY                                                          */}
         {/* ================================================================ */}
         <section className="pt-20 pb-0">
           {images.length > 0 ? (
-            <div className="grid grid-cols-4 gap-2 h-[320px] md:h-[480px]">
-              {/* Main large image */}
-              <div className="col-span-2 row-span-2 relative overflow-hidden cursor-pointer">
-                <img
-                  src={images[0]}
-                  alt={listing.name}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
-                />
-              </div>
-              {/* Side images */}
-              {images.slice(1, 5).map((img, i) => (
-                <div key={i} className="relative overflow-hidden cursor-pointer">
+            <div className="relative">
+              {/* Main image + 4 grid items */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-2.5 max-w-7xl mx-auto px-4 md:px-6 lg:px-8">
+                <div className="md:col-span-2 md:row-span-2 h-[320px] md:h-[480px] rounded-xl overflow-hidden">
                   <img
-                    src={img}
-                    alt={`${listing.name} - ${i + 2}`}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                    src={images[0]}
+                    alt={`${listing.name} - main`}
+                    className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-500"
+                    onClick={() => setShowFullGallery(true)}
                   />
                 </div>
-              ))}
-              {/* Show all photos button */}
+                {images.slice(1, 5).map((img, i) => (
+                  <div
+                    key={i}
+                    className="hidden md:block h-[237px] rounded-xl overflow-hidden relative"
+                  >
+                    <img
+                      src={img}
+                      alt={`${listing.name} - ${i + 2}`}
+                      className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-500"
+                      onClick={() => setShowFullGallery(true)}
+                    />
+                    {i === 3 && images.length > 5 && (
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                        <span className="text-white font-semibold text-lg">+{images.length - 5} more</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
               <button
                 onClick={() => setShowFullGallery(true)}
                 className="absolute bottom-6 right-6 bg-white rounded-lg px-4 py-2 text-sm font-semibold border border-gray-200 shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
@@ -398,15 +594,23 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                 {/* Rating */}
                 <div className="flex items-center gap-1.5">
                   <Star className="w-4 h-4 fill-current text-gray-900" />
-                  <span className="font-semibold">{listing.avgRating?.toFixed(1) || "New"}</span>
-                  {listing.totalReviews > 0 && (
-                    <>
-                      <span className="text-gray-400">·</span>
-                      <span className="text-gray-500 underline cursor-pointer hover:text-gray-700">
-                        {listing.totalReviews} review{listing.totalReviews !== 1 ? "s" : ""}
-                      </span>
-                    </>
-                  )}
+                  {(() => {
+                    const count = reviews.length;
+                    const avg = count > 0 ? (reviews.reduce((acc, r) => acc + r.rating, 0) / count) : 0;
+                    return (
+                      <>
+                        <span className="font-semibold">{avg > 0 ? avg.toFixed(1) : "New"}</span>
+                        {count > 0 && (
+                          <>
+                            <span className="text-gray-400">·</span>
+                            <span className="text-gray-500 underline cursor-pointer hover:text-gray-700">
+                              {count} review{count !== 1 ? "s" : ""}
+                            </span>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Verified badge */}
@@ -461,13 +665,13 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
               </Button>
               <Button
                 variant="outline"
-                onClick={() => toggleWishlist(listing?._id || params.id, "stay")}
+                onClick={() => toggleWishlist(listing?.id || params.id, "stay")}
                 className={cn(
                   "rounded-xl gap-2 font-semibold text-sm transition-colors",
-                  isWishlisted(listing?._id || params.id, "stay") && "text-rose-500 border-rose-200 bg-rose-50 hover:bg-rose-100"
+                  isWishlisted(listing?.id || params.id, "stay") && "text-rose-500 border-rose-200 bg-rose-50 hover:bg-rose-100"
                 )}
               >
-                <Heart className={cn("w-4 h-4", isWishlisted(listing?._id || params.id, "stay") && "fill-rose-500")} />
+                <Heart className={cn("w-4 h-4", isWishlisted(listing?.id || params.id, "stay") && "fill-rose-500")} />
                 Save
               </Button>
             </div>
@@ -513,8 +717,18 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                 )}
                 {/* Optional: message host button */}
                 {listing.host && (
-                  <Button variant="outline" className="rounded-xl font-semibold text-sm gap-2 sm:ml-auto">
-                    <MessageCircle className="w-4 h-4" /> Message Host
+                  <Button
+                    variant="outline"
+                    onClick={handleMessageHost}
+                    disabled={messageLoading}
+                    className="rounded-xl font-semibold text-sm gap-2 sm:ml-auto"
+                  >
+                    {messageLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <MessageCircle className="w-4 h-4" />
+                    )}
+                    {messageLoading ? "Connecting..." : "Message Host"}
                   </Button>
                 )}
               </div>
@@ -615,27 +829,31 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                         </div>
                       </div>
                     )}
-                    {listing.meals && listing.meals.length > 0 && (
-                      <div className="space-y-3">
-                        {listing.meals.map((meal) => (
-                          <div key={meal.mealType} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+                    <div className="space-y-3">
+                      {listing.meals.map((meal: any, index) => {
+                        const mealName = meal.type || meal.mealType || `Meal ${index + 1}`;
+                        const isIncluded = meal.available ?? meal.included ?? false;
+                        const mealPrice = typeof meal.price === "number" ? meal.price : (typeof meal.extraPrice === "number" ? meal.extraPrice : 0);
+
+                        return (
+                          <div key={index} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
                             <div>
-                              <p className="font-semibold text-gray-900">{meal.mealType}</p>
+                              <p className="font-semibold text-gray-900">{mealName}</p>
                               {meal.description && (
                                 <p className="text-sm text-gray-500">{meal.description}</p>
                               )}
                             </div>
                             <span className="text-sm font-semibold text-gray-700">
-                              {meal.included ? (
+                              {isIncluded ? (
                                 <span className="text-emerald-600">Included</span>
                               ) : (
-                                `₹${meal.extraPrice?.toLocaleString("en-IN")}`
+                                `₹${mealPrice.toLocaleString("en-IN")}`
                               )}
                             </span>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        );
+                      })}
+                    </div>
                   </div>
                   <hr className="border-gray-100" />
                 </>
@@ -741,6 +959,120 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                 </>
               )}
 
+              {/* ── Availability Calendar ── */}
+              <div id="availability-calendar" className="space-y-4 scroll-mt-28">
+                <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-rose-500" />
+                  Select Booking Dates
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Select your check-in and check-out dates. Days marked in red are already booked by other guests, and days with a line-through are blocked by the host.
+                </p>
+
+                {/* Calendar grid container */}
+                <div className="border border-gray-200 rounded-[32px] p-6 bg-white shadow-sm max-w-md">
+                  {/* Month header control */}
+                  <div className="flex justify-between items-center mb-4">
+                    <button
+                      onClick={() => {
+                        const prev = new Date(currentYear, currentMonth - 1, 1);
+                        setCurrentMonth(prev.getMonth());
+                        setCurrentYear(prev.getFullYear());
+                      }}
+                      className="p-2 hover:bg-gray-50 rounded-full border border-gray-200 transition-colors"
+                      disabled={currentYear === new Date().getFullYear() && currentMonth === new Date().getMonth()}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="font-bold text-sm text-gray-950">
+                      {new Date(currentYear, currentMonth).toLocaleString("default", { month: "long" })} {currentYear}
+                    </span>
+                    <button
+                      onClick={() => {
+                        const next = new Date(currentYear, currentMonth + 1, 1);
+                        setCurrentMonth(next.getMonth());
+                        setCurrentYear(next.getFullYear());
+                      }}
+                      className="p-2 hover:bg-gray-50 rounded-full border border-gray-200 transition-colors"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Day labels */}
+                  <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-gray-400 mb-2">
+                    <span>Su</span>
+                    <span>Mo</span>
+                    <span>Tu</span>
+                    <span>We</span>
+                    <span>Th</span>
+                    <span>Fr</span>
+                    <span>Sa</span>
+                  </div>
+
+                  {/* Days */}
+                  <div className="grid grid-cols-7 gap-1">
+                    {getDaysInMonth(currentMonth, currentYear).map((day, idx) => {
+                      if (!day) return <div key={`empty-${idx}`} />;
+                      const dateStr = formatDateString(day);
+                      const isPast = dateStr < todayStr;
+                      const isBlocked = blockedDates.includes(dateStr);
+                      const isBooked = bookedDates.includes(dateStr);
+                      const isDisabled = isPast || isBlocked || isBooked;
+
+                      const isSelectedStart = checkIn === dateStr;
+                      const isSelectedEnd = checkOut === dateStr;
+                      const isBetween = checkIn && checkOut && dateStr > checkIn && dateStr < checkOut;
+
+                      return (
+                        <button
+                          key={dateStr}
+                          onClick={() => handleDateClick(dateStr)}
+                          disabled={isPast}
+                          className={cn(
+                            "h-9 w-9 rounded-xl flex items-center justify-center text-xs font-bold transition-all relative",
+                            isPast && "text-gray-300 cursor-not-allowed",
+                            isBlocked && "text-gray-300 line-through bg-gray-50 border border-dashed border-gray-200 cursor-not-allowed",
+                            isBooked && "text-rose-500 bg-rose-50 border border-rose-100 cursor-not-allowed",
+                            !isDisabled && !isSelectedStart && !isSelectedEnd && !isBetween && "text-gray-800 hover:bg-gray-100",
+                            isSelectedStart && "bg-rose-500 text-white shadow-lg shadow-rose-500/20",
+                            isSelectedEnd && "bg-rose-500 text-white shadow-lg shadow-rose-500/20",
+                            isBetween && "bg-rose-50 text-rose-600 rounded-none"
+                          )}
+                          title={isBlocked ? "Blocked by Host" : isBooked ? "Booked" : ""}
+                        >
+                          {day.getDate()}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {calendarError && (
+                    <p className="mt-4 text-xs font-semibold text-rose-500 bg-rose-50 p-2 rounded-xl text-center">
+                      {calendarError}
+                    </p>
+                  )}
+
+                  {checkIn && (
+                    <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between text-xs font-bold text-gray-600">
+                      <div>
+                        <span>Check-in: </span>
+                        <span className="text-gray-950">{checkIn}</span>
+                      </div>
+                      {checkOut && (
+                        <div>
+                          <span>Check-out: </span>
+                          <span className="text-gray-950">{checkOut}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Divider */}
+              <hr className="border-gray-100" />
+
               {/* ── Cancellation Policy ── */}
               <div>
                 <h2 className="text-xl font-semibold text-gray-900 mb-3">
@@ -757,7 +1089,6 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
               {/* Divider */}
               <hr className="border-gray-100" />
 
-              {/* ── Nearby Places ── */}
               {listing.nearbyPlaces && listing.nearbyPlaces.length > 0 && (
                 <>
                   <div>
@@ -765,27 +1096,32 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                       Nearby Places
                     </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {listing.nearbyPlaces.map((place, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-gray-900 truncate">
-                                {place.name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {place.distanceKm} km away
-                              </p>
+                      {listing.nearbyPlaces.map((place: any, i) => {
+                        const distance = place.distance ?? place.distanceKm ?? 0;
+                        const category = place.type || place.category || "attraction";
+
+                        return (
+                          <div
+                            key={i}
+                            className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold text-gray-900 truncate">
+                                  {place.name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {distance} km away
+                                </p>
+                              </div>
                             </div>
+                            <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-full flex-shrink-0 ml-2">
+                              {category}
+                            </span>
                           </div>
-                          <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-1 rounded-full flex-shrink-0 ml-2">
-                            {place.category}
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                   <hr className="border-gray-100" />
@@ -800,30 +1136,36 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                       Seasonal Rates
                     </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {listing.seasonalPrices.map((sp, i) => (
-                        <div
-                          key={i}
-                          className="p-4 rounded-xl border border-gray-200 flex justify-between items-center"
-                        >
-                          <div>
-                            <p className="font-semibold text-gray-900 text-sm">{sp.seasonName}</p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(sp.startDate).toLocaleDateString("en-IN", {
-                                day: "numeric",
-                                month: "short",
-                              })}{" "}
-                              –{" "}
-                              {new Date(sp.endDate).toLocaleDateString("en-IN", {
-                                day: "numeric",
-                                month: "short",
-                              })}
-                            </p>
+                      {listing.seasonalPrices.map((sp: any, i) => {
+                        const seasonName = sp.seasonName || "Seasonal Rate";
+                        const startDate = sp.startDate || sp.from;
+                        const endDate = sp.endDate || sp.to;
+                        const price = sp.pricePerNight !== undefined ? sp.pricePerNight : (sp.price || 0);
+                        return (
+                          <div
+                            key={i}
+                            className="p-4 rounded-xl border border-gray-200 flex justify-between items-center"
+                          >
+                            <div>
+                              <p className="font-semibold text-gray-900 text-sm">{seasonName}</p>
+                              <p className="text-xs text-gray-500">
+                                {startDate ? new Date(startDate).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                }) : "N/A"}{" "}
+                                –{" "}
+                                {endDate ? new Date(endDate).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                }) : "N/A"}
+                              </p>
+                            </div>
+                            <span className="font-semibold text-gray-900">
+                              ₹{price.toLocaleString("en-IN")}
+                            </span>
                           </div>
-                          <span className="font-semibold text-gray-900">
-                            ₹{sp.pricePerNight.toLocaleString("en-IN")}
-                          </span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                   <hr className="border-gray-100" />
@@ -877,24 +1219,120 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                   <h2 className="text-xl font-semibold text-gray-900 mb-4">
                     Where you'll be
                   </h2>
-                  <div className="h-[350px] w-full rounded-2xl bg-gray-100 overflow-hidden border border-gray-200">
-                    <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                      <div className="text-center">
-                        <div className="bg-rose-100 p-4 rounded-full inline-block mb-3">
-                          <MapPin className="w-6 h-6 text-rose-500" />
+                  <div className="h-[350px] w-full rounded-2xl overflow-hidden border border-gray-200">
+                    {listing.coordinates.lat && listing.coordinates.lng ? (
+                      <iframe
+                        title="Google Map of stay location"
+                        width="100%"
+                        height="100%"
+                        className="border-0"
+                        src={`https://maps.google.com/maps?q=${listing.coordinates.lat},${listing.coordinates.lng}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                        <div className="text-center p-6">
+                          <div className="bg-rose-100 p-4 rounded-full inline-block mb-3">
+                            <MapPin className="w-6 h-6 text-rose-500" />
+                          </div>
+                          <p className="font-bold text-gray-700">Location Preview</p>
+                          <p className="text-xs text-zinc-400 mt-1">Coordinates not available</p>
                         </div>
-                        <p className="font-semibold text-gray-700">{listing.city}, {listing.state}</p>
-                        <p className="text-sm text-gray-500 mt-1 max-w-[250px] mx-auto">
-                          {listing.address}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-2">
-                          Exact location provided after booking
-                        </p>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               )}
+
+              {/* Reviews Section */}
+              <div className="mt-12 pt-12 border-t border-zinc-100 space-y-8">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
+                    <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
+                    Reviews & Ratings ({reviews.length})
+                  </h3>
+                  {reviews.length > 0 && (
+                    <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-xl">
+                      <span className="text-sm font-black text-amber-700">
+                        {(reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1)}
+                      </span>
+                      <div className="flex items-center">
+                        {[1, 2, 3, 4, 5].map((s) => (
+                          <Star
+                            key={s}
+                            className={cn(
+                              "w-3 h-3",
+                              s <= Math.round(reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length)
+                                ? "text-amber-500 fill-amber-500"
+                                : "text-zinc-200"
+                            )}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {reviewsLoading ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+                  </div>
+                ) : reviews.length === 0 ? (
+                  <div className="bg-zinc-50 rounded-2xl p-8 text-center space-y-3">
+                    <p className="text-sm font-bold text-zinc-500">No reviews yet</p>
+                    <p className="text-xs text-zinc-400 leading-relaxed max-w-xs mx-auto">
+                      Be one of the first to book this stay and share your experience with the community!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {reviews.map((r) => (
+                      <div key={r.id} className="bg-white p-6 rounded-3xl border border-zinc-100 space-y-4 hover:border-zinc-200 transition-all">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-zinc-50 border border-zinc-100 overflow-hidden flex items-center justify-center">
+                              {r.user?.avatar ? (
+                                <img src={r.user.avatar} alt={r.user.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <span className="text-xs font-black text-zinc-400">
+                                  {r.user?.name ? r.user.name.charAt(0).toUpperCase() : "G"}
+                                </span>
+                              )}
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-bold text-zinc-800">{r.user?.name || "Verified Guest"}</h4>
+                              <p className="text-[10px] text-zinc-400 font-semibold">
+                                {new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-0.5">
+                            {[1, 2, 3, 4, 5].map((s) => (
+                              <Star
+                                key={s}
+                                className={cn(
+                                  "w-3 h-3",
+                                  s <= r.rating ? "text-amber-500 fill-amber-500" : "text-zinc-100"
+                                )}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-xs text-zinc-600 font-medium leading-relaxed italic">
+                          "{r.comment}"
+                        </p>
+                        {r.hostReply && (
+                          <div className="bg-zinc-50 p-4 rounded-2xl border-l-2 border-primary/40 mt-3 space-y-1">
+                            <p className="text-[10px] font-black uppercase text-primary tracking-widest">Host Response</p>
+                            <p className="text-[11px] text-zinc-500 font-medium italic leading-relaxed">
+                              "{r.hostReply}"
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* ── RIGHT COLUMN: Sticky Booking Card ── */}
@@ -913,40 +1351,75 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                   {/* Simple booking form */}
                   <div className="border border-gray-300 rounded-xl overflow-hidden mb-4">
                     <div className="flex divide-x divide-gray-300">
-                      <div className="flex-1 p-3">
+                      <button
+                        onClick={() => document.getElementById("availability-calendar")?.scrollIntoView({ behavior: "smooth" })}
+                        className="flex-1 p-3 text-left hover:bg-gray-50 transition-colors"
+                      >
                         <p className="text-[10px] font-semibold uppercase text-gray-500 mb-0.5">Check-in</p>
-                        <p className="text-sm text-gray-900">{listing.checkInTime}</p>
-                      </div>
-                      <div className="flex-1 p-3">
+                        <p className={cn("text-sm font-medium", checkIn ? "text-gray-900" : "text-gray-400")}>
+                          {checkIn || "Select date"}
+                        </p>
+                      </button>
+                      <button
+                        onClick={() => document.getElementById("availability-calendar")?.scrollIntoView({ behavior: "smooth" })}
+                        className="flex-1 p-3 text-left hover:bg-gray-50 transition-colors"
+                      >
                         <p className="text-[10px] font-semibold uppercase text-gray-500 mb-0.5">Check-out</p>
-                        <p className="text-sm text-gray-900">{listing.checkOutTime}</p>
-                      </div>
+                        <p className={cn("text-sm font-medium", checkOut ? "text-gray-900" : "text-gray-400")}>
+                          {checkOut || "Select date"}
+                        </p>
+                      </button>
                     </div>
-                    <div className="border-t border-gray-300 p-3 flex items-center justify-between">
-                      <div>
-                        <p className="text-[10px] font-semibold uppercase text-gray-500 mb-0.5">Guests</p>
-                        <p className="text-sm text-gray-900">{guestCount} guest{guestCount !== 1 ? "s" : ""}</p>
+                    <div className="border-t border-gray-300 p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase text-gray-500 mb-0.5">Guests</p>
+                          <p className="text-sm text-gray-900">{guestCount} guest{guestCount !== 1 ? "s" : ""}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setGuestCount(Math.max(1, guestCount - 1))}
+                            className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:border-gray-900 transition-colors"
+                          >
+                            −
+                          </button>
+                          <span className="text-sm font-medium w-4 text-center">{guestCount}</span>
+                          <button
+                            onClick={() => setGuestCount(Math.min(listing.maxGuests, guestCount + 1))}
+                            className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:border-gray-900 transition-colors"
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setGuestCount(Math.max(1, guestCount - 1))}
-                          className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:border-gray-900 transition-colors"
-                        >
-                          −
-                        </button>
-                        <span className="text-sm font-medium w-4 text-center">{guestCount}</span>
-                        <button
-                          onClick={() => setGuestCount(Math.min(listing.maxGuests, guestCount + 1))}
-                          className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:border-gray-900 transition-colors"
-                        >
-                          +
-                        </button>
-                      </div>
+                      {guestCount === listing.maxGuests && (
+                        <p className="text-[9px] text-amber-600 font-bold mt-2 text-right">
+                          * Maximum limit of {listing.maxGuests} guests reached for this stay.
+                        </p>
+                      )}
+                      {guestCount === 1 && (
+                        <p className="text-[9px] text-amber-600 font-bold mt-2 text-right">
+                          * Minimum 1 guest required.
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   {/* Book button */}
-                  <Link href={`/checkout/stay/${listing.slug || listing._id}`} className="block">
+                  <Link
+                    href={checkIn && checkOut
+                      ? `/checkout/stay/${listing.slug || listing.id}?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guestCount}`
+                      : `#availability-calendar`
+                    }
+                    className="block"
+                    onClick={(e) => {
+                      if (!checkIn || !checkOut) {
+                        e.preventDefault();
+                        document.getElementById("availability-calendar")?.scrollIntoView({ behavior: "smooth" });
+                        setCalendarError("Please select check-in and check-out dates first.");
+                      }
+                    }}
+                  >
                     <Button className="w-full h-14 rounded-xl text-base font-semibold bg-rose-500 hover:bg-rose-600 transition-colors gap-2">
                       {listing.instantBook ? "Instant Book" : "Reserve"}
                       <ArrowRight className="w-4 h-4" />
@@ -961,9 +1434,9 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                   <div className="mt-6 space-y-3 pt-4 border-t border-gray-100">
                     <div className="flex justify-between text-sm text-gray-600">
                       <span className="underline decoration-gray-200 underline-offset-4">
-                        ₹{fmt(listing.basePrice)} × {listing.minStay} night{listing.minStay > 1 ? "s" : ""}
+                        ₹{fmt(listing.basePrice)} × {nights} night{nights !== 1 ? "s" : ""}
                       </span>
-                      <span>₹{fmt(listing.basePrice * listing.minStay)}</span>
+                      <span>₹{fmt(baseTotal)}</span>
                     </div>
                     {listing.cleaningFee > 0 && (
                       <div className="flex justify-between text-sm text-gray-600">
@@ -978,27 +1451,18 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                       </div>
                     )}
                     <div className="flex justify-between text-sm text-gray-600">
-                      <span className="underline decoration-gray-200 underline-offset-4">Platform fee</span>
-                      <span>₹{fmt(Math.round(listing.basePrice * listing.minStay * 0.05))}</span>
+                      <span className="underline decoration-gray-200 underline-offset-4">Platform fee ({platformFeeRate}%)</span>
+                      <span>₹{fmt(platformFee)}</span>
                     </div>
                     {listing.taxes > 0 && (
                       <div className="flex justify-between text-sm text-gray-600">
                         <span className="underline decoration-gray-200 underline-offset-4">Taxes ({listing.taxes}%)</span>
-                        <span>₹{fmt(Math.round((listing.basePrice * listing.minStay + listing.cleaningFee) * listing.taxes / 100))}</span>
+                        <span>₹{fmt(taxesTotal)}</span>
                       </div>
                     )}
                     <div className="flex justify-between font-semibold text-gray-900 pt-3 border-t border-gray-200">
                       <span>Total</span>
-                      <span>
-                        ₹{fmt(
-                          Math.round(
-                            listing.basePrice * listing.minStay +
-                            listing.cleaningFee +
-                            listing.basePrice * listing.minStay * 0.05 +
-                            ((listing.basePrice * listing.minStay + listing.cleaningFee) * (listing.taxes || 0)) / 100
-                          )
-                        )}
-                      </span>
+                      <span>₹{fmt(grandTotal)}</span>
                     </div>
                   </div>
 
@@ -1049,10 +1513,10 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                 </Link>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {similarProperties.map((prop: any) => (
+                {similarProperties.map((prop: ListingItem) => (
                   <ItemCard
-                    key={prop._id}
-                    id={prop.slug || prop._id}
+                    key={prop.id}
+                    id={prop.slug || prop.id}
                     title={prop.name}
                     location={`${prop.city}, ${prop.state}`}
                     price={prop.basePrice?.toLocaleString("en-IN")}

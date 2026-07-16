@@ -12,18 +12,172 @@ import {
   ShieldCheck, 
   Globe, 
   Bell, 
-  Check
+  Check,
+  AlertCircle
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DashboardSidebar } from "@/components/navigation/dashboard-sidebar";
+import { authApi } from "@/lib/api-client";
 
 export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  const handleSave = () => {
+  // Profile data state
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [isPhoneIdentifier, setIsPhoneIdentifier] = useState(false);
+  const [gender, setGender] = useState("");
+  const [bio, setBio] = useState("");
+  const [avatar, setAvatar] = useState("");
+
+  // Password fields state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        setIsLoading(true);
+        const response = await authApi.getProfile();
+        if (response.data?.user) {
+          const user = response.data.user;
+          setName(user.name || "");
+          
+          const isPhoneAsEmail = user.email && !user.email.includes("@");
+          setIsPhoneIdentifier(!!isPhoneAsEmail);
+          
+          if (isPhoneAsEmail) {
+            setEmail("");
+            setPhone(user.email || "");
+          } else {
+            setEmail(user.email || "");
+            setPhone(user.phone || "");
+          }
+          
+          setGender(user.gender || "");
+          setBio(user.bio || "");
+          setAvatar(user.avatar || "");
+        }
+      } catch (err: any) {
+        console.error("Failed to load profile:", err);
+        setError("Could not load profile. Please check if you are logged in.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadProfile();
+  }, []);
+
+  const handleSave = async () => {
     setIsSaving(true);
-    setTimeout(() => setIsSaving(false), 2000);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await authApi.updateProfile({
+        name,
+        phone,
+        gender,
+        bio,
+        avatar,
+      });
+      if (response.status === "success") {
+        setSuccess("Profile settings updated successfully!");
+        if (response.data?.user) {
+          const user = response.data.user;
+          setName(user.name || "");
+          setPhone(user.phone || "");
+          setGender(user.gender || "");
+          setBio(user.bio || "");
+          setAvatar(user.avatar || "");
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to update profile settings.");
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await authApi.uploadAvatar(file);
+      if (res.data?.url) {
+        setAvatar(res.data.url);
+        setSuccess("Avatar uploaded successfully! Make sure to save changes.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to upload avatar image.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatar("");
+    setSuccess("Avatar removed. Make sure to save changes.");
+  };
+
+  const handleUpdatePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      setError("Please fill out all password fields.");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setError("New passwords do not match.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      setError("New password must be at least 6 characters.");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await authApi.changePassword({
+        currentPassword,
+        newPassword,
+      });
+      setSuccess("Password updated successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to update password. Please check your current password.");
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
+        <Navbar />
+        <main className="flex-grow flex items-center justify-center pt-20">
+          <div className="text-zinc-500 font-medium animate-pulse">Loading profile settings...</div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
@@ -44,10 +198,24 @@ export default function ProfilePage() {
                   <h1 className="text-xl font-bold text-zinc-900">Profile Settings</h1>
                   <p className="text-xs text-zinc-500 font-medium italic">Update your personal information.</p>
                 </div>
-                <Button onClick={handleSave} className="rounded-xl px-6 h-10 font-bold gap-1.5 text-xs">
+                <Button onClick={handleSave} disabled={isSaving} className="rounded-xl px-6 h-10 font-bold gap-1.5 text-xs">
                   {isSaving ? <span className="animate-pulse">Saving...</span> : <><Check className="w-3.5 h-3.5" /> Save Changes</>}
                 </Button>
               </div>
+
+              {error && (
+                <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 flex items-center gap-2.5 text-rose-700 text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {success && (
+                <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 flex items-center gap-2.5 text-emerald-700 text-xs">
+                  <Check className="w-4 h-4 shrink-0" />
+                  <span>{success}</span>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                 
@@ -64,25 +232,34 @@ export default function ProfilePage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Full Name</label>
-                        <Input defaultValue="Aqib Ahmed" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
+                        <Input value={name} onChange={(e) => setName(e.target.value)} className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Email Address</label>
-                        <Input defaultValue="aqib@example.com" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
+                        <Input value={email || (isPhoneIdentifier ? "Not Provided" : "")} disabled className="h-10 rounded-xl border-zinc-100 bg-zinc-100 text-xs text-zinc-500 cursor-not-allowed" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Phone Number</label>
-                        <Input defaultValue="+91 98765 43210" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
+                        <Input 
+                          value={phone} 
+                          onChange={(e) => setPhone(e.target.value)} 
+                          disabled={isPhoneIdentifier} 
+                          className={`h-10 rounded-xl border-zinc-100 text-xs ${
+                            isPhoneIdentifier 
+                              ? "bg-zinc-100 text-zinc-500 cursor-not-allowed" 
+                              : "bg-zinc-50"
+                          }`} 
+                        />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Gender</label>
-                        <Input defaultValue="Male" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
+                        <Input value={gender} onChange={(e) => setGender(e.target.value)} placeholder="Male / Female / Other" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
                       </div>
                     </div>
                     
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Bio</label>
-                      <Textarea defaultValue="Passionate traveler and adventure seeker. Love exploring hidden gems in India." className="min-h-[100px] rounded-xl border-zinc-100 bg-zinc-50 text-xs p-4 focus:outline-none" />
+                      <Textarea value={bio} onChange={(e) => setBio(e.target.value)} className="min-h-[100px] rounded-xl border-zinc-100 bg-zinc-50 text-xs p-4 focus:outline-none" />
                     </div>
                   </div>
 
@@ -96,19 +273,21 @@ export default function ProfilePage() {
                     <div className="space-y-5">
                       <div className="space-y-1.5">
                         <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Current Password</label>
-                        <Input type="password" placeholder="••••••••" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
+                        <Input type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} placeholder="••••••••" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         <div className="space-y-1.5">
                           <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">New Password</label>
-                          <Input type="password" placeholder="••••••••" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
+                          <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="••••••••" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Confirm New Password</label>
-                          <Input type="password" placeholder="••••••••" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
+                          <Input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="••••••••" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
                         </div>
                       </div>
-                      <Button variant="outline" className="rounded-xl font-bold border-rose-100 text-rose-600 hover:bg-rose-50 h-9 px-4 text-xs mt-2">Update Password</Button>
+                      <Button onClick={handleUpdatePassword} disabled={isUpdatingPassword} variant="outline" className="rounded-xl font-bold border-rose-100 text-rose-600 hover:bg-rose-50 h-9 px-4 text-xs mt-2">
+                        {isUpdatingPassword ? "Updating..." : "Update Password"}
+                      </Button>
                     </div>
                   </div>
 
@@ -120,53 +299,31 @@ export default function ProfilePage() {
                   {/* Profile Image Section */}
                   <div className="bg-white p-6 sm:p-8 rounded-2xl border border-zinc-100 text-center space-y-5">
                     <div className="relative inline-block">
-                      <div className="w-24 h-24 rounded-2xl bg-zinc-100 overflow-hidden border-2 border-white shadow-sm">
-                        <img src="https://i.pravatar.cc/300?u=aqib" alt="Profile" className="w-full h-full object-cover" />
+                      <div className="w-24 h-24 rounded-2xl bg-zinc-100 overflow-hidden border-2 border-white shadow-sm flex items-center justify-center">
+                        {avatar ? (
+                          <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-zinc-300 font-bold text-2xl uppercase">{name ? name.slice(0, 2) : "TR"}</span>
+                        )}
                       </div>
-                      <button className="absolute -bottom-1 -right-1 w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center hover:scale-105 transition-transform">
+                      <button onClick={() => fileInputRef.current?.click()} className="absolute -bottom-1 -right-1 w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center hover:scale-105 transition-transform">
                         <Camera className="w-4 h-4" />
                       </button>
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleAvatarChange} 
+                        className="hidden" 
+                        accept="image/jpeg,image/png,image/webp" 
+                      />
                     </div>
                     <div>
                       <h3 className="text-sm font-bold text-zinc-900">Profile Picture</h3>
-                      <p className="text-[10px] text-zinc-400 font-medium">PNG or JPG up to 5MB</p>
+                      <p className="text-[10px] text-zinc-400 font-medium">PNG, JPG or WEBP up to 5MB</p>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="outline" className="flex-1 rounded-xl font-bold text-xs h-9 border-zinc-100">Remove</Button>
-                      <Button className="flex-1 rounded-xl font-bold text-xs h-9">Change</Button>
-                    </div>
-                  </div>
-
-                  {/* Preferences Card */}
-                  <div className="bg-white p-6 sm:p-8 rounded-2xl border border-zinc-100 space-y-6">
-                    <h2 className="text-sm font-bold text-zinc-900 flex items-center gap-2 uppercase tracking-widest">
-                      <Globe className="w-4 h-4 text-indigo-500" />
-                      Preferences
-                    </h2>
-                    
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 border border-zinc-100">
-                        <div className="flex items-center gap-2">
-                          <Bell className="w-3.5 h-3.5 text-zinc-400" />
-                          <span className="text-xs font-bold text-zinc-600">Notifications</span>
-                        </div>
-                        <div className="w-8 h-4 bg-primary rounded-full relative"><div className="absolute right-0.5 top-0.5 w-3 h-3 bg-white rounded-full" /></div>
-                      </div>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-zinc-50 border border-zinc-100">
-                        <div className="flex items-center gap-2">
-                          <ShieldCheck className="w-3.5 h-3.5 text-zinc-400" />
-                          <span className="text-xs font-bold text-zinc-600">Two-Factor Auth</span>
-                        </div>
-                        <div className="w-8 h-4 bg-zinc-200 rounded-full relative"><div className="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full" /></div>
-                      </div>
-                      <div className="space-y-1.5 pt-2">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Currency</label>
-                        <Input defaultValue="INR (₹)" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs font-bold" />
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">Language</label>
-                        <Input defaultValue="English (US)" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs font-bold" />
-                      </div>
+                      <Button onClick={handleRemoveAvatar} variant="outline" className="flex-1 rounded-xl font-bold text-xs h-9 border-zinc-100">Remove</Button>
+                      <Button onClick={() => fileInputRef.current?.click()} className="flex-1 rounded-xl font-bold text-xs h-9">Change</Button>
                     </div>
                   </div>
 

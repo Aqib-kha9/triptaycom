@@ -3,22 +3,37 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
-import { 
-  AlertCircle, 
-  RefreshCcw, 
-  MessageSquare, 
-  ArrowLeft, 
-  ShieldCheck, 
+import {
+  AlertCircle,
+  RefreshCcw,
+  MessageSquare,
+  ArrowLeft,
+  ShieldCheck,
   CreditCard,
-  ChevronRight,
   HelpCircle
 } from "lucide-react";
 import { motion } from "framer-motion";
-import Link from "next/navigation";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { bookingsApi } from "@/lib/api-client";
+import type { BookingItem } from "@/types/api";
 
 export default function BookingFailurePage() {
   const router = useRouter();
+  const [booking, setBooking] = useState<BookingItem | null>(null);
+
+  useEffect(() => {
+    const bookingId = sessionStorage.getItem("lastBookingId");
+    if (bookingId) {
+      bookingsApi
+        .getBookingById(bookingId)
+        .then((res) => {
+          if (res.data?.booking) setBooking(res.data.booking);
+        })
+        .catch(() => { });
+      sessionStorage.removeItem("lastBookingId");
+    }
+  }, []);
 
   return (
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
@@ -26,7 +41,7 @@ export default function BookingFailurePage() {
 
       <main className="flex-grow pt-32 pb-20">
         <div className="container mx-auto px-4 flex flex-col items-center text-center">
-          
+
           {/* Error Icon */}
           <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
@@ -39,7 +54,7 @@ export default function BookingFailurePage() {
 
           {/* Text Content */}
           <div className="max-w-2xl space-y-4 mb-12">
-            <motion.h1 
+            <motion.h1
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
@@ -47,18 +62,18 @@ export default function BookingFailurePage() {
             >
               Payment Failed
             </motion.h1>
-            <motion.p 
+            <motion.p
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.3 }}
               className="text-lg text-zinc-500 font-medium"
             >
-              We couldn't process your payment for <span className="text-zinc-900 font-bold">Mountain Whisper Villa</span>. Don't worry, no money was deducted from your account.
+              We couldn't process your payment{booking ? <> for <span className="text-zinc-900 font-bold">{booking.itemName}</span></> : null}. Don't worry, no money was deducted from your account.
             </motion.p>
           </div>
 
           {/* Possible Reasons */}
-          <motion.div 
+          <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.4 }}
@@ -85,21 +100,40 @@ export default function BookingFailurePage() {
           </motion.div>
 
           {/* Action Buttons */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
             className="flex flex-col sm:flex-row gap-4 w-full max-w-lg"
           >
-            <Button 
-              onClick={() => router.back()}
+            <Button
+              onClick={() => {
+                // Navigate to a fresh checkout so the guest can re-book the same item.
+                // The previous (expired) booking's dates have already been released.
+                if (booking?.itemId && booking?.itemType) {
+                  const query = new URLSearchParams();
+                  if (booking.guests) query.append("guests", booking.guests.toString());
+                  if (booking.couponCode) query.append("coupon", booking.couponCode);
+                  if (booking.specialRequests) query.append("specialRequests", booking.specialRequests);
+                  if (booking.itemType === "stay") {
+                    if (booking.checkIn) query.append("checkIn", booking.checkIn.split("T")[0]);
+                    if (booking.checkOut) query.append("checkOut", booking.checkOut.split("T")[0]);
+                  } else {
+                    if (booking.activityDate) query.append("activityDate", booking.activityDate.split("T")[0]);
+                    if (booking.startTime) query.append("startTime", booking.startTime);
+                  }
+                  router.push(`/checkout/${booking.itemType}/${booking.itemId}?${query.toString()}`);
+                } else {
+                  router.back();
+                }
+              }}
               className="flex-1 h-16 rounded-2xl text-lg font-bold shadow-xl shadow-primary/20 gap-3 group"
             >
               <RefreshCcw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
               Retry Payment
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="flex-1 h-16 rounded-2xl text-lg font-bold gap-3 border-zinc-200"
               onClick={() => router.push("/messages")}
             >
@@ -108,13 +142,13 @@ export default function BookingFailurePage() {
             </Button>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
             className="mt-12"
           >
-            <button 
+            <button
               onClick={() => router.push("/")}
               className="text-zinc-400 hover:text-zinc-900 font-bold text-sm flex items-center gap-2 transition-colors"
             >
@@ -124,7 +158,7 @@ export default function BookingFailurePage() {
           </motion.div>
 
           {/* Security Reassurance */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.7 }}

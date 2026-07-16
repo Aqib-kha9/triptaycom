@@ -15,40 +15,27 @@ import { StackedDestinations } from "@/components/stacked-destinations";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-
-interface ApiDestination {
-  _id: string;
-  name: string;
-  slug: string;
-  state: string;
-  city: string;
-  image: string;
-  category: "Nature" | "Adventure" | "Historical" | "Spiritual";
-}
-
+import { listingsApi, activitiesApi, destinationsApi } from "@/lib/api-client";
+import type { DestinationItem, ListingItem, ActivityItem } from "@/types/api";
 
 export default function Home() {
-  const [destinations, setDestinations] = useState<ApiDestination[] | null>(null);
+  const [destinations, setDestinations] = useState<DestinationItem[] | null>(null);
   const [destLoading, setDestLoading] = useState(true);
 
-  const [featuredListings, setFeaturedListings] = useState<any[] | null>(null);
+  const [featuredListings, setFeaturedListings] = useState<ListingItem[] | null>(null);
   const [staysLoading, setStaysLoading] = useState(true);
 
-  const [topActivities, setTopActivities] = useState<any[] | null>(null);
+  const [topActivities, setTopActivities] = useState<ActivityItem[] | null>(null);
   const [actLoading, setActLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function fetchDestinations() {
+        async function fetchDestinations() {
       try {
-        const res = await fetch(`${API_BASE}/destinations?limit=8`);
-        const json = await res.json().catch(() => null);
-
-        if (!cancelled && json?.status === "success" && Array.isArray(json.data?.destinations)) {
-          setDestinations(json.data.destinations);
+        const res = await destinationsApi.getAll({ limit: 4 });
+        if (!cancelled && res?.status === "success" && Array.isArray(res.data?.destinations)) {
+          setDestinations(res.data.destinations);
         } else if (!cancelled) {
           setDestinations([]);
         }
@@ -61,11 +48,9 @@ export default function Home() {
 
     async function fetchFeaturedStays() {
       try {
-        const res = await fetch(`${API_BASE}/listings/browse?limit=4&sort=-avgRating`);
-        const json = await res.json().catch(() => null);
-
-        if (!cancelled && json?.status === "success" && Array.isArray(json.data?.listings)) {
-          setFeaturedListings(json.data.listings);
+        const res = await listingsApi.browse({ limit: 4, sort: "-avgRating" });
+        if (!cancelled && res?.status === "success" && Array.isArray(res.data?.listings)) {
+          setFeaturedListings(res.data.listings);
         } else if (!cancelled) {
           setFeaturedListings([]);
         }
@@ -78,11 +63,9 @@ export default function Home() {
 
     async function fetchTopActivities() {
       try {
-        const res = await fetch(`${API_BASE}/activities/browse?limit=4&sort=-avgRating`);
-        const json = await res.json().catch(() => null);
-
-        if (!cancelled && json?.status === "success" && Array.isArray(json.data?.activities)) {
-          setTopActivities(json.data.activities);
+        const res = await activitiesApi.browse({ limit: 4, sort: "-avgRating" });
+        if (!cancelled && res?.status === "success" && Array.isArray(res.data?.activities)) {
+          setTopActivities(res.data.activities);
         } else if (!cancelled) {
           setTopActivities([]);
         }
@@ -98,18 +81,6 @@ export default function Home() {
     fetchTopActivities();
     return () => { cancelled = true; };
   }, []);
-
-  // Map API destinations to card props — split into two rows of 4
-  const mappedDests1 = destinations && destinations.length > 0
-    ? destinations.slice(0, 4).map(d => ({ id: d.slug, name: d.name, province: d.state, image: d.image }))
-    : null;
-
-  const mappedDests2 = destinations && destinations.length >= 5
-    ? destinations.slice(4, 8).map(d => ({ id: d.slug, name: d.name, province: d.state, image: d.image }))
-    : null;
-
-  const hasDests1 = mappedDests1 && mappedDests1.length > 0;
-  const hasDests2 = mappedDests2 && mappedDests2.length > 0;
 
   return (
     <div className="flex min-h-screen flex-col bg-background selection:bg-primary/20 selection:text-primary">
@@ -132,10 +103,12 @@ export default function Home() {
               {/* Desktop Grid */}
               <div className="hidden md:grid grid-cols-2 md:grid-cols-4 gap-6">
                 {destinations.map(d => (
-                  <DestinationCard key={d.slug} id={d.slug} name={d.name} province={d.state} image={d.image} />
+                  <div key={d.slug} className="aspect-[4/3] w-full">
+                    <DestinationCard id={d.slug} name={d.name} province={d.state} image={d.image} />
+                  </div>
                 ))}
               </div>
-              
+
               {/* Mobile Stacked Swipe */}
               <div className="block md:hidden -mx-4">
                 <StackedDestinations destinations={destinations} />
@@ -160,10 +133,10 @@ export default function Home() {
                 <div key={i} className="aspect-[4/3] rounded-[2rem] bg-zinc-100 animate-pulse" />
               ))
             ) : featuredListings && featuredListings.length > 0 ? (
-              featuredListings.map((l: any) => (
+              featuredListings.map((l) => (
                 <ItemCard
-                  key={l._id}
-                  id={l.slug || l._id}
+                  key={l.id}
+                  id={l.slug || l.id}
                   title={l.name}
                   location={`${l.city}, ${l.state}`}
                   price={l.basePrice.toLocaleString("en-IN")}
@@ -188,11 +161,11 @@ export default function Home() {
                 <div key={i} className="aspect-[4/3] rounded-2xl bg-zinc-100 animate-pulse" />
               ))
             ) : topActivities && topActivities.length > 0 ? (
-              topActivities.map((a: any) => (
+              topActivities.map((a) => (
                 <ItemCard
-                  key={a._id}
+                  key={a.id}
                   type="activity"
-                  id={a.slug || a._id}
+                  id={a.slug || a.id}
                   title={a.name}
                   location={`${a.city}, ${a.state}`}
                   price={a.basePrice?.toLocaleString("en-IN") || String(a.basePrice)}

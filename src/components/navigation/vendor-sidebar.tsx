@@ -31,10 +31,24 @@ const VENDOR_LINKS = [
   { name: "Profile Settings", icon: <Settings className="w-5 h-5" />, href: "/vendor/profile" },
 ];
 
+import { useEffect, useState } from "react";
+import { authApi } from "@/lib/api-client";
+
 export function VendorSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { setRole, logout } = useRole();
+  const [user, setUser] = useState<{ name: string; avatar?: string; role: string } | null>(null);
+
+  useEffect(() => {
+    authApi.getMe()
+      .then(res => {
+        if (res.data?.user) {
+          setUser(res.data.user);
+        }
+      })
+      .catch(err => console.error("Vendor sidebar profile fetch error:", err));
+  }, []);
 
   return (
     <aside className="hidden lg:block lg:w-64 flex-shrink-0">
@@ -42,12 +56,20 @@ export function VendorSidebar() {
 
         {/* Vendor Brand */}
         <div className="flex items-center gap-3 mb-6 px-2">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-            <Building2 className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-bold text-zinc-900 text-sm">Elite Stays</h3>
-            <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">Verified Vendor</p>
+          {user?.avatar ? (
+            <img
+              src={user.avatar}
+              alt="Vendor Avatar"
+              className="w-10 h-10 rounded-xl object-cover border border-zinc-100"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+              <Building2 className="w-5 h-5" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <h3 className="font-bold text-zinc-900 text-sm truncate">{user?.name || "Vendor Partner"}</h3>
+            <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest truncate">Verified Vendor</p>
           </div>
         </div>
 

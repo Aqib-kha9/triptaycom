@@ -25,6 +25,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { authApi, uploadApi } from "@/lib/api-client";
 
 const STEPS = [
   { id: 1, title: "Business", icon: <Building2 className="w-4 h-4" /> },
@@ -65,23 +66,20 @@ export default function VendorOnboardingPage() {
   const aadharBackRef = useRef<HTMLInputElement>(null);
   const panCardRef = useRef<HTMLInputElement>(null);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-
   // On mount, check if the user already submitted KYC (kycStatus = Pending).
   // If so, auto-show the "Application Under Review" screen instead of the empty form.
   const [pageLoading, setPageLoading] = useState(true);
   useEffect(() => {
     const checkExistingKyc = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) { setPageLoading(false); return; }
-        const res = await fetch(`${apiUrl}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) { setPageLoading(false); return; }
-        const payload = await res.json();
-        const kyc = payload?.data?.user?.kycStatus;
-        if (kyc === "Pending" || kyc === "Approved") {
+        const res = await authApi.getMe();
+        const user = res.data?.user;
+        const kyc = user?.kycStatus;
+        if (kyc === "Approved") {
+          router.replace("/vendor/dashboard");
+          return;
+        }
+        if (kyc === "Pending") {
           setIsSubmitted(true);
         }
       } catch {
@@ -95,23 +93,7 @@ export default function VendorOnboardingPage() {
   }, []);
 
   const uploadFileToCloudinary = async (file: File, docType: DocType): Promise<string> => {
-    const token = localStorage.getItem("token");
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("documentType", docType);
-
-    const res = await fetch(`${apiUrl}/upload/document`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
-
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.message || `Upload failed for ${docType}`);
-    }
-
-    const data = await res.json();
+    const data = await uploadApi.uploadDocument(file, docType);
     return data.data.url;
   };
 
@@ -124,8 +106,8 @@ export default function VendorOnboardingPage() {
     try {
       const url = await uploadFileToCloudinary(file, docType);
       setter(prev => ({ ...prev, uploading: false, url }));
-    } catch (err: any) {
-      setError(err.message || `Failed to upload ${docType}. Please try again.`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : `Failed to upload ${docType}. Please try again.`);
       setter(prev => ({ ...prev, uploading: false }));
     }
   };
@@ -162,35 +144,19 @@ export default function VendorOnboardingPage() {
     setError("");
 
     try {
-      const token = localStorage.getItem("token");
-
-      const res = await fetch(`${apiUrl}/auth/kyc`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          panNumber: panNumber.trim(),
-          gstin: gstin.trim(),
-          bankAccount: bankAccount.trim(),
-          bankIFSC: bankIFSC.trim(),
-          aadharFront: aadharFront.url || undefined,
-          aadharBack: aadharBack.url || undefined,
-          panCardImage: panCard.url || undefined,
-        })
+      await authApi.submitKyc({
+        panNumber: panNumber.trim(),
+        gstin: gstin.trim(),
+        bankAccount: bankAccount.trim(),
+        bankIFSC: bankIFSC.trim(),
+        aadharFront: aadharFront.url || undefined,
+        aadharBack: aadharBack.url || undefined,
+        panCardImage: panCard.url || undefined,
       });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setIsSubmitted(true);
-      } else {
-        setError(data.message || "KYC submission failed. Please try again.");
-      }
-    } catch (err) {
+      setIsSubmitted(true);
+    } catch (err: unknown) {
       console.error("KYC submission error:", err);
-      setError("Could not connect to the server. Please try again.");
+      setError(err instanceof Error ? err.message : "Could not connect to the server. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -209,13 +175,18 @@ export default function VendorOnboardingPage() {
     return (
       <div
         className={cn(
-          "p-4 rounded-xl border transition-all",
+          "p-4 rounded-xl border transition-all cursor-pointer select-none",
           isUploaded
             ? "border-emerald-200 bg-emerald-50/50"
             : state.uploading
               ? "border-primary/30 bg-primary/5"
               : "border-zinc-100 bg-zinc-50 hover:border-primary/20"
         )}
+        onClick={() => {
+          if (!isUploaded && !state.uploading) {
+            inputRef.current?.click();
+          }
+        }}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -235,7 +206,10 @@ export default function VendorOnboardingPage() {
 
           <div className="flex items-center gap-2">
             {state.preview && (
-              <div className="relative w-10 h-10 rounded-lg overflow-hidden border border-zinc-100">
+              <div 
+                className="relative w-10 h-10 rounded-lg overflow-hidden border border-zinc-100"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <img src={state.preview} alt="preview" className="w-full h-full object-cover" />
               </div>
             )}
@@ -245,7 +219,10 @@ export default function VendorOnboardingPage() {
                 variant="ghost"
                 size="icon"
                 className="text-rose-400 hover:text-rose-600 hover:bg-rose-50"
-                onClick={() => removeFile(docType)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeFile(docType);
+                }}
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -256,7 +233,10 @@ export default function VendorOnboardingPage() {
                 variant="ghost"
                 size="icon"
                 className="text-zinc-400 hover:text-primary"
-                onClick={() => inputRef.current?.click()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  inputRef.current?.click();
+                }}
               >
                 <Upload className="w-4 h-4" />
               </Button>
@@ -298,33 +278,37 @@ export default function VendorOnboardingPage() {
         <div className="container mx-auto px-4 max-w-3xl">
 
           {/* Header */}
-          <div className="text-center mb-10 space-y-2">
-            <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">Vendor Onboarding</h1>
-            <p className="text-xs text-zinc-500 font-medium italic">Complete your KYC profile to start hosting.</p>
-          </div>
+          {!isSubmitted && (
+            <div className="text-center mb-10 space-y-2">
+              <h1 className="text-2xl font-bold text-zinc-900 tracking-tight">Vendor Onboarding</h1>
+              <p className="text-xs text-zinc-500 font-medium italic">Complete your KYC profile to start hosting.</p>
+            </div>
+          )}
 
           {/* Stepper */}
-          <div className="relative mb-12 px-4">
-            <div className="relative z-10 flex justify-between items-center max-w-sm mx-auto">
-              {STEPS.map((s) => (
-                <div key={s.id} className="flex flex-col items-center gap-2">
-                  <div className={cn(
-                    "w-9 h-9 rounded-xl flex items-center justify-center transition-all border",
-                    step === s.id ? "bg-primary border-primary text-white scale-110" :
-                      step > s.id ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white border-zinc-100 text-zinc-400"
-                  )}>
-                    {step > s.id ? <CheckCircle2 className="w-4 h-4" /> : s.icon}
+          {!isSubmitted && (
+            <div className="relative mb-12 px-4">
+              <div className="relative z-10 flex justify-between items-center max-w-sm mx-auto">
+                {STEPS.map((s) => (
+                  <div key={s.id} className="flex flex-col items-center gap-2">
+                    <div className={cn(
+                      "w-9 h-9 rounded-xl flex items-center justify-center transition-all border",
+                      step === s.id ? "bg-primary border-primary text-white scale-110" :
+                        step > s.id ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white border-zinc-100 text-zinc-400"
+                    )}>
+                      {step > s.id ? <CheckCircle2 className="w-4 h-4" /> : s.icon}
+                    </div>
+                    <span className={cn(
+                      "text-[8px] font-black uppercase tracking-widest",
+                      step >= s.id ? "text-zinc-900" : "text-zinc-400"
+                    )}>
+                      {s.title}
+                    </span>
                   </div>
-                  <span className={cn(
-                    "text-[8px] font-black uppercase tracking-widest",
-                    step >= s.id ? "text-zinc-900" : "text-zinc-400"
-                  )}>
-                    {s.title}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Form Card */}
           <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">

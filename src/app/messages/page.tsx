@@ -17,67 +17,23 @@ import {
   X,
   Circle,
   Users,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardSidebar } from "@/components/navigation/dashboard-sidebar";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { io, Socket } from "socket.io-client";
-
-// ──────────────────────── Types ────────────────────────
-
-interface OtherUser {
-  _id: string;
-  name: string;
-  email: string;
-}
-
-interface BookingContext {
-  title: string;
-  dateRange: string;
-  type: "listing" | "activity";
-}
-
-interface Conversation {
-  _id: string;
-  otherUser: OtherUser | null;
-  listingId?: string;
-  activityId?: string;
-  bookingContext?: BookingContext | null;
-  lastMessage?: {
-    text: string;
-    sender: string;
-    sentAt: string;
-  } | null;
-  unreadCount: number;
-  updatedAt: string;
-}
-
-interface Message {
-  _id: string;
-  conversation: string;
-  sender: { _id: string; name: string; email: string };
-  type: "text" | "image" | "file" | "system";
-  text?: string;
-  mediaUrl?: string;
-  mediaType?: string;
-  fileName?: string;
-  fileSize?: number;
-  isRead: boolean;
-  readAt?: string;
-  createdAt: string;
-}
+import { useSearchParams } from "next/navigation";
+import { io, type Socket } from "socket.io-client";
+import { chatApi } from "@/lib/api-client";
+import { getToken } from "@/lib/auth-utils";
+import type { ConversationItem, MessageItem } from "@/types/api";
 
 // ──────────────────────── Constants ────────────────────────
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || API_BASE.replace(/\/api$/, "");
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
-}
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
 
 function formatTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -129,10 +85,10 @@ export default function MessagesPage() {
   const [isConnected, setIsConnected] = useState(false);
   const [socketError, setSocketError] = useState<string | null>(null);
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [activeConversation, setActiveConversation] =
-    useState<Conversation | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+    useState<ConversationItem | null>(null);
+  const [messages, setMessages] = useState<MessageItem[]>([]);
   const [messageInput, setMessageInput] = useState("");
 
   // ── UI State ──
@@ -145,6 +101,7 @@ export default function MessagesPage() {
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showMobileChat, setShowMobileChat] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
 
@@ -190,7 +147,7 @@ export default function MessagesPage() {
     });
 
     // Incoming message
-    newSocket.on("message:new", ({ message }: { message: Message }) => {
+    newSocket.on("message:new", ({ message }: { message: MessageItem }) => {
       setMessages((prev) => {
         // Deduplicate
         if (prev.some((m) => m._id === message._id)) return prev;
@@ -234,16 +191,21 @@ export default function MessagesPage() {
         conversationId: string;
         readBy: string;
       }) => {
-        if (activeConversation?._id !== conversationId) return;
         setMessages((prev) =>
           prev.map((m) =>
-            m.sender._id !== readBy && !m.isRead ? { ...m, isRead: true } : m
+            m.conversation === conversationId && m.sender?._id !== readBy && !m.isRead
+              ? { ...m, isRead: true }
+              : m
           )
         );
       }
     );
 
     // Online/offline status
+    newSocket.on("users:online", (userIds: string[]) => {
+      setOnlineUsers(new Set(userIds));
+    });
+
     newSocket.on("user:online", ({ userId }: { userId: string }) => {
       setOnlineUsers((prev) => new Set(prev).add(userId));
     });
@@ -268,24 +230,12 @@ export default function MessagesPage() {
   // ──────────────────────── Fetch Conversations ────────────────────────
 
   const fetchConversations = useCallback(async () => {
-    const token = getToken();
-    if (!token) return;
-
     try {
       setConversationsError(null);
-      const res = await fetch(`${API_BASE}/chat/conversations`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!res.ok) {
-        const body = await res.json();
-        throw new Error(body.message || "Failed to load conversations.");
-      }
-
-      const json = await res.json();
-      setConversations(json.data || []);
-    } catch (err: any) {
-      setConversationsError(err.message);
+      const res = await chatApi.getConversations();
+      setConversations(res.data?.conversations || []);
+    } catch (err: unknown) {
+      setConversationsError(err instanceof Error ? err.message : "Failed to load conversations.");
     } finally {
       setConversationsLoading(false);
     }
@@ -299,27 +249,13 @@ export default function MessagesPage() {
 
   const fetchMessages = useCallback(
     async (conversationId: string) => {
-      const token = getToken();
-      if (!token) return;
-
       try {
         setMessagesLoading(true);
         setMessagesError(null);
-
-        const res = await fetch(
-          `${API_BASE}/chat/conversations/${conversationId}/messages?limit=50`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        if (!res.ok) {
-          const body = await res.json();
-          throw new Error(body.message || "Failed to load messages.");
-        }
-
-        const json = await res.json();
-        setMessages(json.data || []);
-      } catch (err: any) {
-        setMessagesError(err.message);
+        const res = await chatApi.getMessages(conversationId, { limit: 50 });
+        setMessages(res.data?.messages || []);
+      } catch (err: unknown) {
+        setMessagesError(err instanceof Error ? err.message : "Failed to load messages.");
       } finally {
         setMessagesLoading(false);
       }
@@ -330,7 +266,7 @@ export default function MessagesPage() {
   // ──────────────────────── Join/Leave Socket Room ────────────────────────
 
   const handleSelectConversation = useCallback(
-    (conv: Conversation) => {
+    (conv: ConversationItem) => {
       // Leave previous room
       if (activeConversation && socket) {
         socket.emit("conversation:leave", activeConversation._id);
@@ -359,6 +295,28 @@ export default function MessagesPage() {
     },
     [activeConversation, socket, fetchMessages]
   );
+
+  const searchParams = useSearchParams();
+  const queryConversationId = searchParams ? searchParams.get("conversationId") : null;
+
+  useEffect(() => {
+    if (!queryConversationId || conversations.length === 0 || activeConversation?._id === queryConversationId) return;
+    const found = conversations.find(c => c._id === queryConversationId || c.id === queryConversationId);
+    if (found) {
+      handleSelectConversation(found);
+    }
+  }, [queryConversationId, conversations, activeConversation, handleSelectConversation]);
+
+  useEffect(() => {
+    if (isFullScreen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isFullScreen]);
 
   const handleBackToList = () => {
     if (activeConversation && socket) {
@@ -395,7 +353,7 @@ export default function MessagesPage() {
           text: trimmed,
           type: "text",
         },
-        (response: { ok: boolean; data?: Message; error?: string }) => {
+        (response: { ok: boolean; data?: MessageItem; error?: string }) => {
           setSending(false);
           if (response.ok && response.data) {
             setMessages((prev) => {
@@ -411,34 +369,21 @@ export default function MessagesPage() {
       );
     } else {
       // REST fallback
-      try {
-        const token = getToken();
-        const res = await fetch(
-          `${API_BASE}/chat/conversations/${activeConversation._id}/messages`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({ text: trimmed, type: "text" }),
-          }
-        );
-
-        if (!res.ok) {
-          const body = await res.json();
-          throw new Error(body.message || "Failed to send message.");
+      (async () => {
+        try {
+          const res = await chatApi.sendMessage(activeConversation._id, trimmed);
+          setMessages((prev) => {
+            if (prev.some((m) => m._id === res.data?.message?._id)) return prev;
+            return [...prev, res.data?.message as MessageItem];
+          });
+          scrollToBottom();
+          fetchConversations();
+        } catch (err: unknown) {
+          setMessagesError(err instanceof Error ? err.message : "Failed to send message.");
+        } finally {
+          setSending(false);
         }
-
-        const json = await res.json();
-        setMessages((prev) => [...prev, json.data]);
-        scrollToBottom();
-        fetchConversations();
-      } catch (err: any) {
-        setMessagesError(err.message);
-      } finally {
-        setSending(false);
-      }
+      })();
     }
   };
 
@@ -487,7 +432,7 @@ export default function MessagesPage() {
 
   // Group messages by date
   const groupedMessages = messages.reduce<
-    { date: string; messages: Message[] }[]
+    { date: string; messages: MessageItem[] }[]
   >((acc, msg) => {
     const date = formatMessageDate(msg.createdAt);
     const last = acc[acc.length - 1];
@@ -547,16 +492,46 @@ export default function MessagesPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#fcfcfc]">
-      <Navbar />
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+          height: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #e4e4e7;
+          border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #d4d4d8;
+        }
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #e4e4e7 transparent;
+        }
+      `}</style>
+      {!isFullScreen && <Navbar />}
 
-      <main className="flex-grow pt-20 pb-28 lg:pb-12">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-200px)] lg:h-[calc(100vh-140px)]">
+      <main className={cn("flex-grow", isFullScreen ? "pt-0 pb-0" : "pt-20 pb-28 lg:pb-12")}>
+        <div className={isFullScreen ? "w-screen h-screen" : "container mx-auto px-4"}>
+          <div className={cn(
+            "flex gap-6",
+            isFullScreen
+              ? "h-screen w-screen gap-0"
+              : "flex-col lg:flex-row h-[calc(100vh-200px)] lg:h-[calc(100vh-140px)]"
+          )}>
             {/* ── Sidebar ── */}
-            <DashboardSidebar />
+            {!isFullScreen && <DashboardSidebar />}
 
             {/* ── Main Chat Container ── */}
-            <div className="flex-grow flex bg-white rounded-2xl border border-zinc-100 overflow-hidden shadow-sm">
+            <div className={cn(
+              "flex bg-white overflow-hidden shadow-sm flex-grow",
+              isFullScreen
+                ? "h-screen w-screen rounded-none border-none"
+                : "rounded-2xl border border-zinc-100"
+            )}>
               {/* ──────────────────── Conversation List ──────────────────── */}
               <div
                 className={cn(
@@ -572,23 +547,36 @@ export default function MessagesPage() {
                     <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-widest">
                       Messages
                     </h2>
-                    <div
-                      className={cn(
-                        "flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider",
-                        isConnected ? "text-emerald-600" : "text-red-500"
-                      )}
-                    >
-                      {isConnected ? (
-                        <>
-                          <Wifi className="w-3 h-3" />
-                          <span>Live</span>
-                        </>
-                      ) : (
-                        <>
-                          <WifiOff className="w-3 h-3" />
-                          <span>Offline</span>
-                        </>
-                      )}
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setIsFullScreen(!isFullScreen)}
+                        className="p-1 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-50 rounded transition-colors"
+                        title={isFullScreen ? "Minimize Window" : "Maximize Window"}
+                      >
+                        {isFullScreen ? (
+                          <Minimize2 className="w-3.5 h-3.5" />
+                        ) : (
+                          <Maximize2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                      <div
+                        className={cn(
+                          "flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider",
+                          isConnected ? "text-emerald-600" : "text-red-500"
+                        )}
+                      >
+                        {isConnected ? (
+                          <>
+                            <Wifi className="w-3 h-3" />
+                            <span>Live</span>
+                          </>
+                        ) : (
+                          <>
+                            <WifiOff className="w-3 h-3" />
+                            <span>Offline</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="relative">
@@ -611,7 +599,7 @@ export default function MessagesPage() {
                 </div>
 
                 {/* List */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
                   {conversationsLoading ? (
                     <div className="flex items-center justify-center h-32">
                       <Loader2 className="w-5 h-5 text-zinc-400 animate-spin" />
@@ -649,19 +637,27 @@ export default function MessagesPage() {
                           )}
                         >
                           <div className="relative shrink-0">
-                            <div
-                              className={cn(
-                                "w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm",
-                                chat.bookingContext?.type === "listing"
-                                  ? "bg-amber-500"
-                                  : chat.bookingContext?.type === "activity"
-                                    ? "bg-blue-500"
-                                    : "bg-zinc-300"
-                              )}
-                            >
-                              {chat.otherUser?.name?.charAt(0)?.toUpperCase() ||
-                                "?"}
-                            </div>
+                            {chat.otherUser?.avatar ? (
+                              <img
+                                src={chat.otherUser.avatar}
+                                alt={chat.otherUser.name || "User Avatar"}
+                                className="w-10 h-10 rounded-xl object-cover"
+                              />
+                            ) : (
+                              <div
+                                className={cn(
+                                  "w-10 h-10 rounded-xl flex items-center justify-center text-white font-black text-sm",
+                                  chat.bookingContext?.type === "listing"
+                                    ? "bg-amber-500"
+                                    : chat.bookingContext?.type === "activity"
+                                      ? "bg-blue-500"
+                                      : "bg-zinc-300"
+                                )}
+                              >
+                                {chat.otherUser?.name?.charAt(0)?.toUpperCase() ||
+                                  "?"}
+                              </div>
+                            )}
                             {onlineUsers.has(chat.otherUser?._id || "") && (
                               <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" />
                             )}
@@ -746,22 +742,30 @@ export default function MessagesPage() {
                         >
                           <ChevronLeft className="w-5 h-5 text-zinc-600" />
                         </Button>
-                        <div
-                          className={cn(
-                            "w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0",
-                            activeConversation.bookingContext?.type ===
-                              "listing"
-                              ? "bg-amber-500"
-                              : activeConversation.bookingContext?.type ===
-                                "activity"
-                                ? "bg-blue-500"
-                                : "bg-zinc-300"
-                          )}
-                        >
-                          {activeConversation.otherUser?.name
-                            ?.charAt(0)
-                            ?.toUpperCase() || "?"}
-                        </div>
+                        {activeConversation.otherUser?.avatar ? (
+                          <img
+                            src={activeConversation.otherUser.avatar}
+                            alt={activeConversation.otherUser.name || "User Avatar"}
+                            className="w-9 h-9 rounded-xl object-cover shrink-0"
+                          />
+                        ) : (
+                          <div
+                            className={cn(
+                              "w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0",
+                              activeConversation.bookingContext?.type ===
+                                "listing"
+                                ? "bg-amber-500"
+                                : activeConversation.bookingContext?.type ===
+                                  "activity"
+                                  ? "bg-blue-500"
+                                  : "bg-zinc-300"
+                            )}
+                          >
+                            {activeConversation.otherUser?.name
+                              ?.charAt(0)
+                              ?.toUpperCase() || "?"}
+                          </div>
+                        )}
                         <div>
                           <h3 className="text-xs font-bold text-zinc-900">
                             {activeConversation.otherUser?.name ||
@@ -842,7 +846,7 @@ export default function MessagesPage() {
                     )}
 
                     {/* ── Messages ── */}
-                    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+                    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar">
                       {messagesLoading ? (
                         <div className="flex items-center justify-center h-full">
                           <Loader2 className="w-6 h-6 text-zinc-400 animate-spin" />
@@ -953,8 +957,11 @@ export default function MessagesPage() {
                                     <span className="text-[8px] font-black text-zinc-400 uppercase tracking-widest px-1">
                                       {formatTime(msg.createdAt)}
                                       {isMine && (
-                                        <span className="ml-1">
-                                          {msg.isRead ? "✓✓" : "✓"}
+                                        <span className={cn(
+                                          "ml-1 font-bold text-[10px] tracking-tight transition-colors",
+                                          msg.isRead ? "text-emerald-500" : "text-zinc-400"
+                                        )}>
+                                          {msg.isRead ? "✓✓" : (onlineUsers.has(activeConversation.otherUser?._id || "") ? "✓✓" : "✓")}
                                         </span>
                                       )}
                                     </span>
@@ -1026,7 +1033,7 @@ export default function MessagesPage() {
         </div>
       </main>
 
-      <Footer />
+      {!isFullScreen && <Footer />}
     </div>
   );
 }

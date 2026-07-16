@@ -4,7 +4,7 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+import { listingsApi, publicApi } from "@/lib/api-client";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -452,6 +452,10 @@ export default function AddHomestayPage() {
   const [listingId, setListingId] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Cancellation Policy Admin Config ──
+  const [vendorOverrideEnabled, setVendorOverrideEnabled] = useState(true);
+  const [globalDefaultPolicy, setGlobalDefaultPolicy] = useState("Moderate");
+
   const handleAutoFill = () => {
     setFormData({ ...FILLER_DATA });
     setErrors({});
@@ -470,6 +474,31 @@ export default function AddHomestayPage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
   };
+
+  // ── Fetch cancellation policy config from admin ──
+  useEffect(() => {
+    async function fetchCancellationConfig() {
+      try {
+        const res = await publicApi.getConfigurations();
+        if (res?.status === "success" && res.data?.configuration) {
+          const overrideEnabled = res.data.configuration.cancellation_vendor_override_enabled;
+          const defaultPolicy = res.data.configuration.cancellation_default_policy;
+          if (overrideEnabled !== undefined) setVendorOverrideEnabled(Boolean(overrideEnabled));
+          if (defaultPolicy !== undefined) setGlobalDefaultPolicy(String(defaultPolicy));
+        }
+      } catch (err) {
+        console.error("Failed to load cancellation config:", err);
+      }
+    }
+    fetchCancellationConfig();
+  }, []);
+
+  // Force global default when vendor override is disabled
+  useEffect(() => {
+    if (!vendorOverrideEnabled) {
+      setFormData((prev) => ({ ...prev, cancellationPolicy: globalDefaultPolicy as any }));
+    }
+  }, [vendorOverrideEnabled, globalDefaultPolicy]);
 
   // ── Toggle Amenity ──
   const toggleAmenity = (id: string) => {
@@ -660,7 +689,6 @@ export default function AddHomestayPage() {
     setSubmitError("");
 
     try {
-      const token = localStorage.getItem("token");
       const payload: any = {
         name: formData.name.trim(),
         summary: formData.summary.trim(),
@@ -677,7 +705,9 @@ export default function AddHomestayPage() {
         country: formData.country.trim(),
         zipCode: formData.zipCode.trim(),
         landmark: formData.landmark.trim() || undefined,
-        coordinates: { lat: parseFloat(formData.lat), lng: parseFloat(formData.lng) },
+        lat: parseFloat(formData.lat) || 0,
+        lng: parseFloat(formData.lng) || 0,
+        coordinates: { lat: parseFloat(formData.lat) || 0, lng: parseFloat(formData.lng) || 0 },
         maxGuests: parseInt(formData.maxGuests),
         bedrooms: parseInt(formData.bedrooms),
         beds: parseInt(formData.beds),
@@ -685,7 +715,12 @@ export default function AddHomestayPage() {
         extraMattresses: parseInt(formData.extraMattresses) || 0,
         basePrice: parseFloat(formData.basePrice),
         weekendPrice: formData.weekendPrice ? parseFloat(formData.weekendPrice) : undefined,
-        seasonalPrices: formData.seasonalPrices,
+        seasonalPrices: formData.seasonalPrices?.map((sp: any) => ({
+          seasonName: sp.seasonName || "",
+          from: sp.startDate || sp.from || "",
+          to: sp.endDate || sp.to || "",
+          price: typeof sp.pricePerNight === "number" ? sp.pricePerNight : parseFloat(sp.price || sp.pricePerNight || "0"),
+        })),
         cleaningFee: parseFloat(formData.cleaningFee) || 0,
         securityDeposit: parseFloat(formData.securityDeposit) || 0,
         extraGuestPrice: parseFloat(formData.extraGuestPrice) || 0,
@@ -697,7 +732,12 @@ export default function AddHomestayPage() {
         flexibleCheckIn: formData.flexibleCheckIn,
         flexibleCheckOut: formData.flexibleCheckOut,
         amenities: formData.amenities,
-        meals: formData.meals,
+        meals: formData.meals?.map((m: any) => ({
+          type: m.mealType || m.type || "",
+          available: m.included !== undefined ? m.included : !!m.available,
+          price: typeof m.extraPrice === "number" ? m.extraPrice : parseFloat(m.price || m.extraPrice || "0"),
+          description: m.description || "",
+        })),
         hasKitchen: formData.hasKitchen,
         kitchenDetails: formData.kitchenDetails.trim() || undefined,
         houseRules: formData.houseRules,
@@ -709,7 +749,11 @@ export default function AddHomestayPage() {
         isPartyAllowed: formData.isPartyAllowed,
         quietHoursStart: formData.quietHoursStart || undefined,
         quietHoursEnd: formData.quietHoursEnd || undefined,
-        nearbyPlaces: formData.nearbyPlaces,
+        nearbyPlaces: formData.nearbyPlaces?.map((np: any) => ({
+          name: np.name || "",
+          type: np.category || np.type || "",
+          distance: typeof np.distanceKm === "number" ? np.distanceKm : parseFloat(np.distance || np.distanceKm || "0"),
+        })),
         languagesSpoken: formData.languagesSpoken,
         instantBook: formData.instantBook,
         advanceNoticeHours: parseInt(formData.advanceNoticeHours) || 0,
@@ -721,48 +765,23 @@ export default function AddHomestayPage() {
       };
 
       // Step 1: Create the listing
-      const res = await fetch(`${API_BASE}/listings`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        credentials: "include",
-        body: JSON.stringify(payload),
-      });
-
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.message || "Failed to create listing");
-      }
-
-      const createdId = json.data.listing._id;
+      const res = await listingsApi.create(payload as any);
+      const createdId = res.data.listing.id;
       setListingId(createdId);
 
       // Step 2: Upload media files if any
       if (mediaFiles.length > 0) {
-        const formDataUpload = new FormData();
-        mediaFiles.forEach((m, i) => {
-          formDataUpload.append("files", m.file);
-          if (m.caption) formDataUpload.append("captions", m.caption);
-          if (m.isCover) formDataUpload.append("isCover", "true");
-        });
-
-        const uploadRes = await fetch(`${API_BASE}/listings/${createdId}/media`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: "include",
-          body: formDataUpload,
-        });
-
-        if (!uploadRes.ok) {
+        const files = mediaFiles.map((m) => m.file);
+        try {
+          await listingsApi.uploadMedia(createdId, files);
+        } catch {
           console.warn("Media upload partially failed — listing saved as draft.");
         }
       }
 
       setSubmitSuccess(true);
-    } catch (err: any) {
-      setSubmitError(err.message || "Something went wrong. Please try again.");
+    } catch (err: unknown) {
+      setSubmitError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -915,7 +934,7 @@ export default function AddHomestayPage() {
               </Button>
               <Button
                 className="rounded-xl h-11 px-6 text-xs font-bold"
-                onClick={() => (window.location.href = "/vendor/listings")}
+                onClick={() => (window.location.href = "/vendor/stays")}
               >
                 View My Listings
               </Button>
@@ -1497,14 +1516,24 @@ export default function AddHomestayPage() {
                       <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">
                         Cancellation Policy
                       </label>
+                      {!vendorOverrideEnabled && (
+                        <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                          <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                          <p className="text-[10px] font-medium text-amber-700">
+                            Admin has disabled vendor override. Using global default policy: <span className="font-bold">{globalDefaultPolicy}</span>
+                          </p>
+                        </div>
+                      )}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                         {CANCELLATION_POLICIES.map((policy) => (
                           <button
                             key={policy.value}
                             type="button"
+                            disabled={!vendorOverrideEnabled}
                             onClick={() => update("cancellationPolicy", policy.value)}
                             className={cn(
                               "p-3 rounded-xl border text-left transition-all",
+                              !vendorOverrideEnabled && "opacity-50 cursor-not-allowed",
                               formData.cancellationPolicy === policy.value
                                 ? "border-primary bg-primary/5"
                                 : "border-zinc-100 bg-zinc-50 hover:border-zinc-200"

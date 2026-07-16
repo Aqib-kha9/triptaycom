@@ -30,7 +30,7 @@ export function NavbarVendor() {
   const vendorLinks = [
     { name: "Dashboard", href: "/vendor/dashboard", icon: <LayoutDashboard className="w-4 h-4" /> },
     { name: "Bookings", href: "/vendor/bookings", icon: <CalendarCheck className="w-4 h-4" /> },
-    { name: "List your property", href: "/vendor/listings/new", icon: <Plus className="w-4 h-4" /> },
+    { name: "List your property", href: "/vendor/stays/new", icon: <Plus className="w-4 h-4" /> },
   ];
 
   const fetchUnreadCounts = useCallback(async () => {
@@ -52,7 +52,7 @@ export function NavbarVendor() {
 
       if (notifRes.status === "fulfilled" && notifRes.value.ok) {
         const data = await notifRes.value.json();
-        setNotifUnread(data?.data?.unreadCount || 0);
+        setNotifUnread(data?.data?.count || data?.data?.unreadCount || 0);
       }
     } catch {
       // Silently fail — badges stay at 0

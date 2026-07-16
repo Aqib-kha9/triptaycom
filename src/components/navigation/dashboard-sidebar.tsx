@@ -17,6 +17,9 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useRole } from "@/components/role-provider";
 
+import { useState, useEffect } from "react";
+import { authApi } from "@/lib/api-client";
+
 const DASHBOARD_LINKS = [
   { name: "Overview", icon: <Home className="w-5 h-5" />, href: "/dashboard" },
   { name: "My Bookings", icon: <Calendar className="w-5 h-5" />, href: "/bookings" },
@@ -31,17 +34,41 @@ const DASHBOARD_LINKS = [
 export function DashboardSidebar() {
   const pathname = usePathname();
   const { logout } = useRole();
+  const [userName, setUserName] = useState("Loading...");
+  const [userRole, setUserRole] = useState("Guest Member");
+  const [avatar, setAvatar] = useState("");
+
+  useEffect(() => {
+    async function fetchUser() {
+      try {
+        const res = await authApi.getProfile();
+        if (res.data?.user) {
+          setUserName(res.data.user.name);
+          setUserRole(res.data.user.role === "Vendor" ? "Vendor Member" : res.data.user.role === "Admin" ? "Admin" : "Guest Member");
+          setAvatar(res.data.user.avatar || "");
+        }
+      } catch (err) {
+        console.error("Failed to load user in sidebar", err);
+        setUserName("User");
+      }
+    }
+    fetchUser();
+  }, []);
 
   return (
     <aside className="hidden lg:block lg:w-64 flex-shrink-0">
       <div className="sticky top-24 space-y-1 bg-white p-4 rounded-2xl border border-zinc-100">
         <div className="flex items-center gap-3 mb-6 px-2">
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary overflow-hidden">
-            <User className="w-5 h-5" />
+            {avatar ? (
+              <img src={avatar} alt={userName} className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-5 h-5" />
+            )}
           </div>
-          <div>
-            <h3 className="font-bold text-zinc-900 text-sm truncate max-w-[120px]">Aqib Ahmed</h3>
-            <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">Guest Member</p>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-bold text-zinc-900 text-sm truncate" title={userName}>{userName}</h3>
+            <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest">{userRole}</p>
           </div>
         </div>
 

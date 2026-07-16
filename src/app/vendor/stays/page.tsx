@@ -3,9 +3,9 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 import { Input } from "@/components/ui/input";
+import { listingsApi } from "@/lib/api-client";
+import type { ListingItem } from "@/types/api";
 import {
   Plus,
   Search,
@@ -25,22 +25,6 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { VendorSidebar } from "@/components/navigation/vendor-sidebar";
 
-interface ListingItem {
-  _id: string;
-  name: string;
-  slug: string;
-  summary: string;
-  propertyType: string;
-  city: string;
-  state: string;
-  basePrice: number;
-  status: "draft" | "published" | "unlisted" | "rejected";
-  media: { url: string; isCover: boolean; type: string }[];
-  bedrooms: number;
-  maxGuests: number;
-  createdAt: string;
-}
-
 export default function VendorStaysPage() {
   const [search, setSearch] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -53,18 +37,10 @@ export default function VendorStaysPage() {
     try {
       setIsLoading(true);
       setError("");
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/listings`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      if (json.status === "success") {
-        setListings(json.data.listings);
-      } else {
-        setError(json.message || "Failed to load listings.");
-      }
-    } catch {
-      setError("Could not connect to server.");
+      const res = await listingsApi.getMyListings();
+      setListings(res.data.listings);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Could not connect to server.");
     } finally {
       setIsLoading(false);
     }
@@ -78,15 +54,8 @@ export default function VendorStaysPage() {
     if (!deleteId) return;
     try {
       setIsDeleting(true);
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_BASE}/listings/${deleteId}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const json = await res.json();
-      if (json.status === "success") {
-        setListings((prev) => prev.filter((l) => l._id !== deleteId));
-      }
+      await listingsApi.delete(deleteId);
+      setListings((prev) => prev.filter((l) => l.id !== deleteId));
     } catch {
       // silently fail, keep modal open
     } finally {
@@ -149,7 +118,7 @@ export default function VendorStaysPage() {
                       onChange={(e) => setSearch(e.target.value)}
                     />
                   </div>
-                  <Link href="/vendor/listings/new">
+                  <Link href="/vendor/stays/new">
                     <Button className="rounded-xl px-5 h-10 text-xs font-bold gap-2">
                       <Plus className="w-3.5 h-3.5" />
                       Add Stay
@@ -203,7 +172,7 @@ export default function VendorStaysPage() {
                     </p>
                   </div>
                   {!search && (
-                    <Link href="/vendor/listings/new">
+                    <Link href="/vendor/stays/new">
                       <Button className="rounded-xl h-10 text-xs font-bold gap-2">
                         <Plus className="w-3.5 h-3.5" />
                         Add Stay
@@ -218,7 +187,7 @@ export default function VendorStaysPage() {
                 <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden divide-y divide-zinc-50">
                   {filtered.map((listing) => (
                     <div
-                      key={listing._id}
+                      key={listing.id}
                       className="p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-6 hover:bg-zinc-50/50 transition-colors group"
                     >
                       <div className="flex items-center gap-5 w-full sm:w-auto">
@@ -286,7 +255,7 @@ export default function VendorStaysPage() {
                         </div>
 
                         <div className="flex items-center gap-1.5">
-                          <Link href={`/vendor/listings/${listing._id}`}>
+                          <Link href={`/vendor/stays/${listing.id}`}>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -296,7 +265,7 @@ export default function VendorStaysPage() {
                               <Eye className="w-3.5 h-3.5" />
                             </Button>
                           </Link>
-                          <Link href={`/vendor/listings/edit/${listing._id}`}>
+                          <Link href={`/vendor/stays/edit/${listing.id}`}>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -309,7 +278,7 @@ export default function VendorStaysPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => setDeleteId(listing._id)}
+                            onClick={() => setDeleteId(listing.id)}
                             className="h-8 w-8 rounded-lg text-zinc-400 hover:text-rose-500 hover:bg-rose-50"
                             title="Delete"
                           >

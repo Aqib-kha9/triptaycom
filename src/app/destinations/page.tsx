@@ -10,8 +10,8 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, SlidersHorizontal, MapPin, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+import { destinationsApi } from "@/lib/api-client";
+import type { DestinationItem, PaginationMeta } from "@/types/api";
 
 const CATEGORIES = [
   { label: "All", value: "" },
@@ -35,31 +35,11 @@ const STATES = [
   "Tamil Nadu",
 ];
 
-interface Destination {
-  _id: string;
-  name: string;
-  slug: string;
-  state: string;
-  city: string;
-  image: string;
-  category: string;
-  description: string;
-  popularityScore: number;
-  nearbyStaysCount: number;
-}
-
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
 export default function DestinationsPage() {
-  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [destinations, setDestinations] = useState<DestinationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 12, total: 0, totalPages: 1 });
+  const [pagination, setPagination] = useState<PaginationMeta>({ page: 1, limit: 12, total: 0, totalPages: 1 });
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [stateFilter, setStateFilter] = useState("All States");
@@ -70,23 +50,19 @@ export default function DestinationsPage() {
     setError(null);
 
     try {
-      const params = new URLSearchParams();
-      params.set("page", String(page));
-      params.set("limit", "12");
-      if (searchTerm.trim()) params.set("search", searchTerm.trim());
-      if (category) params.set("category", category);
+      const params: Record<string, string | number | undefined> = {
+        page,
+        limit: 12,
+      };
+      if (searchTerm.trim()) params.search = searchTerm.trim();
+      if (category) params.category = category;
 
-      const res = await fetch(`${API_BASE}/destinations?${params.toString()}`);
-      const json = await res.json().catch(() => null);
+      const res = await destinationsApi.getAll(params);
 
-      if (!res.ok || !json || json.status !== "success") {
-        throw new Error(json?.message || "Failed to fetch destinations");
-      }
-
-      setDestinations(json.data.destinations);
-      setPagination(json.data.pagination);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+      setDestinations(res.data?.destinations || []);
+      if (res.pagination) setPagination(res.pagination);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
       setDestinations([]);
     } finally {
       setLoading(false);
@@ -304,7 +280,7 @@ export default function DestinationsPage() {
                 <AnimatePresence mode="popLayout">
                   {filteredDestinations.map((dest, i) => (
                     <motion.div
-                      key={dest._id}
+                      key={dest.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: i * 0.05 }}

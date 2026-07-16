@@ -4,7 +4,7 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+import { activitiesApi, publicApi } from "@/lib/api-client";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useState, useRef, useEffect } from "react";
@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { AlertCircle } from "lucide-react";
 
 // ──────────────────────── Types ────────────────────────
 
@@ -268,6 +269,10 @@ export default function AddActivityPage() {
   const [isSuccess, setIsSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Cancellation Policy Admin Config ──
+  const [vendorOverrideEnabled, setVendorOverrideEnabled] = useState(true);
+  const [globalDefaultPolicy, setGlobalDefaultPolicy] = useState("Moderate");
+
   // ── Helpers ──
 
   const handleAutoFill = () => setFormData(FILLER_DATA);
@@ -276,6 +281,31 @@ export default function AddActivityPage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
   };
+
+  // ── Fetch cancellation policy config from admin ──
+  useEffect(() => {
+    async function fetchCancellationConfig() {
+      try {
+        const res = await publicApi.getConfigurations();
+        if (res?.status === "success" && res.data?.configuration) {
+          const overrideEnabled = res.data.configuration.cancellation_vendor_override_enabled;
+          const defaultPolicy = res.data.configuration.cancellation_default_policy;
+          if (overrideEnabled !== undefined) setVendorOverrideEnabled(Boolean(overrideEnabled));
+          if (defaultPolicy !== undefined) setGlobalDefaultPolicy(String(defaultPolicy));
+        }
+      } catch (err) {
+        console.error("Failed to load cancellation config:", err);
+      }
+    }
+    fetchCancellationConfig();
+  }, []);
+
+  // Force global default when vendor override is disabled
+  useEffect(() => {
+    if (!vendorOverrideEnabled) {
+      setFormData((prev) => ({ ...prev, cancellationPolicy: globalDefaultPolicy as any }));
+    }
+  }, [vendorOverrideEnabled, globalDefaultPolicy]);
 
   const toggleLanguage = (lang: string) => {
     setFormData((prev) => ({
@@ -448,7 +478,6 @@ export default function AddActivityPage() {
     setIsSubmitting(true);
 
     try {
-      const token = localStorage.getItem("token");
       const payload = {
         name: formData.name.trim(),
         summary: formData.summary.trim(),
@@ -461,10 +490,18 @@ export default function AddActivityPage() {
         state: formData.state.trim(),
         country: formData.country.trim(),
         zipCode: formData.zipCode.trim(),
+        lat: Number(formData.lat),
+        lng: Number(formData.lng),
         coordinates: { lat: Number(formData.lat), lng: Number(formData.lng) },
         landmark: formData.landmark.trim() || undefined,
         meetingPoint: formData.meetingPoint.trim() || undefined,
-        nearbyPlaces: formData.nearbyPlaces.filter((n) => n.name.trim()),
+        nearbyPlaces: formData.nearbyPlaces
+          .filter((n) => n.name.trim())
+          .map((n) => ({
+            name: n.name.trim(),
+            type: n.category || "attraction",
+            distance: Number(n.distanceKm) || 0,
+          })),
         durationHours: Number(formData.durationHours),
         durationDays: Number(formData.durationDays) || 0,
         startTimes: formData.startTimes,
@@ -477,7 +514,14 @@ export default function AddActivityPage() {
         weekendPrice: formData.weekendPrice ? Number(formData.weekendPrice) : undefined,
         childPrice: formData.childPrice ? Number(formData.childPrice) : undefined,
         foreignerPrice: formData.foreignerPrice ? Number(formData.foreignerPrice) : undefined,
-        seasonalPrices: formData.seasonalPrices.filter((s) => s.seasonName.trim()),
+        seasonalPrices: formData.seasonalPrices
+          .filter((s) => s.seasonName.trim())
+          .map((s) => ({
+            seasonName: s.seasonName.trim(),
+            from: s.startDate,
+            to: s.endDate,
+            price: Number(s.pricePerPerson) || 0,
+          })),
         taxes: Number(formData.taxes) || 0,
         securityDeposit: Number(formData.securityDeposit) || 0,
         equipmentProvided: formData.equipmentProvided,
@@ -501,40 +545,23 @@ export default function AddActivityPage() {
         status: "published",
       };
 
-      const res = await fetch(`${API_BASE}/activities`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
-      });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Failed to create activity");
-
-      const activityId = json.data.activity._id;
+      const res = await activitiesApi.create(payload as any);
+      const activityId = res.data.activity.id;
       setCreatedActivityId(activityId);
 
       // Upload media if any
       if (mediaFiles.length > 0) {
-        const formDataMedia = new FormData();
-        mediaFiles.forEach((m, i) => {
-          formDataMedia.append("files", m.file);
-          if (m.isCover) formDataMedia.append("isCover", "true");
-          if (m.caption) formDataMedia.append("caption", m.caption);
-        });
-
-        const mediaRes = await fetch(`${API_BASE}/activities/${activityId}/media`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formDataMedia,
-        });
-
-        const mediaJson = await mediaRes.json();
-        if (!mediaRes.ok) console.warn("Media upload warning:", mediaJson.message);
+        const files = mediaFiles.map((m) => m.file);
+        try {
+          await activitiesApi.uploadMedia(activityId, files);
+        } catch {
+          console.warn("Media upload warning: activity saved without media");
+        }
       }
 
       setIsSuccess(true);
-    } catch (err: any) {
-      setErrors({ submit: err.message || "Something went wrong" });
+    } catch (err: unknown) {
+      setErrors({ submit: err instanceof Error ? err.message : "Something went wrong" });
     } finally {
       setIsSubmitting(false);
     }
@@ -1311,14 +1338,24 @@ export default function AddActivityPage() {
                         <label className="text-[11px] font-black text-zinc-500 uppercase tracking-wider">
                           Cancellation Policy <span className="text-red-500">*</span>
                         </label>
+                        {!vendorOverrideEnabled && (
+                          <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                            <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                            <p className="text-[10px] font-medium text-amber-700">
+                              Admin has disabled vendor override. Using global default policy: <span className="font-bold">{globalDefaultPolicy}</span>
+                            </p>
+                          </div>
+                        )}
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           {CANCELLATION_POLICIES.map((policy) => (
                             <button
                               type="button"
                               key={policy.value}
+                              disabled={!vendorOverrideEnabled}
                               onClick={() => update("cancellationPolicy", policy.value)}
                               className={cn(
                                 "px-3 py-3 rounded-xl text-[10px] font-bold border transition-all text-center",
+                                !vendorOverrideEnabled && "opacity-50 cursor-not-allowed",
                                 formData.cancellationPolicy === policy.value
                                   ? "border-primary bg-primary/5 text-primary"
                                   : "border-zinc-200 text-zinc-500"

@@ -21,8 +21,8 @@ import {
   Check,
   ChevronDown,
 } from "lucide-react";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+import { listingsApi, activitiesApi, nearbyApi } from "@/lib/api-client";
+import type { ListingItem, ActivityItem, NearbyItem } from "@/types/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -56,6 +56,47 @@ const SORT_OPTIONS = [
   { label: "Price: Low to High", value: "basePrice" },
   { label: "Price: High to Low", value: "-basePrice" },
 ];
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function mapListingToResult(item: ListingItem): ResultItem {
+  return {
+    id: item.id,
+    image: item.media?.[0]?.url || "/placeholder.jpg",
+    title: item.name,
+    location: [item.city, item.state].filter(Boolean).join(", ") || "Unknown",
+    price: String(item.effectiveWeekendPrice || item.basePrice || 0),
+    rating: item.avgRating ? String(item.avgRating) : "New",
+    type: "homestay",
+  };
+}
+
+function mapActivityToResult(item: ActivityItem): ResultItem {
+  return {
+    id: item.id,
+    image: item.media?.[0]?.url || "/placeholder.jpg",
+    title: item.name,
+    location: [item.city, item.state].filter(Boolean).join(", ") || "Unknown",
+    price: String(item.effectiveWeekendPrice || item.basePrice || 0),
+    rating: item.avgRating ? String(item.avgRating) : "New",
+    type: "activity",
+  };
+}
+
+function mapNearbyToResult(item: NearbyItem): ResultItem {
+  return {
+    id: item.id,
+    image: item.media?.[0]?.url || "/placeholder.jpg",
+    title: item.name,
+    location: [item.city, item.state].filter(Boolean).join(", ") || "Unknown",
+    price: String(item.effectiveWeekendPrice || item.price || 0),
+    rating: item.avgRating ? String(item.avgRating) : "New",
+    type: item.type === "activity" ? "activity" : "homestay",
+    distanceKm: item.distanceKm,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Explore Content (uses useSearchParams – must be wrapped in Suspense)
@@ -125,32 +166,15 @@ function ExploreContent() {
 
           setNearbyCenter({ lat, lng });
 
-          const params = new URLSearchParams();
-          params.set("lat", String(lat));
-          params.set("lng", String(lng));
-          params.set("radius", "50");
-          params.set("limit", "20");
+          const res = await nearbyApi.browse({ lat, lng, radius: 50, limit: 20 });
 
-          const res = await fetch(`${API_BASE}/nearby/browse?${params.toString()}`);
-          const json = await res.json().catch(() => null);
-
-          if (!res.ok || !json) {
-            throw new Error(json?.message || "Failed to fetch nearby results");
+          if (!res || res.status !== "success") {
+            throw new Error(res?.message || "Failed to fetch nearby results");
           }
 
-          setNearbyRadius(json.radius || 50);
-          const rawItems: any[] = json.data?.items || [];
-
-          const mapped: ResultItem[] = rawItems.map((item: any) => ({
-            id: item._id,
-            image: item.media?.[0]?.url || "/placeholder.jpg",
-            title: item.name,
-            location: [item.city, item.state].filter(Boolean).join(", ") || "Unknown",
-            price: String(item.effectiveWeekendPrice || item.price || 0),
-            rating: item.avgRating ? String(item.avgRating) : "New",
-            type: item.type === "activity" ? "activity" : "homestay",
-            distanceKm: item.distanceKm,
-          }));
+          setNearbyRadius(res.data?.radius || 50);
+          const rawItems: NearbyItem[] = res.data?.items || [];
+          const mapped = rawItems.map(mapNearbyToResult);
 
           if (append) {
             setResults((prev) => [...prev, ...mapped]);
@@ -159,77 +183,63 @@ function ExploreContent() {
           }
           setTotalPages(1);
         } else {
-          const endpoint = tab === "stays" ? "listings/browse" : "activities/browse";
-          const params = new URLSearchParams();
-
-          // ---- Location ----
           const city = activeFilters.location || locationParam;
-          if (city) params.set("city", city);
 
-          // ---- Property Type (stays only) ----
-          if (tab === "stays" && activeFilters.propertyType) {
-            params.set("propertyType", activeFilters.propertyType);
-          }
+          const params: Record<string, string | number | undefined> = {
+            city: city || undefined,
+            sort: activeSort,
+            page: pageNum,
+            limit: 20,
+          };
 
-          // ---- Difficulty (activities only) ----
-          if (tab === "activities" && activeFilters.difficulty) {
-            params.set("difficulty", activeFilters.difficulty);
-          }
+          if (tab === "stays") {
+            if (activeFilters.propertyType) params.propertyType = activeFilters.propertyType;
+            if (activeFilters.amenities && activeFilters.amenities.length > 0) {
+              params.amenities = activeFilters.amenities.join(",");
+            }
+            if (activeFilters.minPrice !== undefined) params.minPrice = activeFilters.minPrice;
+            if (activeFilters.maxPrice !== undefined) params.maxPrice = activeFilters.maxPrice;
 
-          // ---- Activity Type (activities only) ----
-          if (tab === "activities" && activeFilters.activityType) {
-            params.set("activityType", activeFilters.activityType);
-          }
+            const res = await listingsApi.browse(params);
 
-          // ---- Price range ----
-          if (activeFilters.minPrice !== undefined) {
-            params.set("minPrice", String(activeFilters.minPrice));
-          }
-          if (activeFilters.maxPrice !== undefined) {
-            params.set("maxPrice", String(activeFilters.maxPrice));
-          }
+            if (!res || res.status !== "success") {
+              throw new Error(res?.message || "Failed to fetch stays");
+            }
 
-          // ---- Amenities (stays only) ----
-          if (tab === "stays" && activeFilters.amenities && activeFilters.amenities.length > 0) {
-            params.set("amenities", activeFilters.amenities.join(","));
-          }
+            const rawItems: ListingItem[] = res.data?.listings || [];
+            const mapped = rawItems.map(mapListingToResult);
 
-          // ---- Sort ----
-          params.set("sort", activeSort);
-
-          // ---- Pagination ----
-          params.set("page", String(pageNum));
-          params.set("limit", "20");
-
-          const res = await fetch(`${API_BASE}/${endpoint}?${params.toString()}`);
-          const json = await res.json().catch(() => null);
-
-          if (!res.ok || !json) {
-            throw new Error(json?.message || `Failed to fetch ${tab}`);
-          }
-
-          const rawItems: any[] =
-            tab === "stays" ? json.data?.listings || [] : json.data?.activities || [];
-
-          const mapped: ResultItem[] = rawItems.map((item: any) => ({
-            id: item._id,
-            image: item.media?.[0]?.url || "/placeholder.jpg",
-            title: item.name,
-            location: [item.city, item.state].filter(Boolean).join(", ") || "Unknown",
-            price: String(item.effectiveWeekendPrice || item.basePrice || 0),
-            rating: item.avgRating ? String(item.avgRating) : "New",
-            type: tab === "stays" ? "homestay" : "activity",
-          }));
-
-          if (append) {
-            setResults((prev) => [...prev, ...mapped]);
+            if (append) {
+              setResults((prev) => [...prev, ...mapped]);
+            } else {
+              setResults(mapped);
+            }
+            setTotalPages(res.pagination?.totalPages || 1);
           } else {
-            setResults(mapped);
+            if (activeFilters.difficulty) params.difficulty = activeFilters.difficulty;
+            if (activeFilters.activityType) params.activityType = activeFilters.activityType;
+            if (activeFilters.minPrice !== undefined) params.minPrice = activeFilters.minPrice;
+            if (activeFilters.maxPrice !== undefined) params.maxPrice = activeFilters.maxPrice;
+
+            const res = await activitiesApi.browse(params);
+
+            if (!res || res.status !== "success") {
+              throw new Error(res?.message || "Failed to fetch activities");
+            }
+
+            const rawItems: ActivityItem[] = res.data?.activities || [];
+            const mapped = rawItems.map(mapActivityToResult);
+
+            if (append) {
+              setResults((prev) => [...prev, ...mapped]);
+            } else {
+              setResults(mapped);
+            }
+            setTotalPages(res.pagination?.totalPages || 1);
           }
-          setTotalPages(json.totalPages || 1);
         }
-      } catch (err: any) {
-        setError(err.message || "Something went wrong");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Something went wrong");
       } finally {
         setLoading(false);
         setLoadingMore(false);
@@ -356,7 +366,7 @@ function ExploreContent() {
                         : "Discover amazing stays and activities across India"}
                   </p>
                 </div>
-                
+
                 {/* Mobile Sort Icon Button */}
                 <div ref={sortRef} className="relative md:hidden shrink-0 mt-2">
                   <button

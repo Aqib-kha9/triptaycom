@@ -6,6 +6,7 @@ import { Loader2, ShieldAlert, Clock, CheckCircle2, RefreshCw, WifiOff } from "l
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { clearAuthData, getToken } from "@/lib/auth-utils";
+import { authApi } from "@/lib/api-client";
 
 type KycGate = "loading" | "approved" | "pending" | "rejected" | "not_submitted" | "error";
 
@@ -35,33 +36,15 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
       }
 
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-        const res = await fetch(`${apiUrl}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await authApi.getMe();
 
-        // 401 / 403 — genuinely expired/invalid token → wipe and redirect
-        if (res.status === 401 || res.status === 403) {
+        if (!res.data?.user) {
           clearAuthData();
           router.push("/login");
           return;
         }
 
-        // 429 (rate-limited), 5xx (server error), or any other non-200 → show retry UI, DON'T redirect
-        if (!res.ok) {
-          if (!cancelled) setKycGate("error");
-          return;
-        }
-
-        const payload = await res.json();
-        const user = payload.data?.user;
-
-        if (!user) {
-          clearAuthData();
-          router.push("/login");
-          return;
-        }
-
+        const user = res.data.user;
         const resolvedRole: string = (user.role || "").toLowerCase();
         const isVendor = resolvedRole === "vendor" || resolvedRole === "dual mode";
 
@@ -82,7 +65,13 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
         } else {
           if (!cancelled) setKycGate("not_submitted");
         }
-      } catch (err) {
+      } catch (err: unknown) {
+        // 401/403 — redirect to login
+        if (err instanceof Error && (err.message.includes("401") || err.message.includes("403"))) {
+          clearAuthData();
+          router.push("/login");
+          return;
+        }
         console.error("Vendor KYC check error:", err);
         if (!cancelled) setKycGate("error"); // network error → retry UI, not redirect
       }
