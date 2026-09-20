@@ -5,6 +5,7 @@ import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { FeaturesBar } from "@/components/features-bar";
 import { ItemCard } from "@/components/cards";
+import { BackButton } from "@/components/navigation/back-button";
 import { useState, useEffect, use } from "react";
 import { motion } from "framer-motion";
 import {
@@ -16,7 +17,6 @@ import {
     Waves,
     Compass,
     Church,
-    ArrowLeft,
     Share2,
     Heart,
     Loader2,
@@ -132,12 +132,11 @@ export default function DestinationDetailPage({ params: paramsPromise }: { param
                                 ? "The destination you're looking for doesn't exist or has been removed."
                                 : error}
                         </p>
-                        <Link href="/destinations">
-                            <Button variant="outline" className="rounded-xl mt-2 gap-2">
-                                <ArrowLeft className="w-4 h-4" />
-                                Back to Destinations
-                            </Button>
-                        </Link>
+                        <BackButton
+                            fallback="/destinations"
+                            label="Back to Destinations"
+                            className="mt-2 rounded-xl"
+                        />
                     </div>
                 </main>
                 <Footer />
@@ -152,13 +151,13 @@ export default function DestinationDetailPage({ params: paramsPromise }: { param
             <main className="flex-grow">
                 {/* Back Link */}
                 <div className="container mx-auto px-4 pt-24 pb-4">
-                    <Link
-                        href="/destinations"
-                        className="inline-flex items-center gap-1.5 text-sm font-bold text-zinc-500 hover:text-zinc-900 transition-colors"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        All Destinations
-                    </Link>
+                    <BackButton
+                        fallback="/destinations"
+                        label="Back"
+                        fallbackLabel="All Destinations"
+                        variant="ghost"
+                        className="px-0 text-sm text-zinc-500 hover:bg-transparent hover:text-zinc-900"
+                    />
                 </div>
 
                 {/* Hero Banner */}

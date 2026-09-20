@@ -3,10 +3,10 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/navigation/back-button";
 import {
   Calendar,
   MapPin,
-  ChevronLeft,
   Download,
   XCircle,
   CheckCircle2,
@@ -28,6 +28,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { bookingsApi, chatApi } from "@/lib/api-client";
+import { getSessionToken } from "@/lib/session";
 import type { BookingItem } from "@/types/api";
 import { InvoiceModal } from "@/components/InvoiceModal";
 
@@ -79,7 +80,7 @@ export default function BookingDetailPage({ params: paramsPromise }: { params: P
     (async () => {
       try {
         const { io } = await import("socket.io-client");
-        const token = localStorage.getItem("token") || "";
+        const token = getSessionToken() || "";
         if (!token) return;
 
         const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
@@ -170,11 +171,11 @@ export default function BookingDetailPage({ params: paramsPromise }: { params: P
           <div className="container mx-auto px-4 flex flex-col items-center justify-center py-32 text-center">
             <XCircle className="w-12 h-12 text-rose-400" />
             <p className="text-sm text-rose-500 font-medium mt-4">{error || "Booking not found."}</p>
-            <Link href="/bookings" className="mt-6">
-              <Button variant="outline" className="rounded-xl gap-2">
-                <ChevronLeft className="w-4 h-4" /> Back to bookings
-              </Button>
-            </Link>
+            <BackButton
+              fallback="/bookings"
+              label="Back to bookings"
+              className="mt-6 rounded-xl"
+            />
           </div>
         </main>
         <Footer />
@@ -194,10 +195,13 @@ export default function BookingDetailPage({ params: paramsPromise }: { params: P
           {/* Header Actions */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-10">
             <div className="space-y-2">
-              <Link href="/bookings" className="text-zinc-400 hover:text-zinc-900 transition-colors flex items-center gap-2 font-bold text-sm mb-4">
-                <ChevronLeft className="w-4 h-4" />
-                Back to bookings
-              </Link>
+              <BackButton
+                fallback="/bookings"
+                label="Back"
+                fallbackLabel="Back to bookings"
+                variant="ghost"
+                className="px-0 mb-4 text-zinc-400 hover:bg-transparent hover:text-zinc-900 text-sm"
+              />
               <h1 className="text-3xl font-black text-zinc-900 flex items-center gap-3">
                 Booking #{booking.bookingId}
                 <span
@@ -369,19 +373,19 @@ export default function BookingDetailPage({ params: paramsPromise }: { params: P
                 <div className="bg-gradient-to-br from-rose-500 to-primary text-white p-8 rounded-[40px] shadow-xl shadow-primary/20 space-y-6 relative overflow-hidden">
                   <div className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#fcfcfc]" />
                   <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-[#fcfcfc]" />
-                  
+
                   <div className="space-y-1 text-center">
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-80">Your Check-In Pass</p>
                     <h3 className="text-xl font-black">Share with host on arrival</h3>
                   </div>
-                  
+
                   <div className="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/10 text-center space-y-2">
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-75">Check-In OTP</p>
                     <p className="text-4xl font-black tracking-[10px] font-mono select-all pl-[10px] text-white">
                       {booking.checkInOtp}
                     </p>
                   </div>
-                  
+
                   <p className="text-[10px] font-bold text-center opacity-85 leading-relaxed italic">
                     Keep this code secure. Only share it with the host when you arrive at the property or activity meeting point to start your booking.
                   </p>

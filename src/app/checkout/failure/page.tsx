@@ -150,11 +150,11 @@ export default function BookingFailurePage() {
             className="mt-12"
           >
             <button
-              onClick={() => router.push("/")}
+              onClick={() => router.back()}
               className="text-zinc-400 hover:text-zinc-900 font-bold text-sm flex items-center gap-2 transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              Return to home
+              Go back
             </button>
           </motion.div>
 

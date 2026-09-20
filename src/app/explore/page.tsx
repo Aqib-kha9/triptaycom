@@ -5,8 +5,9 @@ import { Footer } from "@/components/footer";
 import { ListingSearch } from "@/components/listing-search";
 import { ItemCard } from "@/components/cards";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/navigation/back-button";
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -20,6 +21,8 @@ import {
   Loader2,
   Check,
   ChevronDown,
+  Tent,
+  Compass
 } from "lucide-react";
 import { listingsApi, activitiesApi, nearbyApi } from "@/lib/api-client";
 import type { ListingItem, ActivityItem, NearbyItem } from "@/types/api";
@@ -37,6 +40,10 @@ interface FilterParams {
   maxPrice?: number;
   amenities?: string[];
   sort?: string;
+  checkIn?: string;
+  checkOut?: string;
+  guests?: number;
+  rooms?: number;
 }
 
 interface ResultItem {
@@ -104,11 +111,16 @@ function mapNearbyToResult(item: NearbyItem): ResultItem {
 
 function ExploreContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const locationParam = searchParams.get("location") || "";
   const typeParam = searchParams.get("type") || "stays";
   const latParam = searchParams.get("lat");
   const lngParam = searchParams.get("lng");
+  const checkInParam = searchParams.get("checkIn") || undefined;
+  const checkOutParam = searchParams.get("checkOut") || undefined;
+  const guestsParam = searchParams.get("guests") ? parseInt(searchParams.get("guests")!, 10) : undefined;
+  const roomsParam = searchParams.get("rooms") ? parseInt(searchParams.get("rooms")!, 10) : undefined;
 
   const isNearbyMode = typeParam === "nearby" && latParam && lngParam;
 
@@ -129,6 +141,10 @@ function ExploreContent() {
   const [sortBy, setSortBy] = useState<string>("-createdAt");
   const [sortOpen, setSortOpen] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
+
+  // ---- Geolocation ----
+  const [isLocating, setIsLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   // ---- Filters ----
   const [filters, setFilters] = useState<FilterParams>({});
@@ -199,6 +215,10 @@ function ExploreContent() {
             }
             if (activeFilters.minPrice !== undefined) params.minPrice = activeFilters.minPrice;
             if (activeFilters.maxPrice !== undefined) params.maxPrice = activeFilters.maxPrice;
+            if (activeFilters.checkIn) params.checkIn = activeFilters.checkIn;
+            if (activeFilters.checkOut) params.checkOut = activeFilters.checkOut;
+            if (activeFilters.guests) params.guests = activeFilters.guests;
+            if (activeFilters.rooms) params.rooms = activeFilters.rooms;
 
             const res = await listingsApi.browse(params);
 
@@ -278,19 +298,60 @@ function ExploreContent() {
     [activeTab, filters, fetchResults]
   );
 
+  // ---- Nearby Geolocation ----
+  const handleNearbySearch = () => {
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation not supported by your browser.");
+      return;
+    }
+    setIsLocating(true);
+    setLocationError(null);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setIsLocating(false);
+        const { latitude, longitude } = position.coords;
+        router.push(`/explore?type=nearby&lat=${latitude}&lng=${longitude}`);
+      },
+      (err) => {
+        setIsLocating(false);
+        switch (err.code) {
+          case err.PERMISSION_DENIED:
+            setLocationError("Location access denied. Enable it in your browser settings.");
+            break;
+          case err.POSITION_UNAVAILABLE:
+            setLocationError("Location unavailable. Try again later.");
+            break;
+          case err.TIMEOUT:
+            setLocationError("Location request timed out. Try again.");
+            break;
+          default:
+            setLocationError("Could not get your location. Try again.");
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+    );
+  };
+
   // ---- Tab change ----
   const handleTabChange = (tab: "stays" | "activities" | "nearby") => {
     if (tab === activeTab) return;
+    
     if (tab === "nearby") {
-      window.history.back();
+      // Use cached coordinates if we already have them in this session
+      if (nearbyCenter) {
+        router.push(`/explore?type=nearby&lat=${nearbyCenter.lat}&lng=${nearbyCenter.lng}`);
+        return;
+      }
+      handleNearbySearch();
       return;
     }
-    setActiveTab(tab);
-    setPage(1);
-    // Reset filters when switching tabs
-    const cleanFilters: FilterParams = {};
-    setFilters(cleanFilters);
-    fetchResults(tab, 1, false, cleanFilters, sortBy);
+    
+    // For stays or activities, update the URL (this triggers the useEffect to fetch)
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("type", tab);
+    params.delete("lat");
+    params.delete("lng");
+    router.push(`/explore?${params.toString()}`);
   };
 
   // ---- Load more ----
@@ -321,10 +382,14 @@ function ExploreContent() {
 
       {/* Global Search Bar — hidden in nearby mode */}
       {activeTab !== "nearby" && (
-        <div className="sticky top-16 z-40 bg-white max-h-[calc(100vh-4rem)] overflow-y-auto no-scrollbar pt-2 pb-2">
+        <div className="sticky top-16 z-40 bg-white pt-2 pb-2">
           <ListingSearch
             mode={activeTab}
             locationParam={locationParam}
+            checkInParam={checkInParam}
+            checkOutParam={checkOutParam}
+            guestsParam={guestsParam}
+            roomsParam={roomsParam}
             onSearch={handleSearch}
           />
         </div>
@@ -410,18 +475,11 @@ function ExploreContent() {
                 <button
                   onClick={() => handleTabChange("stays")}
                   className={cn(
-                    "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-0 md:gap-1.5 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
-                    activeTab === "stays" ? "text-zinc-900 !border-zinc-300 md:!border-transparent" : "text-zinc-400 hover:text-zinc-600"
+                    "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-1.5 md:gap-2 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
+                    activeTab === "stays" ? "text-primary !border-primary md:!border-transparent" : "text-zinc-500 hover:text-zinc-900"
                   )}
                 >
-                  <img
-                    src="/icons/homestay2.png"
-                    alt="Homestays"
-                    className={cn(
-                      "h-6 w-6 md:h-8 md:w-8 object-contain transition-all duration-300",
-                      activeTab === "stays" ? "scale-[2.2] -translate-y-4 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
-                    )}
-                  />
+                  <Home className={cn("w-5 h-5 md:w-6 md:h-6 transition-all duration-300", activeTab === "stays" && "fill-primary")} />
                   Homestays
                   {activeTab === "stays" && (
                     <motion.div
@@ -433,18 +491,11 @@ function ExploreContent() {
                 <button
                   onClick={() => handleTabChange("activities")}
                   className={cn(
-                    "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-0 md:gap-1.5 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
-                    activeTab === "activities" ? "text-zinc-900 !border-zinc-300 md:!border-transparent" : "text-zinc-400 hover:text-zinc-600"
+                    "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-1.5 md:gap-2 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
+                    activeTab === "activities" ? "text-primary !border-primary md:!border-transparent" : "text-zinc-500 hover:text-zinc-900"
                   )}
                 >
-                  <img
-                    src="/icons/activities.png"
-                    alt="Activities"
-                    className={cn(
-                      "h-6 w-6 md:h-8 md:w-8 object-contain transition-all duration-300",
-                      activeTab === "activities" ? "scale-[2.2] -translate-y-4 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
-                    )}
-                  />
+                  <Tent className={cn("w-5 h-5 md:w-6 md:h-6 transition-all duration-300", activeTab === "activities" && "fill-primary")} />
                   Activities
                   {activeTab === "activities" && (
                     <motion.div
@@ -456,19 +507,16 @@ function ExploreContent() {
                 <button
                   onClick={() => handleTabChange("nearby")}
                   className={cn(
-                    "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-0 md:gap-1.5 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
-                    activeTab === "nearby" ? "text-zinc-900 !border-zinc-300 md:!border-transparent" : "text-zinc-400 hover:text-zinc-600"
+                    "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-1.5 md:gap-2 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
+                    activeTab === "nearby" ? "text-primary !border-primary md:!border-transparent" : "text-zinc-500 hover:text-zinc-900"
                   )}
                 >
-                  <img
-                    src="/icons/nearby.png"
-                    alt="Find Nearby"
-                    className={cn(
-                      "h-6 w-6 md:h-8 md:w-8 object-contain transition-all duration-300",
-                      activeTab === "nearby" ? "scale-[2.2] -translate-y-4 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
-                    )}
-                  />
-                  Nearby
+                  {isLocating ? (
+                    <Loader2 className={cn("w-5 h-5 md:w-6 md:h-6 animate-spin", activeTab === "nearby" && "text-primary")} />
+                  ) : (
+                    <Compass className={cn("w-5 h-5 md:w-6 md:h-6 transition-all duration-300", activeTab === "nearby" && "fill-primary")} />
+                  )}
+                  {isLocating ? "Locating..." : "Nearby"}
                   {activeTab === "nearby" && (
                     <motion.div
                       layoutId="exploreActiveTab"
@@ -534,6 +582,14 @@ function ExploreContent() {
               </div>
             </div>
           </div>
+
+          {/* ---- Location Error ---- */}
+          {locationError && (
+            <div className="bg-red-50 text-red-600 px-4 py-3 rounded-xl mb-6 mx-2 text-sm font-semibold border border-red-100 flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              {locationError}
+            </div>
+          )}
 
           {/* ---- Active Filter Chips ---- */}
           {activeFilterCount > 0 && activeTab !== "nearby" && (
@@ -643,13 +699,12 @@ function ExploreContent() {
                             : `No ${activeTab} are available right now. Check back soon for new listings.`}
                       </p>
                       <div className="flex gap-3">
-                        <Button
+                        <BackButton
+                          fallback="/"
+                          label="Go Back"
                           variant="outline"
-                          className="rounded-xl h-10 text-xs font-bold gap-2"
-                          onClick={() => window.history.back()}
-                        >
-                          Go Back
-                        </Button>
+                          className="rounded-xl h-10 text-xs font-bold"
+                        />
                         {activeFilterCount > 0 && (
                           <Button
                             className="rounded-xl h-10 text-xs font-bold gap-2"

@@ -27,6 +27,7 @@ import type {
   MediaItem,
   PaginationMeta,
 } from "@/types/api";
+import { getSessionToken, setSession, clearSession } from "./session";
 
 // ─── Configuration ──────────────────────────────────────────
 
@@ -60,21 +61,39 @@ export class UnauthorizedError extends ApiError {
   }
 }
 
-// ─── Token Management ───────────────────────────────────────
+// ─── Session Access ─────────────────────────────────────────
+// All token reads/writes go through ./session so localStorage and the
+// proxy-readable cookie can never drift apart.
 
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
-}
+/**
+ * Invoked when an authenticated request returns 401. Clears the stale session
+ * and asks the app to move to /login through an in-app (SPA) navigation.
+ *
+ * This intentionally never touches `window.location`. A full-document redirect
+ * tears down the running app, turns the next Back press into a cold reload and
+ * marks the page as non-restorable, which is what left the homepage frozen on
+ * its skeletons. Instead we broadcast an event that SessionGuard (mounted once
+ * in the layout) converts into a `router.push` — so the app stays alive, Back
+ * retraces the real history and no permanent "already redirecting" latch can
+ * outlive a single navigation.
+ */
+export const AUTH_REQUIRED_EVENT = "triptay:auth-required";
 
-function setToken(token: string): void {
+function handleSessionExpired(): void {
   if (typeof window === "undefined") return;
-  localStorage.setItem("token", token);
-}
-
-function clearToken(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem("token");
+  clearSession();
+  const { pathname, search } = window.location;
+  // Don't redirect if already on login or public auth pages
+  if (pathname === "/login" || pathname.startsWith("/login/")) return;
+  const redirect = encodeURIComponent(`${pathname}${search}`);
+  // Fire the custom event so any open modal/listener can react
+  window.dispatchEvent(
+    new CustomEvent(AUTH_REQUIRED_EVENT, {
+      detail: { redirect: `/login?redirect=${redirect}` },
+    })
+  );
+  // Hard redirect — middleware will also catch subsequent navigations
+  window.location.href = `/login?redirect=${redirect}`;
 }
 
 // ─── Core Request Function ──────────────────────────────────
@@ -113,7 +132,7 @@ async function request<T>(
   };
 
   if (auth) {
-    const token = getToken();
+    const token = getSessionToken();
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }
@@ -148,6 +167,11 @@ async function request<T>(
 
     if (!res.ok) {
       if (res.status === 401) {
+        // Only expire the session when we actually sent a token. A public
+        // endpoint returning 401 must never log the user out.
+        if (auth && getSessionToken()) {
+          handleSessionExpired();
+        }
         throw new UnauthorizedError(json.message);
       }
       throw new ApiError(
@@ -180,24 +204,43 @@ async function request<T>(
 
 // ─── Auth API ───────────────────────────────────────────────
 
+// The backend returns the JWT at the ROOT of the response body:
+//   { status, token, data: { user } }
+// `AuthResponse` (data.token) is the legacy nested shape — both are accepted
+// so a future contract change cannot silently break session persistence.
+type AuthTokenResponse = ApiResponse<AuthResponse> & { token?: string };
+
+function extractAuthToken(res: AuthTokenResponse): string | null {
+  if (typeof res.token === "string" && res.token) return res.token;
+  const nested = (res.data as { token?: string } | undefined)?.token;
+  if (typeof nested === "string" && nested) return nested;
+  return null;
+}
+
+/** Persist a token returned by any auth endpoint via the session authority. */
+function saveAuthToken(res: AuthTokenResponse): void {
+  const token = extractAuthToken(res);
+  if (token) setSession(token);
+}
+
 export const authApi = {
   login: async (email: string, password: string) => {
-    const res = await request<ApiResponse<AuthResponse>>("/auth/login", {
+    const res = await request<AuthTokenResponse>("/auth/login", {
       method: "POST",
       body: { email, password },
       auth: false,
     });
-    if (res.data.token) setToken(res.data.token);
+    saveAuthToken(res);
     return res.data;
   },
 
   signup: async (data: { name: string; email: string; password: string; phone?: string }) => {
-    const res = await request<ApiResponse<AuthResponse>>("/auth/signup", {
+    const res = await request<AuthTokenResponse>("/auth/signup", {
       method: "POST",
       body: data,
       auth: false,
     });
-    if (res.data.token) setToken(res.data.token);
+    saveAuthToken(res);
     return res.data;
   },
 
@@ -205,50 +248,48 @@ export const authApi = {
     try {
       await request("/auth/logout", { method: "POST" });
     } finally {
-      clearToken();
+      clearSession();
     }
   },
 
-  getMe: () => request<ApiResponse<{ user: SanitizedUser }>>("/auth/me"),
+  getMe: (timeout?: number) => request<ApiResponse<{ user: SanitizedUser }>>("/auth/me", { timeout }),
 
-  sendOtp: (email: string) =>
-    request<ApiResponse<{ message: string }>>("/auth/send-otp", {
+  sendOtp: (identifier: string) =>
+    request<ApiResponse<{ message: string; devCode?: string }>>("/auth/send-otp", {
       method: "POST",
-      body: { email },
+      body: { identifier },
       auth: false,
     }),
 
-  verifyOtp: (email: string, code: string) =>
+  verifyOtp: (identifier: string, code: string) =>
     request<ApiResponse<{ success: boolean }>>("/auth/verify-otp", {
       method: "POST",
-      body: { email, code },
+      body: { identifier, code },
       auth: false,
     }),
 
   registerOtp: (data: {
     name: string;
-    email: string;
-    password: string;
-    phone?: string;
-    code: string;
+    identifier: string;
+    role?: string;
   }) => {
-    return request<ApiResponse<AuthResponse>>("/auth/register-otp", {
+    return request<AuthTokenResponse>("/auth/register-otp", {
       method: "POST",
       body: data,
       auth: false,
     }).then((res) => {
-      if (res.data.token) setToken(res.data.token);
+      saveAuthToken(res);
       return res.data;
     });
   },
 
   googleLogin: (email: string, name: string) => {
-    return request<ApiResponse<AuthResponse>>("/auth/google", {
+    return request<AuthTokenResponse>("/auth/google-login", {
       method: "POST",
       body: { email, name },
       auth: false,
     }).then((res) => {
-      if (res.data.token) setToken(res.data.token);
+      saveAuthToken(res);
       return res.data;
     });
   },
@@ -289,7 +330,7 @@ export const authApi = {
       auth: false,
     }),
 
-  resetPassword: (data: { token: string; password: string }) =>
+  resetPassword: (data: { token: string; newPassword: string }) =>
     request<ApiResponse<{ message: string }>>("/auth/reset-password", {
       method: "POST",
       body: data,
@@ -562,6 +603,37 @@ export const notificationsApi = {
   deleteAll: () =>
     request<ApiResponse<{ message: string }>>("/notifications", {
       method: "DELETE",
+    }),
+};
+
+// ─── Wallet API ─────────────────────────────────────────────
+
+export interface WalletTransaction {
+  id: string;
+  amount: number;
+  type: "credit" | "debit";
+  title: string;
+  description?: string;
+  status: string;
+  createdAt: string;
+}
+
+export const walletApi = {
+  getHistory: () =>
+    request<ApiResponse<{ balance: number; spent: number; refunds: number; transactions: WalletTransaction[] }>>(
+      "/wallet/history"
+    ),
+
+  createOrder: (data: { amount: number }) =>
+    request<ApiResponse<{ message: string; orderId: string; amount: number; currency: string }>>("/wallet/create-order", {
+      method: "POST",
+      body: data,
+    }),
+
+  verifyPayment: (data: { razorpayOrderId: string; razorpayPaymentId: string; razorpaySignature: string; amount: number }) =>
+    request<ApiResponse<{ message: string; transaction: WalletTransaction }>>("/wallet/verify", {
+      method: "POST",
+      body: data,
     }),
 };
 
@@ -900,6 +972,42 @@ export const reviewsApi = {
     }),
 };
 
-// ─── Utility exports ────────────────────────────────────────
+// ─── Offers API ─────────────────────────────────────────────
 
-export { getToken, setToken, clearToken, API_BASE };
+export interface OfferItem {
+  id: string;
+  title: string;
+  discount: string;
+  desc: string;
+  image: string;
+  bgClass: string;
+  tag: string;
+  couponCode?: string;
+  linkUrl?: string;
+}
+
+export const offersApi = {
+  getActive: () =>
+    request<ApiResponse<{ data: OfferItem[] }>>("/offers", { auth: false }),
+
+  // Admin routes
+  getAll: () =>
+    request<ApiResponse<{ data: OfferItem[] }>>("/offers/all"),
+  create: (data: Partial<OfferItem>) =>
+    request<ApiResponse<{ data: OfferItem }>>("/offers", { method: "POST", body: data }),
+  update: (id: string, data: Partial<OfferItem>) =>
+    request<ApiResponse<{ data: OfferItem }>>(`/offers/${id}`, { method: "PUT", body: data }),
+  delete: (id: string) =>
+    request<ApiResponse<{ message: string }>>(`/offers/${id}`, { method: "DELETE" }),
+};
+
+// ─── Utility exports ────────────────────────────────────────
+// Token helpers are re-exported from the single session authority under
+// their legacy names so existing importers keep working.
+
+export {
+  getSessionToken as getToken,
+  setSession as setToken,
+  clearSession as clearToken,
+} from "./session";
+export { API_BASE };

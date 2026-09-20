@@ -14,7 +14,7 @@ import { NearbyAttractions } from "@/components/nearby-attractions";
 import { StackedDestinations } from "@/components/stacked-destinations";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { listingsApi, activitiesApi, destinationsApi } from "@/lib/api-client";
 import type { DestinationItem, ListingItem, ActivityItem } from "@/types/api";
 
@@ -28,59 +28,107 @@ export default function Home() {
   const [topActivities, setTopActivities] = useState<ActivityItem[] | null>(null);
   const [actLoading, setActLoading] = useState(true);
 
+  // Monotonic request id: a restored (b)page reloads its data, and only the
+  // most recent run is allowed to write into state. This keeps the skeletons
+  // from being cleared by a stale, superseded request.
+  const reqIdRef = useRef(0);
+
+  const loadHomeData = useCallback(async () => {
+    const reqId = ++reqIdRef.current;
+    const isCurrent = () => reqId === reqIdRef.current;
+
+    setDestLoading(true);
+    setStaysLoading(true);
+    setActLoading(true);
+
+    // Safety net: clearing the skeletons is NEVER conditional. If a request
+    // hangs forever (network stall, dropped tab, restored page) the homepage
+    // must still stop showing loaders.
+    const safety = setTimeout(() => {
+      setDestLoading(false);
+      setStaysLoading(false);
+      setActLoading(false);
+    }, 12000);
+
+    try {
+      await Promise.allSettled([
+        (async () => {
+          try {
+            const res = await destinationsApi.getAll({ limit: 4 });
+            if (!isCurrent()) return;
+            setDestinations(
+              res?.status === "success" && Array.isArray(res.data?.destinations)
+                ? res.data.destinations
+                : []
+            );
+          } catch {
+            if (isCurrent()) setDestinations([]);
+          } finally {
+            if (isCurrent()) setDestLoading(false);
+          }
+        })(),
+        (async () => {
+          try {
+            const res = await listingsApi.browse({ limit: 4, sort: "-avgRating" });
+            if (!isCurrent()) return;
+            setFeaturedListings(
+              res?.status === "success" && Array.isArray(res.data?.listings)
+                ? res.data.listings
+                : []
+            );
+          } catch {
+            if (isCurrent()) setFeaturedListings([]);
+          } finally {
+            if (isCurrent()) setStaysLoading(false);
+          }
+        })(),
+        (async () => {
+          try {
+            const res = await activitiesApi.browse({ limit: 4, sort: "-avgRating" });
+            if (!isCurrent()) return;
+            setTopActivities(
+              res?.status === "success" && Array.isArray(res.data?.activities)
+                ? res.data.activities
+                : []
+            );
+          } catch {
+            if (isCurrent()) setTopActivities([]);
+          } finally {
+            if (isCurrent()) setActLoading(false);
+          }
+        })(),
+      ]);
+    } finally {
+      clearTimeout(safety);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
 
-        async function fetchDestinations() {
-      try {
-        const res = await destinationsApi.getAll({ limit: 4 });
-        if (!cancelled && res?.status === "success" && Array.isArray(res.data?.destinations)) {
-          setDestinations(res.data.destinations);
-        } else if (!cancelled) {
-          setDestinations([]);
-        }
-      } catch {
-        if (!cancelled) setDestinations([]);
-      } finally {
-        if (!cancelled) setDestLoading(false);
-      }
-    }
+    const run = () => {
+      if (cancelled) return;
+      loadHomeData();
+    };
 
-    async function fetchFeaturedStays() {
-      try {
-        const res = await listingsApi.browse({ limit: 4, sort: "-avgRating" });
-        if (!cancelled && res?.status === "success" && Array.isArray(res.data?.listings)) {
-          setFeaturedListings(res.data.listings);
-        } else if (!cancelled) {
-          setFeaturedListings([]);
-        }
-      } catch {
-        if (!cancelled) setFeaturedListings([]);
-      } finally {
-        if (!cancelled) setStaysLoading(false);
-      }
-    }
+    run();
 
-    async function fetchTopActivities() {
-      try {
-        const res = await activitiesApi.browse({ limit: 4, sort: "-avgRating" });
-        if (!cancelled && res?.status === "success" && Array.isArray(res.data?.activities)) {
-          setTopActivities(res.data.activities);
-        } else if (!cancelled) {
-          setTopActivities([]);
-        }
-      } catch {
-        if (!cancelled) setTopActivities([]);
-      } finally {
-        if (!cancelled) setActLoading(false);
-      }
-    }
+    // A page restored from the browser back-forward cache keeps its DOM but is
+    // NOT re-rendered by React — so any transient "loading" state it was left
+    // in becomes permanent. `useNavigationTracker` re-broadcasts the restore as
+    // this event; refetching here guarantees real data replaces the skeletons.
+    const onRestore = () => run();
+    window.addEventListener("triptay:pageshow", onRestore);
 
-    fetchDestinations();
-    fetchFeaturedStays();
-    fetchTopActivities();
-    return () => { cancelled = true; };
-  }, []);
+    // Deliberately no `visibilitychange` refetch here: returning to a tab where
+    // the page is still mounted does not change the loading state, so it would
+    // only flash the skeletons on every tab switch. Back-forward-cache restores
+    // are the real hazard and are handled by `triptay:pageshow` above.
+    return () => {
+      cancelled = true;
+      window.removeEventListener("triptay:pageshow", onRestore);
+    };
+  }, [loadHomeData]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background selection:bg-primary/20 selection:text-primary">

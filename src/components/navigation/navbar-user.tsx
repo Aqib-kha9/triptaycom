@@ -8,11 +8,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRole } from "@/components/role-provider";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { useWishlist } from "@/context/WishlistContext";
 
 export function NavbarUser() {
   const pathname = usePathname();
   const router = useRouter();
   const { role, setRole, hasVendorAccess, logout } = useRole();
+  const { wishlistedIds } = useWishlist();
+  const wishlistCount = wishlistedIds.size;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showCompactSearch, setShowCompactSearch] = useState(false);
 
@@ -120,10 +123,15 @@ export function NavbarUser() {
           )}
 
           <div className="flex items-center gap-1 border-l border-zinc-100 pl-3 ml-1">
-            <Link href="/wishlist" className="hidden md:block">
-              <Button variant="ghost" size="icon" className="rounded-full text-zinc-500 hover:text-primary">
-                <Heart className="h-5 w-5" />
+            <Link href="/wishlist" className="hidden md:block relative">
+              <Button variant="ghost" size="icon" className={cn("rounded-full transition-colors", wishlistCount > 0 ? "text-rose-500 bg-rose-50 hover:text-rose-600 hover:bg-rose-100" : "text-zinc-500 hover:text-primary")}>
+                <Heart className={cn("h-5 w-5", wishlistCount > 0 && "fill-rose-500")} />
               </Button>
+              {wishlistCount > 0 && (
+                <span className="absolute top-0 right-0 flex items-center justify-center w-4 h-4 bg-rose-500 text-white text-[10px] font-black rounded-full shadow-sm">
+                  {wishlistCount}
+                </span>
+              )}
             </Link>
             <Link href="/notifications">
               <Button variant="ghost" size="icon" className={cn("rounded-full transition-colors", pathname === "/notifications" ? "text-primary bg-primary/5" : "text-zinc-400 hover:text-primary")}>

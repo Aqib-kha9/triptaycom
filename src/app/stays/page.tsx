@@ -182,7 +182,7 @@ export default function StaysPage() {
       <div className="h-16" />
 
       {/* Sticky Search Bar */}
-      <div className="sticky top-16 z-40 bg-white max-h-[calc(100vh-4rem)] overflow-y-auto no-scrollbar pt-2 pb-2">
+      <div className="sticky top-16 z-40 bg-white pt-2 pb-2">
         <ListingSearch mode="stays" onSearch={handleSearch} />
       </div>
 

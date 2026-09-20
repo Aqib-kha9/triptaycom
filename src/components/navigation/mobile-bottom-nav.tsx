@@ -4,15 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useRole } from "@/components/role-provider";
-import { 
-  Compass, 
-  Home, 
-  Sparkles, 
-  Heart, 
-  User, 
-  Calendar, 
-  MessageSquare, 
-  LayoutDashboard, 
+import {
+  Compass,
+  Home,
+  Sparkles,
+  Heart,
+  User,
+  Calendar,
+  MessageSquare,
+  LayoutDashboard,
   CalendarCheck,
   Star,
   Bell,
@@ -25,6 +25,7 @@ import {
   X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { clearSession } from "@/lib/session";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function MobileBottomNav() {
@@ -71,8 +72,8 @@ export function MobileBottomNav() {
   const drawerLinks = role === "vendor" ? vendorDrawerLinks : guestDrawerLinks;
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    document.cookie = "token=; path=/; max-age=0";
+    // Single session authority clears localStorage AND the proxy cookie together.
+    clearSession();
     setIsLoggedIn(false);
     setRole("guest");
     setIsDrawerOpen(false);
@@ -85,8 +86,8 @@ export function MobileBottomNav() {
         {/* Render standard navigation links */}
         {bottomNavLinks.map((link) => {
           const Icon = link.icon;
-          const isActive = link.href === "/" 
-            ? pathname === "/" 
+          const isActive = link.href === "/"
+            ? pathname === "/"
             : pathname === link.href || pathname.startsWith(link.href + "/");
 
           return (
@@ -101,13 +102,13 @@ export function MobileBottomNav() {
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
                 className="flex flex-col items-center"
               >
-                <Icon 
+                <Icon
                   className={cn(
-                    "w-5 h-5 transition-colors duration-300", 
+                    "w-5 h-5 transition-colors duration-300",
                     isActive ? "text-primary stroke-[2.5px]" : "text-zinc-500 stroke-[2px]"
-                  )} 
+                  )}
                 />
-                <span 
+                <span
                   className={cn(
                     "text-[9px] font-bold mt-1 tracking-wide transition-colors duration-300",
                     isActive ? "text-primary font-black" : "text-zinc-500"
@@ -140,13 +141,13 @@ export function MobileBottomNav() {
               transition={{ type: "spring", stiffness: 400, damping: 17 }}
               className="flex flex-col items-center"
             >
-              <User 
+              <User
                 className={cn(
-                  "w-5 h-5 transition-colors duration-300", 
+                  "w-5 h-5 transition-colors duration-300",
                   isDrawerOpen ? "text-primary stroke-[2.5px]" : "text-zinc-500 stroke-[2px]"
-                )} 
+                )}
               />
-              <span 
+              <span
                 className={cn(
                   "text-[9px] font-bold mt-1 tracking-wide transition-colors duration-300",
                   isDrawerOpen ? "text-primary font-black" : "text-zinc-500"
@@ -155,13 +156,13 @@ export function MobileBottomNav() {
                 Profile
               </span>
             </motion.div>
-              {isDrawerOpen && (
-                <motion.span
-                  layoutId="activeDot"
-                  className="absolute bottom-[-4px] w-1 h-1 rounded-full bg-primary"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                />
-              )}
+            {isDrawerOpen && (
+              <motion.span
+                layoutId="activeDot"
+                className="absolute bottom-[-4px] w-1 h-1 rounded-full bg-primary"
+                transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              />
+            )}
           </button>
         ) : (
           <Link
@@ -210,7 +211,7 @@ export function MobileBottomNav() {
                   <h3 className="text-xl font-black text-zinc-900 tracking-tight">Your Account</h3>
                   <p className="text-xs font-bold text-zinc-400 mt-1 uppercase tracking-widest">{role === "vendor" ? "Host Panel" : "Traveler Panel"}</p>
                 </div>
-                <button 
+                <button
                   onClick={() => setIsDrawerOpen(false)}
                   className="w-10 h-10 rounded-full bg-zinc-50 border border-zinc-100 flex items-center justify-center text-zinc-500 hover:text-zinc-900 transition-colors"
                 >
@@ -229,14 +230,14 @@ export function MobileBottomNav() {
                       onClick={() => setIsDrawerOpen(false)}
                       className={cn(
                         "flex items-center gap-4 px-4 py-4 rounded-2xl border transition-all group",
-                        isActive 
+                        isActive
                           ? "bg-zinc-900 text-white border-zinc-900 shadow-sm"
                           : "bg-white hover:bg-zinc-50 active:bg-zinc-100 border-transparent hover:border-zinc-100"
                       )}
                     >
                       <div className={cn(
                         "w-10 h-10 rounded-full flex items-center justify-center transition-colors",
-                        isActive 
+                        isActive
                           ? "bg-white/10 text-white"
                           : "bg-zinc-50 border border-zinc-100 text-zinc-500 group-hover:text-primary group-hover:bg-primary/5 group-hover:border-primary/10"
                       )}>

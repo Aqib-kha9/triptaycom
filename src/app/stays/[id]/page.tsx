@@ -4,6 +4,7 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { ItemCard } from "@/components/cards";
+import { BackButton } from "@/components/navigation/back-button";
 import { useWishlist } from "@/context/WishlistContext";
 import { listingsApi, getToken, publicApi, chatApi, reviewsApi } from "@/lib/api-client";
 import type { ListingItem } from "@/types/api";
@@ -43,7 +44,6 @@ import {
   CreditCard,
   Percent,
   ClipboardCheck,
-  ArrowLeft,
   Eye,
   ChevronDown,
   ChevronUp,
@@ -66,6 +66,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { AuthModal } from "@/components/auth-modal";
 
 // ── TypeScript Interfaces ──
 
@@ -131,6 +132,17 @@ interface ListingDetail {
   floorNumber?: number;
   totalFloors?: number;
   isFeatured?: boolean;
+  rooms?: {
+    id: string;
+    name: string;
+    description?: string;
+    maxGuests: number;
+    basePrice: number;
+    inventory: number;
+    beds: number;
+    bathrooms: number;
+    amenities: string[];
+  }[];
 }
 
 // ── Amenity Icon Map ──
@@ -224,11 +236,14 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
   const [error, setError] = useState<string | null>(null);
   const { isWishlisted, toggleWishlist } = useWishlist();
   const [guestCount, setGuestCount] = useState(2);
+  // Room selection for multi-unit listings: { [roomId]: quantity }
+  const [selectedRooms, setSelectedRooms] = useState<Record<string, number>>({});
   const [similarProperties, setSimilarProperties] = useState<ListingItem[]>([]);
   const [showAllAmenities, setShowAllAmenities] = useState(false);
   const [showFullGallery, setShowFullGallery] = useState(false);
   const [platformFeeRate, setPlatformFeeRate] = useState(5);
   const [messageLoading, setMessageLoading] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
 
   // Reviews states
   const [reviews, setReviews] = useState<any[]>([]);
@@ -364,7 +379,9 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
     if (!listing?.host?.id) return;
     const token = getToken();
     if (!token) {
-      router.push("/login");
+      // Preserve the user's intent so they return to this listing after logging in.
+      const redirect = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+      router.push(`/login?redirect=${redirect}`);
       return;
     }
 
@@ -464,10 +481,27 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
     ? Math.round((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24))
     : listing?.minStay ?? 1;
 
-  const baseTotal = (listing?.basePrice ?? 0) * nights;
+  // For multi-unit: compute room-based total; for entire place: use basePrice
+  const roomBaseTotal = listing && !listing.isEntirePlace && listing.rooms
+    ? (listing.rooms || []).reduce((acc, room) => {
+        const qty = selectedRooms[room.id] || 0;
+        return acc + (room.basePrice * qty * nights);
+      }, 0)
+    : 0;
+  const entirePlaceBaseTotal = (listing?.basePrice ?? 0) * nights;
+  const baseTotal = (listing && !listing.isEntirePlace && (listing.rooms?.length ?? 0) > 0)
+    ? roomBaseTotal
+    : entirePlaceBaseTotal;
   const platformFee = Math.round(baseTotal * platformFeeRate / 100);
   const taxesTotal = Math.round((baseTotal + (listing?.cleaningFee ?? 0)) * (listing?.taxes ?? 0) / 100);
   const grandTotal = baseTotal + (listing?.cleaningFee ?? 0) + (listing?.securityDeposit ?? 0) + platformFee + taxesTotal;
+
+  // Total guests across all selected rooms (multi-unit)
+  const totalRoomGuests = listing?.rooms
+    ? (listing.rooms || []).reduce((acc, room) => acc + (room.maxGuests * (selectedRooms[room.id] || 0)), 0)
+    : 0;
+  const hasRoomSelection = listing && !listing.isEntirePlace && (listing.rooms?.length ?? 0) > 0;
+  const selectedRoomCount = Object.values(selectedRooms).reduce((a, b) => a + b, 0);
 
   // ── Loading State ──
   if (loading) {
@@ -508,11 +542,11 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
             </div>
             <h2 className="text-xl font-semibold text-gray-900">Oops! Something went wrong</h2>
             <p className="text-gray-500">{error || "Stay not found"}</p>
-            <Link href="/stays">
-              <Button variant="outline" className="rounded-xl gap-2">
-                <ArrowLeft className="w-4 h-4" /> Back to Stays
-              </Button>
-            </Link>
+            <BackButton
+              fallback="/stays"
+              label="Back to Stays"
+              className="rounded-xl"
+            />
           </motion.div>
         </main>
         <Footer />
@@ -525,10 +559,21 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
       <Navbar />
 
       <main className="flex-grow">
+        {/* Back navigation — retraces the user's actual route */}
+        <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 pt-24 md:pt-24">
+          <BackButton
+            fallback="/stays"
+            label="Back"
+            fallbackLabel="Back to Stays"
+            variant="ghost"
+            className="px-0 text-zinc-500 hover:bg-transparent hover:text-zinc-900"
+          />
+        </div>
+
         {/* ================================================================ */}
         {/* GALLERY                                                          */}
         {/* ================================================================ */}
-        <section className="pt-20 pb-0">
+        <section className="pt-4 pb-0">
           {images.length > 0 ? (
             <div className="relative">
               {/* Main image + 4 grid items */}
@@ -1342,10 +1387,22 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                 <div className="rounded-2xl border border-gray-200 p-6 shadow-xl shadow-gray-200/50">
                   {/* Price */}
                   <div className="flex items-baseline gap-1 mb-6">
-                    <span className="text-2xl font-semibold text-gray-900">
-                      ₹{fmt(listing.basePrice)}
-                    </span>
-                    <span className="text-gray-500">/ night</span>
+                    {hasRoomSelection ? (
+                      <div>
+                        <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider mb-1">From</p>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-2xl font-semibold text-gray-900">
+                            ₹{fmt(Math.min(...(listing.rooms || []).map(r => r.basePrice)))}
+                          </span>
+                          <span className="text-gray-500">/ room / night</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <span className="text-2xl font-semibold text-gray-900">₹{fmt(listing.basePrice)}</span>
+                        <span className="text-gray-500">/ night</span>
+                      </>
+                    )}
                   </div>
 
                   {/* Simple booking form */}
@@ -1385,46 +1442,105 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                           </button>
                           <span className="text-sm font-medium w-4 text-center">{guestCount}</span>
                           <button
-                            onClick={() => setGuestCount(Math.min(listing.maxGuests, guestCount + 1))}
+                            onClick={() => setGuestCount(Math.min(listing.maxGuests || 99, guestCount + 1))}
                             className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:border-gray-900 transition-colors"
                           >
                             +
                           </button>
                         </div>
                       </div>
-                      {guestCount === listing.maxGuests && (
-                        <p className="text-[9px] text-amber-600 font-bold mt-2 text-right">
-                          * Maximum limit of {listing.maxGuests} guests reached for this stay.
-                        </p>
-                      )}
-                      {guestCount === 1 && (
-                        <p className="text-[9px] text-amber-600 font-bold mt-2 text-right">
-                          * Minimum 1 guest required.
-                        </p>
-                      )}
                     </div>
                   </div>
 
+                  {/* ── Room Type Selector (multi-unit listings only) ── */}
+                  {hasRoomSelection && (
+                    <div className="mb-4 space-y-2">
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Select Rooms</p>
+                      {(listing.rooms || []).map((room) => {
+                        const qty = selectedRooms[room.id] || 0;
+                        return (
+                          <div key={room.id} className="border border-gray-200 rounded-xl p-3 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-gray-900 truncate">{room.name}</p>
+                                <p className="text-xs text-gray-500">
+                                  {room.maxGuests} guest{room.maxGuests !== 1 ? "s" : ""} · {room.beds} bed{room.beds !== 1 ? "s" : ""} · {room.bathrooms} bath{room.bathrooms !== 1 ? "s" : ""}
+                                </p>
+                                <p className="text-sm font-bold text-rose-600 mt-0.5">₹{fmt(room.basePrice)}<span className="text-xs font-normal text-gray-400"> / night</span></p>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <button
+                                  onClick={() => setSelectedRooms(prev => ({ ...prev, [room.id]: Math.max(0, (prev[room.id] || 0) - 1) }))}
+                                  className="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:border-gray-900 text-sm transition-colors"
+                                >
+                                  −
+                                </button>
+                                <span className="text-sm font-semibold w-5 text-center">{qty}</span>
+                                <button
+                                  onClick={() => setSelectedRooms(prev => ({ ...prev, [room.id]: Math.min(room.inventory, (prev[room.id] || 0) + 1) }))}
+                                  disabled={qty >= room.inventory}
+                                  className="w-7 h-7 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:border-gray-900 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                            {qty >= room.inventory && (
+                              <p className="text-[10px] text-amber-600 font-semibold">
+                                Only {room.inventory} room{room.inventory !== 1 ? "s" : ""} available
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {selectedRoomCount > 0 && (
+                        <p className="text-xs text-gray-500 text-right font-medium">
+                          {selectedRoomCount} room{selectedRoomCount !== 1 ? "s" : ""} selected · up to {totalRoomGuests} guests
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Book button */}
-                  <Link
-                    href={checkIn && checkOut
-                      ? `/checkout/stay/${listing.slug || listing.id}?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guestCount}`
-                      : `#availability-calendar`
-                    }
-                    className="block"
-                    onClick={(e) => {
+                  <Button
+                    onClick={() => {
                       if (!checkIn || !checkOut) {
-                        e.preventDefault();
                         document.getElementById("availability-calendar")?.scrollIntoView({ behavior: "smooth" });
                         setCalendarError("Please select check-in and check-out dates first.");
+                        return;
+                      }
+
+                      if (hasRoomSelection && selectedRoomCount === 0) {
+                        setCalendarError("Please select at least one room to continue.");
+                        return;
+                      }
+
+                      if (listing.advanceNoticeHours && listing.advanceNoticeHours > 0) {
+                        const checkInDate = new Date(checkIn);
+                        const hoursUntilCheckIn = (checkInDate.getTime() - Date.now()) / (1000 * 60 * 60);
+                        if (hoursUntilCheckIn < listing.advanceNoticeHours) {
+                           setCalendarError(`This property requires ${listing.advanceNoticeHours} hours advance notice.`);
+                           document.getElementById("availability-calendar")?.scrollIntoView({ behavior: "smooth" });
+                           return;
+                        }
+                      }
+
+                      // Build checkout URL; for multi-unit include selected rooms as JSON
+                      const roomParam = hasRoomSelection && selectedRoomCount > 0
+                        ? `&rooms=${encodeURIComponent(JSON.stringify(selectedRooms))}`
+                        : "";
+                      const checkoutUrl = `/checkout/stay/${listing.slug || listing.id}?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guestCount}${roomParam}`;
+                      if (getToken()) {
+                        router.push(checkoutUrl);
+                      } else {
+                        setAuthOpen(true);
                       }
                     }}
+                    className="w-full h-14 rounded-xl text-base font-semibold bg-rose-500 hover:bg-rose-600 transition-colors gap-2"
                   >
-                    <Button className="w-full h-14 rounded-xl text-base font-semibold bg-rose-500 hover:bg-rose-600 transition-colors gap-2">
-                      {listing.instantBook ? "Instant Book" : "Reserve"}
-                      <ArrowRight className="w-4 h-4" />
-                    </Button>
-                  </Link>
+                    {listing.instantBook ? "Instant Book" : "Reserve"}
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
 
                   <p className="text-center text-gray-400 text-xs mt-3">
                     You won't be charged yet
@@ -1432,12 +1548,23 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
 
                   {/* Price breakdown */}
                   <div className="mt-6 space-y-3 pt-4 border-t border-gray-100">
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span className="underline decoration-gray-200 underline-offset-4">
-                        ₹{fmt(listing.basePrice)} × {nights} night{nights !== 1 ? "s" : ""}
-                      </span>
-                      <span>₹{fmt(baseTotal)}</span>
-                    </div>
+                    {hasRoomSelection && selectedRoomCount > 0 ? (
+                      (listing.rooms || []).filter(r => (selectedRooms[r.id] || 0) > 0).map(room => (
+                        <div key={room.id} className="flex justify-between text-sm text-gray-600">
+                          <span className="underline decoration-gray-200 underline-offset-4">
+                            {room.name} × {selectedRooms[room.id]} × {nights} night{nights !== 1 ? "s" : ""}
+                          </span>
+                          <span>₹{fmt(room.basePrice * (selectedRooms[room.id] || 0) * nights)}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span className="underline decoration-gray-200 underline-offset-4">
+                          ₹{fmt(listing.basePrice)} × {nights} night{nights !== 1 ? "s" : ""}
+                        </span>
+                        <span>₹{fmt(baseTotal)}</span>
+                      </div>
+                    )}
                     {listing.cleaningFee > 0 && (
                       <div className="flex justify-between text-sm text-gray-600">
                         <span className="underline decoration-gray-200 underline-offset-4">Cleaning fee</span>
@@ -1529,6 +1656,20 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
           )}
         </div>
       </main>
+
+      <AuthModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        onSuccess={() => {
+          setAuthOpen(false);
+          const roomParam = hasRoomSelection && selectedRoomCount > 0
+            ? `&rooms=${encodeURIComponent(JSON.stringify(selectedRooms))}`
+            : "";
+          router.push(`/checkout/stay/${listing?.slug || listing?.id}?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guestCount}${roomParam}`);
+        }}
+        title="Login to continue booking"
+        subtitle="Verify your number or email with an OTP to confirm your reservation."
+      />
 
       <Footer />
     </div>

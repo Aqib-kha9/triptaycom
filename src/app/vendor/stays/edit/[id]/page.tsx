@@ -3,6 +3,7 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/navigation/back-button";
 
 import { listingsApi, publicApi } from "@/lib/api-client";
 import { Input } from "@/components/ui/input";
@@ -63,7 +64,6 @@ import {
     Video,
     Lightbulb,
     Bookmark,
-    ArrowLeft,
     Save,
     type LucideIcon,
 } from "lucide-react";
@@ -104,6 +104,16 @@ interface FormData {
     isPetFriendly: boolean; petRules: string; isSmokingAllowed: boolean; isPartyAllowed: boolean;
     quietHoursStart: string; quietHoursEnd: string; languagesSpoken: string[];
     instantBook: boolean; advanceNoticeHours: string; maxGuestsPerBooking: string; videoTourUrl: string;
+    rooms?: {
+        name: string;
+        description: string;
+        maxGuests: string;
+        basePrice: string;
+        inventory: string;
+        beds: string;
+        bathrooms: string;
+        amenities: string[];
+    }[];
 }
 
 interface MediaPreview { file: File; preview: string; caption: string; isCover: boolean; }
@@ -226,7 +236,7 @@ const emptyForm: FormData = {
     houseRules: [], cancellationPolicy: "Moderate", cancellationDetails: "",
     isPetFriendly: false, petRules: "", isSmokingAllowed: false, isPartyAllowed: false,
     quietHoursStart: "", quietHoursEnd: "", languagesSpoken: ["English"],
-    instantBook: true, advanceNoticeHours: "", maxGuestsPerBooking: "", videoTourUrl: "",
+    instantBook: true, advanceNoticeHours: "", maxGuestsPerBooking: "", videoTourUrl: "", rooms: [],
 };
 
 // ──────────────────────── Main Component ────────────────────────
@@ -310,6 +320,16 @@ export default function EditListingPage() {
                 languagesSpoken: l.languagesSpoken || ["English"],
                 instantBook: l.instantBook ?? true, advanceNoticeHours: l.advanceNoticeHours?.toString() || "",
                 maxGuestsPerBooking: l.maxGuestsPerBooking?.toString() || "", videoTourUrl: l.videoTourUrl || "",
+                rooms: (l.rooms || []).map((r: any) => ({
+                    name: r.name || "",
+                    description: r.description || "",
+                    maxGuests: r.maxGuests?.toString() || "1",
+                    basePrice: r.basePrice?.toString() || "0",
+                    inventory: r.inventory?.toString() || "1",
+                    beds: r.beds?.toString() || "1",
+                    bathrooms: r.bathrooms?.toString() || "1",
+                    amenities: r.amenities || [],
+                })),
             });
             setExistingMedia((l.media || []) as any);
         } catch {
@@ -560,6 +580,16 @@ export default function EditListingPage() {
                 advanceNoticeHours: parseInt(formData.advanceNoticeHours) || 0,
                 maxGuestsPerBooking: formData.maxGuestsPerBooking ? parseInt(formData.maxGuestsPerBooking) : parseInt(formData.maxGuests),
                 videoTourUrl: formData.videoTourUrl.trim() || undefined,
+                rooms: formData.isEntirePlace ? [] : (formData.rooms || []).map((r: any) => ({
+                    name: r.name,
+                    description: r.description,
+                    maxGuests: parseInt(r.maxGuests) || 1,
+                    basePrice: parseFloat(r.basePrice) || 0,
+                    inventory: parseInt(r.inventory) || 1,
+                    beds: parseInt(r.beds) || 1,
+                    bathrooms: parseInt(r.bathrooms) || 1,
+                    amenities: r.amenities || [],
+                })),
             };
 
             // Step 1: Update listing data
@@ -688,7 +718,7 @@ export default function EditListingPage() {
                         </div>
                         <div className="flex gap-3">
                             <Button onClick={fetchListing} variant="outline" className="rounded-xl h-10 text-xs font-bold">Retry</Button>
-                            <Link href="/vendor/stays"><Button className="rounded-xl h-10 text-xs font-bold">Back to Stays</Button></Link>
+                            <BackButton fallback="/vendor/stays" label="Back to Stays" className="rounded-xl h-10 text-xs font-bold" />
                         </div>
                     </div>
                 </main>
@@ -715,9 +745,7 @@ export default function EditListingPage() {
                             <Link href={`/stays/${listingId}`}>
                                 <Button variant="outline" className="rounded-xl h-10 text-xs font-bold gap-2"><Eye className="w-3.5 h-3.5" /> View</Button>
                             </Link>
-                            <Link href="/vendor/stays">
-                                <Button className="rounded-xl h-10 text-xs font-bold">Back to Stays</Button>
-                            </Link>
+                            <BackButton fallback="/vendor/stays" label="Back to Stays" className="rounded-xl h-10 text-xs font-bold" />
                         </div>
                     </motion.div>
                 </main>
@@ -738,9 +766,7 @@ export default function EditListingPage() {
                             {/* Top Bar */}
                             <div className="flex justify-between items-center px-1">
                                 <div className="flex items-center gap-3">
-                                    <Link href="/vendor/stays">
-                                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg"><ArrowLeft className="w-4 h-4" /></Button>
-                                    </Link>
+                                    <BackButton fallback="/vendor/stays" variant="ghost" size="icon" className="h-9 w-9 rounded-lg" aria-label="Back to Stays" />
                                     <div>
                                         <h1 className="text-lg font-bold text-zinc-900 truncate max-w-[300px]">Edit: {formData.name || "Listing"}</h1>
                                         <p className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider">Step {step} of {totalSteps} — {STEPS[step - 1]}</p>
@@ -849,12 +875,56 @@ export default function EditListingPage() {
                                                     {renderInput("Base Price (₹/night)", "basePrice", "e.g. 2500", "number", true)}
                                                     {renderInput("Weekend Price (₹/night)", "weekendPrice", "Leave empty for auto +30%")}
                                                 </div>
-                                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                                    {renderInput("Max Guests", "maxGuests", "e.g. 6", "number", true)}
-                                                    {renderInput("Bedrooms", "bedrooms", "e.g. 3", "number", true)}
-                                                    {renderInput("Beds", "beds", "e.g. 4", "number", true)}
-                                                    {renderInput("Bathrooms", "bathrooms", "e.g. 2", "number", true)}
-                                                </div>
+                                                {formData.isEntirePlace ? (
+                                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                                        {renderInput("Max Guests", "maxGuests", "e.g. 6", "number", true)}
+                                                        {renderInput("Bedrooms", "bedrooms", "e.g. 3", "number", true)}
+                                                        {renderInput("Beds", "beds", "e.g. 4", "number", true)}
+                                                        {renderInput("Bathrooms", "bathrooms", "e.g. 2", "number", true)}
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center justify-between">
+                                                            <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Room Types</label>
+                                                            <Button type="button" variant="outline" size="sm" onClick={() => update("rooms", [...(formData.rooms || []), { name: "", description: "", maxGuests: "2", basePrice: "1000", inventory: "1", beds: "1", bathrooms: "1", amenities: [] }])} className="rounded-lg h-8 text-[10px] font-bold gap-1"><Plus className="w-3 h-3" /> Add</Button>
+                                                        </div>
+                                                        {(formData.rooms || []).map((room, index) => (
+                                                            <div key={index} className="p-4 bg-zinc-50 border border-zinc-100 rounded-2xl relative">
+                                                                <button type="button" onClick={() => { const r = [...(formData.rooms || [])]; r.splice(index, 1); update("rooms", r); }} className="absolute top-4 right-4 text-zinc-400 hover:text-red-500">
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[10px] font-bold text-zinc-400 uppercase">Room Name</label>
+                                                                        <Input value={room.name} onChange={(e) => { const r = [...(formData.rooms || [])]; r[index].name = e.target.value; update("rooms", r); }} placeholder="e.g. Deluxe Room" className="h-10 rounded-xl bg-white text-xs" />
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[10px] font-bold text-zinc-400 uppercase">Base Price / Night (₹)</label>
+                                                                        <Input type="number" value={room.basePrice} onChange={(e) => { const r = [...(formData.rooms || [])]; r[index].basePrice = e.target.value; update("rooms", r); }} placeholder="2000" className="h-10 rounded-xl bg-white text-xs" />
+                                                                    </div>
+                                                                </div>
+                                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[10px] font-bold text-zinc-400 uppercase">Inventory</label>
+                                                                        <Input type="number" value={room.inventory} onChange={(e) => { const r = [...(formData.rooms || [])]; r[index].inventory = e.target.value; update("rooms", r); }} placeholder="Total rooms" className="h-10 rounded-xl bg-white text-xs" />
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[10px] font-bold text-zinc-400 uppercase">Max Guests</label>
+                                                                        <Input type="number" value={room.maxGuests} onChange={(e) => { const r = [...(formData.rooms || [])]; r[index].maxGuests = e.target.value; update("rooms", r); }} placeholder="2" className="h-10 rounded-xl bg-white text-xs" />
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[10px] font-bold text-zinc-400 uppercase">Beds</label>
+                                                                        <Input type="number" value={room.beds} onChange={(e) => { const r = [...(formData.rooms || [])]; r[index].beds = e.target.value; update("rooms", r); }} placeholder="1" className="h-10 rounded-xl bg-white text-xs" />
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <label className="text-[10px] font-bold text-zinc-400 uppercase">Bathrooms</label>
+                                                                        <Input type="number" value={room.bathrooms} onChange={(e) => { const r = [...(formData.rooms || [])]; r[index].bathrooms = e.target.value; update("rooms", r); }} placeholder="1" className="h-10 rounded-xl bg-white text-xs" />
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                                 {renderInput("Extra Mattresses", "extraMattresses", "e.g. 2")}
                                                 <div className="grid grid-cols-3 gap-3">
                                                     {renderInput("Cleaning Fee (₹)", "cleaningFee", "e.g. 500")}

@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { DatePicker, GuestSelector, GuestCounts, formatDateShort } from "@/components/search-form";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -51,15 +52,23 @@ interface FilterParams {
   maxPrice?: number;
   amenities?: string[];
   sort?: string;
+  checkIn?: string;
+  checkOut?: string;
+  guests?: number;
+  rooms?: number;
 }
 
 interface ListingSearchProps {
   mode?: "stays" | "activities";
   locationParam?: string;
+  checkInParam?: string;
+  checkOutParam?: string;
+  guestsParam?: number;
+  roomsParam?: number;
   onSearch?: (params: FilterParams) => void;
 }
 
-export function ListingSearch({ mode = "stays", locationParam, onSearch }: ListingSearchProps) {
+export function ListingSearch({ mode = "stays", locationParam, checkInParam, checkOutParam, guestsParam, roomsParam, onSearch }: ListingSearchProps) {
   const [mounted, setMounted] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
@@ -75,6 +84,16 @@ export function ListingSearch({ mode = "stays", locationParam, onSearch }: Listi
   const [isFetchingLocations, setIsFetchingLocations] = useState(false);
   const locationRef = useRef<HTMLDivElement>(null);
   const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Date & Guests
+  const [checkIn, setCheckIn] = useState<Date | null>(checkInParam ? new Date(checkInParam) : null);
+  const [checkOut, setCheckOut] = useState<Date | null>(checkOutParam ? new Date(checkOutParam) : null);
+  const [guests, setGuests] = useState<GuestCounts>({ rooms: roomsParam || 1, adults: guestsParam || 0, children: 0, infants: 0, pets: 0 });
+  
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showGuestPicker, setShowGuestPicker] = useState(false);
+  const dateRef = useRef<HTMLDivElement>(null);
+  const guestRef = useRef<HTMLDivElement>(null);
 
   // Filters
   const [selectedPropertyType, setSelectedPropertyType] = useState<string | null>(null);
@@ -102,11 +121,26 @@ export function ListingSearch({ mode = "stays", locationParam, onSearch }: Listi
     fetchTimeoutRef.current = setTimeout(async () => {
       setIsFetchingLocations(true);
       try {
-        const res = await fetch(`${API_BASE}/locations/suggest?q=${encodeURIComponent(location.trim())}`);
-        const body = await res.json().catch(() => ({}));
-        if (res.ok && body.data?.suggestions) {
-          setLocationSuggestions(body.data.suggestions);
-          setShowLocationSuggestions(body.data.suggestions.length > 0);
+        // Fetch global location suggestions using OpenStreetMap Nominatim API (India focus)
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location.trim())}&format=json&addressdetails=1&limit=5&countrycodes=in`, {
+          headers: {
+            'Accept-Language': 'en'
+          }
+        });
+        
+        const body = await res.json().catch(() => ([]));
+        
+        if (res.ok && Array.isArray(body)) {
+          const globalSuggestions = body.map((item: any) => {
+            const address = item.address || {};
+            const city = address.city || address.town || address.village || address.state || item.name;
+            const country = address.country || "";
+            return city && country ? `${city}, ${country}` : city || item.display_name.split(",")[0];
+          });
+          
+          const uniqueSuggestions = [...new Set(globalSuggestions)].filter(Boolean) as string[];
+          setLocationSuggestions(uniqueSuggestions);
+          setShowLocationSuggestions(uniqueSuggestions.length > 0);
         } else {
           setLocationSuggestions([]);
           setShowLocationSuggestions(false);
@@ -124,11 +158,17 @@ export function ListingSearch({ mode = "stays", locationParam, onSearch }: Listi
     };
   }, [location]);
 
-  // Click-outside for location suggestions
+  // Click-outside handlers
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (locationRef.current && !locationRef.current.contains(e.target as Node)) {
         setShowLocationSuggestions(false);
+      }
+      if (dateRef.current && !dateRef.current.contains(e.target as Node)) {
+        setShowDatePicker(false);
+      }
+      if (guestRef.current && !guestRef.current.contains(e.target as Node)) {
+        setShowGuestPicker(false);
       }
     };
     document.addEventListener("mousedown", handler);
@@ -139,6 +179,16 @@ export function ListingSearch({ mode = "stays", locationParam, onSearch }: Listi
     setLocation(city);
     setShowLocationSuggestions(false);
   };
+
+  const handleDateSelect = (ci: Date, co: Date | null) => {
+    setCheckIn(ci);
+    setCheckOut(co);
+    if (ci && co) {
+      setTimeout(() => setShowDatePicker(false), 300);
+    }
+  };
+
+  const totalGuests = guests.adults + guests.children;
 
   const toggleAmenity = (amenity: string) => {
     setSelectedAmenities((prev) =>
@@ -155,8 +205,13 @@ export function ListingSearch({ mode = "stays", locationParam, onSearch }: Listi
     if (minPrice !== undefined) params.minPrice = minPrice;
     if (maxPrice !== undefined) params.maxPrice = maxPrice;
     if (selectedAmenities.length > 0) params.amenities = selectedAmenities;
+    if (checkIn) params.checkIn = checkIn.toISOString().split("T")[0];
+    if (checkOut) params.checkOut = checkOut.toISOString().split("T")[0];
+    if (totalGuests > 0) params.guests = totalGuests;
+    if (guests.rooms > 1) params.rooms = guests.rooms; // Only add rooms param if > 1 to keep URL clean, actually let's just add it if it's > 0
+    if (guests.rooms) params.rooms = guests.rooms;
     return params;
-  }, [location, selectedPropertyType, selectedDifficulty, selectedActivityType, minPrice, maxPrice, selectedAmenities]);
+  }, [location, selectedPropertyType, selectedDifficulty, selectedActivityType, minPrice, maxPrice, selectedAmenities, checkIn, checkOut, totalGuests, guests.rooms]);
 
   const handleApplyFilters = () => {
     const params = buildFilterParams();
@@ -266,7 +321,51 @@ export function ListingSearch({ mode = "stays", locationParam, onSearch }: Listi
                 )}
               </AnimatePresence>
             </div>
+            {/* Date Picker */}
+            <div ref={dateRef} className="relative flex-1 group border-r border-zinc-100">
+              <button 
+                onClick={() => { setShowDatePicker(!showDatePicker); setShowGuestPicker(false); }}
+                className="w-full flex items-center gap-3 px-3 py-1.5 cursor-pointer hover:bg-zinc-50 transition-colors text-left"
+              >
+                <div className="w-9 h-9 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-400 group-hover:text-primary transition-colors shrink-0">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Date</p>
+                  <p className="text-sm font-bold text-zinc-900 truncate">
+                    {checkIn && checkOut ? `${formatDateShort(checkIn)} - ${formatDateShort(checkOut)}` : checkIn ? formatDateShort(checkIn) : "Add dates"}
+                  </p>
+                </div>
+              </button>
+              <AnimatePresence>
+                {showDatePicker && (
+                  <DatePicker checkIn={checkIn} checkOut={checkOut} onSelect={handleDateSelect} onClose={() => setShowDatePicker(false)} />
+                )}
+              </AnimatePresence>
+            </div>
 
+            {/* Guest Picker */}
+            <div ref={guestRef} className="relative flex-1 group border-r border-zinc-100">
+              <button 
+                onClick={() => { setShowGuestPicker(!showGuestPicker); setShowDatePicker(false); }}
+                className="w-full flex items-center gap-3 px-3 py-1.5 cursor-pointer hover:bg-zinc-50 transition-colors text-left"
+              >
+                <div className="w-9 h-9 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-400 group-hover:text-primary transition-colors shrink-0">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Guests</p>
+                  <p className="text-sm font-bold text-zinc-900 truncate">
+                    {totalGuests > 0 || guests.rooms > 1 ? `${guests.rooms} room${guests.rooms !== 1 ? "s" : ""}, ${totalGuests} guest${totalGuests !== 1 ? "s" : ""}` : "Add guests"}
+                  </p>
+                </div>
+              </button>
+              <AnimatePresence>
+                {showGuestPicker && (
+                  <GuestSelector guests={guests} onChange={setGuests} onClose={() => setShowGuestPicker(false)} />
+                )}
+              </AnimatePresence>
+            </div>
             {/* Current Filters Summary */}
             <div className="w-44 flex items-center gap-3 px-3 py-1.5 cursor-default group">
               <div className="w-9 h-9 rounded-xl bg-zinc-50 flex items-center justify-center text-zinc-400 transition-colors">

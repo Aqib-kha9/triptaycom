@@ -25,6 +25,7 @@ import { VendorSidebar } from "@/components/navigation/vendor-sidebar";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { io, Socket } from "socket.io-client";
+import { getSessionToken as getToken } from "@/lib/session";
 
 // ──────────────────────── Types ────────────────────────
 
@@ -75,11 +76,6 @@ interface Message {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || API_BASE.replace(/\/api$/, "");
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
-}
 
 function formatTime(dateStr: string): string {
   const date = new Date(dateStr);

@@ -10,7 +10,7 @@ import {
     Building2,
     AlertCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { paymentsApi, bookingsApi, ApiError } from "@/lib/api-client";
 
@@ -21,7 +21,7 @@ const STEPS = [
     { id: 4, text: "Finalizing your reservation...", icon: <RefreshCcw className="w-5 h-5" /> },
 ];
 
-export default function PayuCallbackPage() {
+function PayuCallbackContent() {
     const [currentStep, setCurrentStep] = useState(0);
     const [error, setError] = useState("");
     const router = useRouter();
@@ -212,6 +212,14 @@ export default function PayuCallbackPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function PayuCallbackPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-zinc-50 flex items-center justify-center">Loading...</div>}>
+            <PayuCallbackContent />
+        </Suspense>
     );
 }
 

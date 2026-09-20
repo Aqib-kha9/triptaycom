@@ -2,10 +2,10 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BackButton } from "@/components/navigation/back-button";
 import {
   Mail,
   ArrowRight,
-  ChevronLeft,
   Smartphone,
   ShieldCheck,
   RefreshCcw,
@@ -21,6 +21,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useRole } from "@/components/role-provider";
 import { useRouter } from "next/navigation";
+import { setSession, setCachedUser } from "@/lib/session";
 
 const OTPInput = ({ otp, setOtp, error, setError }: { otp: string, setOtp: (val: string) => void, error: string, setError: (val: string) => void }) => {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -114,6 +115,7 @@ const OTPInput = ({ otp, setOtp, error, setError }: { otp: string, setOtp: (val:
 
 export default function LoginPage() {
   const [step, setStep] = useState<"identifier" | "otp" | "register">("identifier");
+  const [authMethod, setAuthMethod] = useState<"mobile" | "email">("mobile");
   const [identifier, setIdentifier] = useState("");
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
@@ -235,18 +237,45 @@ export default function LoginPage() {
     return "";
   };
 
+  // ─── Redirect intent ───
+  // proxy.ts appends ?redirect=<path> when it gates a private route. Read it
+  // from the live URL (avoids a Suspense boundary) and only accept same-origin
+  // absolute paths so a crafted link cannot redirect off-site.
+  const getRedirectTarget = (): string | null => {
+    if (typeof window === "undefined") return null;
+    const raw = new URLSearchParams(window.location.search).get("redirect");
+    if (!raw || !raw.startsWith("/") || raw.startsWith("//")) return null;
+    return raw;
+  };
+
   // ─── Routing helper: determines where to send the user after auth ───
   const routeAfterAuth = (user: any) => {
-    const resolvedRole: string = (user.role || "guest").toLowerCase();
+    const resolvedRole: string = (user?.role || "guest").toLowerCase();
     const isVendorOrDual = resolvedRole === "vendor" || resolvedRole === "dual mode";
 
+    // Sync navbar/role state before navigating.
     if (isVendorOrDual) {
       // Always show vendor navbar/UI; KYC gating is handled by vendor/layout.tsx
       setRole("vendor");
-      setHasVendorAccess(user.kycStatus === "Approved");
+      setHasVendorAccess(user?.kycStatus === "Approved");
+      setCachedUser({ role: "vendor", hasVendorAccess: user?.kycStatus === "Approved" });
+    } else {
+      setHasVendorAccess(false);
+      setRole("guest");
+      setCachedUser({ role: "guest", hasVendorAccess: false });
+    }
 
+    // The user's original destination always wins over the role default —
+    // this is what makes "book a listing → login → return to booking" work.
+    const redirect = getRedirectTarget();
+    if (redirect) {
+      router.push(redirect);
+      return;
+    }
+
+    if (isVendorOrDual) {
       // KYC must be Approved for vendor dashboard access
-      if (user.kycStatus === "Approved") {
+      if (user?.kycStatus === "Approved") {
         router.push("/vendor/dashboard");
       } else {
         // Pending / Rejected / Not Submitted → force onboarding
@@ -254,8 +283,6 @@ export default function LoginPage() {
       }
     } else {
       // Guest / Admin → go to traveler dashboard
-      setHasVendorAccess(false);
-      setRole("guest");
       router.push("/dashboard");
     }
   };
@@ -265,17 +292,16 @@ export default function LoginPage() {
     const cleanId = identifier.trim();
     if (!cleanId) return;
 
-    if (isMobileTooLong(cleanId)) {
-      setError("Mobile number must be exactly 10 digits. Please check and try again.");
-      return;
-    }
-
-    const isMailId = isEmail(cleanId);
-    const isMobId = isMobile(cleanId);
-
-    if (!isMailId && !isMobId) {
-      setError("Please enter a valid email address or mobile number.");
-      return;
+    if (authMethod === "mobile") {
+      if (cleanId.length !== 10) {
+        setError("Mobile number must be exactly 10 digits.");
+        return;
+      }
+    } else {
+      if (!isEmail(cleanId)) {
+        setError("Please enter a valid email address.");
+        return;
+      }
     }
 
     setLoading(true);
@@ -305,7 +331,7 @@ export default function LoginPage() {
 
       if (res.ok) {
         setReceivedOtp(data.devCode || "");
-        setDetectedType(isMailId ? "email" : "mobile");
+        setDetectedType(authMethod === "email" ? "email" : "mobile");
         setStep("otp");
         startCountdown();
       } else {
@@ -354,12 +380,11 @@ export default function LoginPage() {
         const data = await res.json();
 
         if (res.ok) {
-          localStorage.setItem("token", data.token);
-          // Also set a non-httpOnly cookie so the Next.js proxy can read it
-          document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+          setSession(data.token);
           setIsLoggedIn(true);
           setRole("guest");
           setHasVendorAccess(false);
+          setCachedUser({ role: "guest", hasVendorAccess: false });
           router.push("/dashboard");
         } else {
           setError(data.message || "Invalid Admin password.");
@@ -381,11 +406,8 @@ export default function LoginPage() {
             // New user → go to registration (Complete Profile) step
             setStep("register");
           } else {
-            // Existing user → save token and route based on role + kycStatus
-            localStorage.setItem("token", data.token);
-            // Also set a non-httpOnly cookie so the Next.js proxy can read it
-            // (backend's httpOnly cookie is on localhost:5000 — unreachable from localhost:3000 proxy)
-            document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+            // Existing user → persist session, then route by intent or role
+            setSession(data.token);
             setIsLoggedIn(true);
             routeAfterAuth(data.data.user);
           }
@@ -427,9 +449,7 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        localStorage.setItem("token", data.token);
-        // Also set a non-httpOnly cookie so the Next.js proxy can read it
-        document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+        setSession(data.token);
         setIsLoggedIn(true);
 
         // New vendor → kycStatus will be "Pending", so they go to onboarding
@@ -446,42 +466,12 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-      const res = await fetch(`${apiUrl}/auth/google-login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          email: "google_explorer@triptay.com",
-          name: "Google Explorer"
-        })
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        localStorage.setItem("token", data.token);
-        // Also set a non-httpOnly cookie so the Next.js proxy can read it
-        document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
-        setIsLoggedIn(true);
-        setRole("guest");
-        setHasVendorAccess(false);
-        router.push("/dashboard");
-      } else {
-        setError(data.message || "Google authentication failed.");
-      }
-    } catch (err) {
-      console.error(err);
-      setError("Google Auth connection error.");
-    } finally {
-      setLoading(false);
-    }
+  // Real Google OAuth is not wired yet. The previous implementation silently
+  // signed every visitor into a shared "google_explorer@triptay.com" account,
+  // which was both insecure and misleading. Until OAuth is implemented this
+  // is intentionally a no-op that tells the user the truth.
+  const handleGoogleLogin = () => {
+    setError("Google sign-in is coming soon. Please continue with email or mobile.");
   };
 
   return (
@@ -528,10 +518,13 @@ export default function LoginPage() {
 
       {/* Right Column: Auth Form */}
       <div className="w-full lg:w-1/2 flex flex-col p-8 md:p-24 justify-center relative">
-        <Link href="/" className="absolute top-8 left-8 lg:left-24 text-zinc-400 hover:text-zinc-900 transition-colors flex items-center gap-2 font-bold text-sm">
-          <ChevronLeft className="w-4 h-4" />
-          Back to home
-        </Link>
+        <BackButton
+          fallback="/"
+          label="Back"
+          fallbackLabel="Back to home"
+          variant="ghost"
+          className="absolute top-8 left-8 lg:left-24 px-0 text-zinc-400 hover:bg-transparent hover:text-zinc-900 text-sm"
+        />
 
         <div className="max-w-md mx-auto w-full space-y-10">
           <div className="space-y-3">
@@ -563,55 +556,63 @@ export default function LoginPage() {
                 onSubmit={handleContinue}
                 className="space-y-6"
               >
+                <div className="flex p-1 bg-zinc-100 rounded-xl mb-4">
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMethod("mobile"); setError(""); setIdentifier(""); }}
+                    className={cn("flex-1 py-2 text-xs font-bold rounded-lg transition-all", authMethod === "mobile" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700")}
+                  >
+                    Mobile Number
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMethod("email"); setError(""); setIdentifier(""); }}
+                    className={cn("flex-1 py-2 text-xs font-bold rounded-lg transition-all", authMethod === "email" ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700")}
+                  >
+                    Email Address
+                  </button>
+                </div>
+
                 <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-widest text-zinc-400 ml-1">Email or Mobile Number</label>
-                  <div className="relative">
-                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 transition-all duration-300">
-                      {getIdentifierStatus() === "valid-mobile" || getIdentifierStatus() === "invalid-mobile" || getIdentifierStatus() === "mobile-too-long" ? (
-                        <Smartphone className="w-4 h-4 text-primary transition-all scale-100 animate-in fade-in duration-200" />
-                      ) : (
-                        <Mail className="w-4 h-4 transition-all scale-100 animate-in fade-in duration-200" />
-                      )}
-                    </div>
+                  <label className="text-xs font-bold uppercase tracking-widest text-zinc-400 ml-1">
+                    {authMethod === "mobile" ? "Mobile Number" : "Email Address"}
+                  </label>
+                  <div className="relative flex items-center">
+                    {authMethod === "mobile" ? (
+                      <div className="absolute left-4 z-10 flex items-center gap-1.5 text-zinc-900 font-bold text-sm select-none border-r border-zinc-200 pr-3">
+                        🇮🇳 +91
+                      </div>
+                    ) : (
+                      <div className="absolute left-4 z-10 flex items-center text-zinc-400">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                    )}
                     <Input
                       required
-                      type="text"
-                      placeholder="name@example.com or +91..."
+                      autoFocus
+                      type={authMethod === "mobile" ? "tel" : "email"}
+                      placeholder={authMethod === "mobile" ? "98765 43210" : "name@example.com"}
                       value={identifier}
                       onChange={(e) => {
-                        setIdentifier(e.target.value);
+                        let val = e.target.value;
+                        if (authMethod === "mobile") {
+                          val = val.replace(/[^\d]/g, "").slice(0, 10);
+                        }
+                        setIdentifier(val);
                         if (error) setError("");
                       }}
                       className={cn(
-                        "h-14 pl-12 pr-12 rounded-2xl bg-white transition-all text-sm font-semibold border duration-300 outline-none w-full",
-                        getIdentifierStatus() === "valid-email" || getIdentifierStatus() === "valid-mobile"
-                          ? "border-emerald-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-                          : getIdentifierStatus() === "invalid-email" || getIdentifierStatus() === "invalid-mobile" || getIdentifierStatus() === "mobile-too-long"
-                            ? "border-rose-200 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10"
-                            : "border-zinc-200 focus:border-primary focus:ring-4 focus:ring-primary/10"
+                        "h-14 pr-12 rounded-2xl bg-white transition-all text-sm font-semibold border duration-300 outline-none w-full",
+                        authMethod === "mobile" ? "pl-24" : "pl-12",
+                        error ? "border-rose-200 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10" : "border-zinc-200 focus:border-primary focus:ring-4 focus:ring-primary/10"
                       )}
                     />
 
                     {/* Status Indicators on the right side */}
-                    {(getIdentifierStatus() === "valid-email" || getIdentifierStatus() === "valid-mobile") && (
+                    {(authMethod === "email" ? isEmail(identifier) : identifier.length === 10) && (
                       <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-500 animate-in fade-in zoom-in-75 duration-300" />
                     )}
-                    {(getIdentifierStatus() === "invalid-email" || getIdentifierStatus() === "invalid-mobile") && (
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-extrabold uppercase tracking-wider text-rose-500 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-md animate-in fade-in slide-in-from-right-2 duration-300 select-none">
-                        Invalid Format
-                      </span>
-                    )}
-                    {getIdentifierStatus() === "mobile-too-long" && (
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-extrabold uppercase tracking-wider text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-md animate-in fade-in slide-in-from-right-2 duration-300 select-none">
-                        Too Long
-                      </span>
-                    )}
                   </div>
-                  {getIdentifierStatus() === "mobile-too-long" && (
-                    <p className="text-xs font-bold text-amber-600 px-1">
-                      Mobile number must be exactly 10 digits. You entered {identifier.replace(/[\s\-\+\(\)]/g, "").length} digits.
-                    </p>
-                  )}
                   {error && <p className="text-xs font-bold text-rose-500 px-1">{error}</p>}
                 </div>
 
@@ -650,7 +651,7 @@ export default function LoginPage() {
                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05" />
                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335" />
                   </svg>
-                  {loading ? "Connecting..." : "Continue with Google"}
+                  Google sign-in (coming soon)
                 </button>
               </motion.form>
             )}

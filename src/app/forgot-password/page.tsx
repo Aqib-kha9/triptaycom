@@ -2,17 +2,16 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BackButton } from "@/components/navigation/back-button";
 import {
   Mail,
   ArrowRight,
-  ChevronLeft,
   KeyRound,
   ShieldCheck,
   CheckCircle2
 } from "lucide-react";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
 import { authApi, ApiError } from "@/lib/api-client";
 import { Loader2 } from "lucide-react";
 
@@ -38,10 +37,13 @@ export default function ForgotPasswordPage() {
 
   return (
     <div className="flex min-h-screen bg-[#fcfcfc] items-center justify-center p-4">
-      <Link href="/login" className="absolute top-8 left-8 text-zinc-400 hover:text-zinc-900 transition-colors flex items-center gap-2 font-bold text-sm">
-        <ChevronLeft className="w-4 h-4" />
-        Back to login
-      </Link>
+      <BackButton
+        fallback="/login"
+        label="Back"
+        fallbackLabel="Back to login"
+        variant="ghost"
+        className="absolute top-8 left-8 px-0 text-zinc-400 hover:bg-transparent hover:text-zinc-900 text-sm"
+      />
 
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
@@ -115,12 +117,12 @@ export default function ForgotPasswordPage() {
                 <button onClick={() => setIsSent(false)} className="text-primary hover:underline">Click to resend</button>
               </div>
 
-              <Link href="/login" className="block">
-                <Button variant="ghost" className="rounded-full gap-2 font-bold text-zinc-400 hover:text-zinc-900">
-                  <ChevronLeft className="w-4 h-4" />
-                  Return to Login
-                </Button>
-              </Link>
+              <BackButton
+                fallback="/login"
+                label="Return to Login"
+                variant="ghost"
+                className="rounded-full font-bold text-zinc-400 hover:text-zinc-900"
+              />
             </motion.div>
           )}
         </AnimatePresence>

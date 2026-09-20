@@ -1,8 +1,15 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { clearAuthData } from "@/lib/auth-utils";
+import {
+  getSessionToken,
+  getCachedUser,
+  setCachedUser,
+  clearCachedUser,
+  type CachedUser,
+} from "@/lib/session";
 
 type Role = "guest" | "vendor";
 
@@ -20,12 +27,25 @@ interface RoleContextType {
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
+/**
+ * Map a backend user object onto the frontend role + vendor-access flags.
+ * Backend roles are "Guest" | "Vendor" | "Dual Mode" | "Admin".
+ */
+function resolveUserFlags(user: { role?: string; kycStatus?: string }): CachedUser {
+  const resolvedRole = (user.role || "").toLowerCase();
+  const isVendor = resolvedRole === "vendor" || resolvedRole === "dual mode";
+  return {
+    role: isVendor ? "vendor" : "guest",
+    hasVendorAccess: isVendor ? user.kycStatus === "Approved" : false,
+  };
+}
+
 export function RoleProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [role, setRole] = useState<Role>("guest");
   const [isVendorMode, setIsVendorMode] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [hasVendorAccess, setHasVendorAccess] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   // Sync isVendorMode with role if needed
   useEffect(() => {
@@ -37,75 +57,107 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
     }
   }, [role]);
 
-  // Auth restore check on mount
+  // Restore auth state.
+  //
+  // This is intentionally NON-BLOCKING: the last known identity is hydrated
+  // from a local cache so the app renders instantly, then the token is
+  // revalidated against the backend in the background. A blocking
+  // "restoring session" splash here would freeze EVERY page behind a network
+  // round-trip — and stall for the full timeout whenever the API is cold —
+  // which is an anti-pattern that would frustrate real users. Route access is
+  // already enforced server-side by proxy.ts, so the client never needs to
+  // gate rendering on this call.
   useEffect(() => {
-    const restoreAuth = async () => {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        setLoading(false);
-        return;
-      }
+    let isMounted = true;
+    const token = getSessionToken();
 
+    if (!token) {
+      clearCachedUser();
+      setIsLoggedIn(false);
+      setRole("guest");
+      setHasVendorAccess(false);
+      return;
+    }
+
+    // 1. Optimistic paint from the cached identity (instant, no network).
+    const cached = getCachedUser();
+    if (cached) {
+      setIsLoggedIn(true);
+      setRole(cached.role);
+      setHasVendorAccess(cached.hasVendorAccess);
+    } else {
+      // A token exists but the identity was never cached — assume signed in
+      // rather than flashing a signed-out UI before validation completes.
+      setIsLoggedIn(true);
+    }
+
+    // 2. Background revalidation. Never blocks rendering.
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+    const validate = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
         const res = await fetch(`${apiUrl}/auth/me`, {
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
+          signal: controller.signal,
         });
+
+        // An explicit auth rejection means the token is genuinely invalid.
+        if (res.status === 401 || res.status === 403) {
+          if (!isMounted) return;
+          clearAuthData();
+          clearCachedUser();
+          setIsLoggedIn(false);
+          setRole("guest");
+          setHasVendorAccess(false);
+          return;
+        }
 
         if (res.ok) {
           const payload = await res.json();
           if (payload.status === "success" && payload.data?.user) {
-            const user = payload.data.user;
+            if (!isMounted) return;
+            const flags = resolveUserFlags(payload.data.user);
             setIsLoggedIn(true);
-
-            // Map backend roles (Guest, Vendor, Dual Mode, Admin) to frontend roles (guest, vendor)
-            const resolvedRole = user.role.toLowerCase();
-            if (resolvedRole === "vendor" || resolvedRole === "dual mode") {
-              // Always set vendor role so Navbar / shared pages show vendor UI
-              // KYC gating for vendor-specific pages is handled by vendor/layout.tsx
-              setRole("vendor");
-              setHasVendorAccess(user.kycStatus === "Approved");
-            } else {
-              setRole("guest");
-              setHasVendorAccess(false);
-            }
+            setRole(flags.role);
+            setHasVendorAccess(flags.hasVendorAccess);
+            setCachedUser(flags);
           } else {
+            // Malformed success payload — treat as unauthenticated.
+            if (!isMounted) return;
             clearAuthData();
+            clearCachedUser();
+            setIsLoggedIn(false);
+            setRole("guest");
+            setHasVendorAccess(false);
           }
-        } else {
-          clearAuthData();
         }
-      } catch (err) {
-        console.error("Session restoration error:", err);
+        // Any other status (e.g. 5xx) is transient: keep the optimistic state
+        // and the stored session rather than silently logging the user out.
+      } catch {
+        // Network failure or our abort timeout — NOT an invalid session.
+        // Keep the optimistic state and the stored session.
       } finally {
-        setLoading(false);
+        clearTimeout(timeoutId);
       }
     };
 
-    restoreAuth();
-  }, []);
+    validate();
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 flex-col gap-4">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-white shadow-lg shadow-primary/20 animate-bounce">
-          <span className="text-3xl font-black italic">T</span>
-        </div>
-        <div className="flex items-center gap-2 text-zinc-500 font-semibold text-sm">
-          <Loader2 className="w-4 h-4 animate-spin text-primary" />
-          Restoring your session...
-        </div>
-      </div>
-    );
-  }
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
   const logout = async () => {
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-      const token = localStorage.getItem("token");
+      const token = getSessionToken();
       await fetch(`${apiUrl}/auth/logout`, {
         method: "POST",
         headers: {
@@ -116,10 +168,15 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
       console.error("Logout error:", err);
     } finally {
       clearAuthData();
+      clearCachedUser();
       setIsLoggedIn(false);
       setRole("guest");
       setHasVendorAccess(false);
-      window.location.href = "/login";
+      // Use SPA navigation, not window.location. A full-document redirect tears
+      // the running app down, so the following Back press becomes a cold reload
+      // instead of an instant back-forward-cache restore — which is exactly the
+      // chain that left pages frozen on their loading skeletons.
+      router.replace("/login");
     }
   };
 

@@ -7,12 +7,16 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRole } from "@/components/role-provider";
 import { usePathname } from "next/navigation";
+import { useWishlist } from "@/context/WishlistContext";
+import { cn } from "@/lib/utils";
 
 export function NavbarPublic() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showCompactSearch, setShowCompactSearch] = useState(false);
   const { setIsLoggedIn } = useRole();
+  const { wishlistedIds } = useWishlist();
+  const wishlistCount = wishlistedIds.size;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -84,10 +88,15 @@ export function NavbarPublic() {
 
         {/* Auth Actions */}
         <div className="flex items-center gap-4">
-          <Link href="/wishlist" className="hidden md:block">
-            <Button variant="ghost" size="icon" className="rounded-full text-zinc-500 hover:text-primary">
-              <Heart className="h-5 w-5" />
+          <Link href="/wishlist" className="hidden md:block relative">
+            <Button variant="ghost" size="icon" className={cn("rounded-full transition-colors", wishlistCount > 0 ? "text-rose-500 bg-rose-50 hover:text-rose-600 hover:bg-rose-100" : "text-zinc-500 hover:text-primary")}>
+              <Heart className={cn("h-5 w-5", wishlistCount > 0 && "fill-rose-500")} />
             </Button>
+            {wishlistCount > 0 && (
+              <span className="absolute top-0 right-0 flex items-center justify-center w-4 h-4 bg-rose-500 text-white text-[10px] font-black rounded-full shadow-sm">
+                {wishlistCount}
+              </span>
+            )}
           </Link>
           <Link href="/login">
             <Button className="rounded-full px-8 h-11 font-bold">

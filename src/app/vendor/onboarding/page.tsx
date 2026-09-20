@@ -4,6 +4,7 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BackButton } from "@/components/navigation/back-button";
 import {
   ShieldCheck,
   ChevronRight,
@@ -206,7 +207,7 @@ export default function VendorOnboardingPage() {
 
           <div className="flex items-center gap-2">
             {state.preview && (
-              <div 
+              <div
                 className="relative w-10 h-10 rounded-lg overflow-hidden border border-zinc-100"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -362,11 +363,11 @@ export default function VendorOnboardingPage() {
                           Go to Guest Dashboard
                         </Button>
                       </Link>
-                      <Link href="/">
-                        <Button variant="outline" className="rounded-xl h-11 px-8 text-xs font-bold border-zinc-200 hover:bg-zinc-50 text-zinc-600">
-                          Back to Home
-                        </Button>
-                      </Link>
+                      <BackButton
+                        fallback="/"
+                        label="Back to Home"
+                        className="rounded-xl h-11 px-8 text-xs border-zinc-200 hover:bg-zinc-50 text-zinc-600"
+                      />
                     </div>
                   </motion.div>
                 ) : (

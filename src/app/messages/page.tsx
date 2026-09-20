@@ -20,7 +20,7 @@ import {
   Maximize2,
   Minimize2,
 } from "lucide-react";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { Suspense, useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardSidebar } from "@/components/navigation/dashboard-sidebar";
 import { cn } from "@/lib/utils";
@@ -79,7 +79,7 @@ function formatMessageDate(dateStr: string): string {
 
 // ──────────────────────── Component ────────────────────────
 
-export default function MessagesPage() {
+function MessagesContent() {
   // ── Core State ──
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -1035,5 +1035,13 @@ export default function MessagesPage() {
 
       {!isFullScreen && <Footer />}
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-zinc-50 flex items-center justify-center">Loading messages...</div>}>
+      <MessagesContent />
+    </Suspense>
   );
 }

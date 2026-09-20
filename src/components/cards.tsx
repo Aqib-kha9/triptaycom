@@ -38,8 +38,8 @@ export function ItemCard({ id = "1", slug, image, title, location, price, rating
     <Link href={href} className="block">
       <motion.div
         initial={{ opacity: 0, y: 10 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
         className="group flex flex-col gap-3"
       >
         {/* Compact Image Area */}
@@ -94,7 +94,7 @@ export function ItemCard({ id = "1", slug, image, title, location, price, rating
 
 export function DestinationCard({ id = "1", image, name, province }: { id?: string, image: string, name: string, province: string }) {
   return (
-      <Link href={`/destinations/${id}`} className="block w-full h-full">
+    <Link href={`/destinations/${id}`} className="block w-full h-full">
       <motion.div
         whileHover={{ y: -4 }}
         transition={{ duration: 0.3 }}

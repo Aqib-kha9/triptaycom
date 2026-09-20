@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, use } from "react";
 
 import { activitiesApi, publicApi } from "@/lib/api-client";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { BackButton } from "@/components/navigation/back-button";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Plus,
@@ -701,9 +701,7 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
                             <p className="text-sm font-bold text-zinc-800">Failed to Load</p>
                             <p className="text-xs text-zinc-500 mt-1">{loadError}</p>
                         </div>
-                        <Button variant="outline" className="rounded-xl h-10 text-xs font-bold" onClick={() => router.push("/vendor/activities")}>
-                            Back to Activities
-                        </Button>
+                        <BackButton fallback="/vendor/activities" label="Back to Activities" className="rounded-xl h-10 text-xs font-bold" />
                     </motion.div>
                 </main>
                 <Footer />
@@ -727,9 +725,7 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
                             <p className="text-xs text-zinc-500 mt-1">Your changes have been saved successfully.</p>
                         </div>
                         <div className="flex gap-3 justify-center">
-                            <Button variant="outline" className="rounded-xl h-10 text-xs font-bold" onClick={() => router.push("/vendor/activities")}>
-                                Back to Activities
-                            </Button>
+                            <BackButton fallback="/vendor/activities" label="Back to Activities" className="rounded-xl h-10 text-xs font-bold" />
                             <Button className="rounded-xl h-10 text-xs font-bold" onClick={() => router.push(`/vendor/activities/${params.id}`)}>
                                 View Activity
                             </Button>
@@ -751,9 +747,7 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
                 <div className="container mx-auto px-4 sm:px-6 max-w-3xl">
                     {/* Back Link */}
                     <div className="flex justify-end mb-4">
-                        <Button variant="ghost" className="h-8 text-[11px] font-bold rounded-lg gap-1.5 text-zinc-500" onClick={() => router.push(`/vendor/activities/${params.id}`)}>
-                            <ChevronLeft className="w-3.5 h-3.5" /> Cancel
-                        </Button>
+                        <BackButton fallback={`/vendor/activities/${params.id}`} label="Cancel" variant="ghost" className="h-8 text-[11px] font-bold rounded-lg gap-1.5 text-zinc-500" />
                     </div>
 
                     {/* Step Indicator */}

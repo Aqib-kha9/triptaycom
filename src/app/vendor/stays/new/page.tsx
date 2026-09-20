@@ -67,6 +67,7 @@ import {
 } from "lucide-react";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 // ──────────────────────── Types ────────────────────────
@@ -110,6 +111,17 @@ interface SeasonalPrice {
   startDate: string;
   endDate: string;
   pricePerNight: number;
+}
+
+interface RoomFormData {
+  name: string;
+  description: string;
+  maxGuests: string;
+  basePrice: string;
+  inventory: string;
+  beds: string;
+  bathrooms: string;
+  amenities: string[];
 }
 
 interface FormData {
@@ -180,6 +192,9 @@ interface FormData {
   advanceNoticeHours: string;
   maxGuestsPerBooking: string;
   videoTourUrl: string;
+
+  // Rooms
+  rooms: RoomFormData[];
 }
 
 interface MediaPreview {
@@ -365,6 +380,7 @@ const INITIAL_FORM_DATA: FormData = {
   advanceNoticeHours: "0",
   maxGuestsPerBooking: "",
   videoTourUrl: "",
+  rooms: [],
 };
 
 const FILLER_DATA: FormData = {
@@ -437,11 +453,13 @@ const FILLER_DATA: FormData = {
   advanceNoticeHours: "24",
   maxGuestsPerBooking: "6",
   videoTourUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  rooms: [],
 };
 
 // ──────────────────────── Component ────────────────────────
 
 export default function AddHomestayPage() {
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>({ ...INITIAL_FORM_DATA });
   const [mediaFiles, setMediaFiles] = useState<MediaPreview[]>([]);
@@ -762,6 +780,16 @@ export default function AddHomestayPage() {
           : parseInt(formData.maxGuests),
         videoTourUrl: formData.videoTourUrl.trim() || undefined,
         status: "published",
+        rooms: formData.isEntirePlace ? [] : formData.rooms.map((r) => ({
+          name: r.name,
+          description: r.description,
+          maxGuests: parseInt(r.maxGuests) || 1,
+          basePrice: parseFloat(r.basePrice) || 0,
+          inventory: parseInt(r.inventory) || 1,
+          beds: parseInt(r.beds) || 1,
+          bathrooms: parseInt(r.bathrooms) || 1,
+          amenities: r.amenities,
+        })),
       };
 
       // Step 1: Create the listing
@@ -934,7 +962,7 @@ export default function AddHomestayPage() {
               </Button>
               <Button
                 className="rounded-xl h-11 px-6 text-xs font-bold"
-                onClick={() => (window.location.href = "/vendor/stays")}
+                onClick={() => router.push("/vendor/stays")}
               >
                 View My Listings
               </Button>
@@ -1175,36 +1203,94 @@ export default function AddHomestayPage() {
                   <div className="space-y-6">
                     {renderSectionHeader("Capacity & Pricing", "How many guests and what's the cost?")}
 
-                    {/* Capacity */}
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">
-                        Guest Capacity
-                      </label>
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                        {[
-                          { field: "maxGuests" as keyof FormData, label: "Max Guests", icon: Users },
-                          { field: "bedrooms" as keyof FormData, label: "Bedrooms", icon: Bed },
-                          { field: "beds" as keyof FormData, label: "Beds", icon: Bed },
-                          { field: "bathrooms" as keyof FormData, label: "Bathrooms", icon: Bath },
-                          { field: "extraMattresses" as keyof FormData, label: "Extra Mattresses", icon: Plus },
-                        ].map(({ field, label, icon: Icon }) => (
-                          <div key={field} className="space-y-1">
-                            <label className="text-[10px] font-bold text-zinc-400 uppercase">{label}</label>
-                            <div className="relative">
-                              <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
-                              <Input
-                                type="number"
-                                min={field === "extraMattresses" ? 0 : 1}
-                                value={String(formData[field] ?? "")}
-                                onChange={(e) => update(field, e.target.value)}
-                                className={cn("h-10 pl-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs", errors[field] && "border-red-300 bg-red-50")}
-                              />
+                    {/* Capacity or Room Types */}
+                    {formData.isEntirePlace ? (
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">
+                          Guest Capacity
+                        </label>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                          {[
+                            { field: "maxGuests" as keyof FormData, label: "Max Guests", icon: Users },
+                            { field: "bedrooms" as keyof FormData, label: "Bedrooms", icon: Bed },
+                            { field: "beds" as keyof FormData, label: "Beds", icon: Bed },
+                            { field: "bathrooms" as keyof FormData, label: "Bathrooms", icon: Bath },
+                            { field: "extraMattresses" as keyof FormData, label: "Extra Mattresses", icon: Plus },
+                          ].map(({ field, label, icon: Icon }) => (
+                            <div key={field} className="space-y-1">
+                              <label className="text-[10px] font-bold text-zinc-400 uppercase">{label}</label>
+                              <div className="relative">
+                                <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400" />
+                                <Input
+                                  type="number"
+                                  min={field === "extraMattresses" ? 0 : 1}
+                                  value={String(formData[field] ?? "")}
+                                  onChange={(e) => update(field, e.target.value)}
+                                  className={cn("h-10 pl-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs", errors[field] && "border-red-300 bg-red-50")}
+                                />
+                              </div>
+                              {fieldError(field)}
                             </div>
-                            {fieldError(field)}
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">
+                            Room Types
+                          </label>
+                          <Button type="button" size="sm" onClick={() => update("rooms", [...formData.rooms, { name: "", description: "", maxGuests: "2", basePrice: "1000", inventory: "1", beds: "1", bathrooms: "1", amenities: [] }])} className="h-8 rounded-lg text-xs font-bold bg-primary text-white">
+                            <Plus className="w-3.5 h-3.5 mr-1" /> Add Room Type
+                          </Button>
+                        </div>
+                        {formData.rooms.length === 0 ? (
+                          <div className="p-8 border-2 border-dashed border-zinc-200 rounded-2xl text-center">
+                            <Bed className="w-8 h-8 text-zinc-300 mx-auto mb-2" />
+                            <p className="text-sm font-bold text-zinc-500">No room types added yet</p>
+                            <p className="text-xs text-zinc-400 mt-1">Add different types of rooms you offer (e.g. Deluxe Room, Suite)</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {formData.rooms.map((room, index) => (
+                              <div key={index} className="p-4 bg-zinc-50 border border-zinc-100 rounded-2xl relative">
+                                <button type="button" onClick={() => { const r = [...formData.rooms]; r.splice(index, 1); update("rooms", r); }} className="absolute top-4 right-4 text-zinc-400 hover:text-red-500">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-zinc-400 uppercase">Room Name</label>
+                                    <Input value={room.name} onChange={(e) => { const r = [...formData.rooms]; r[index].name = e.target.value; update("rooms", r); }} placeholder="e.g. Deluxe Double Room" className="h-10 rounded-xl bg-white text-xs" />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-zinc-400 uppercase">Base Price / Night (₹)</label>
+                                    <Input type="number" value={room.basePrice} onChange={(e) => { const r = [...formData.rooms]; r[index].basePrice = e.target.value; update("rooms", r); }} placeholder="2000" className="h-10 rounded-xl bg-white text-xs" />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-zinc-400 uppercase">Inventory</label>
+                                    <Input type="number" value={room.inventory} onChange={(e) => { const r = [...formData.rooms]; r[index].inventory = e.target.value; update("rooms", r); }} placeholder="Total rooms of this type" className="h-10 rounded-xl bg-white text-xs" />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-zinc-400 uppercase">Max Guests</label>
+                                    <Input type="number" value={room.maxGuests} onChange={(e) => { const r = [...formData.rooms]; r[index].maxGuests = e.target.value; update("rooms", r); }} placeholder="2" className="h-10 rounded-xl bg-white text-xs" />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-zinc-400 uppercase">Beds</label>
+                                    <Input type="number" value={room.beds} onChange={(e) => { const r = [...formData.rooms]; r[index].beds = e.target.value; update("rooms", r); }} placeholder="1" className="h-10 rounded-xl bg-white text-xs" />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-zinc-400 uppercase">Bathrooms</label>
+                                    <Input type="number" value={room.bathrooms} onChange={(e) => { const r = [...formData.rooms]; r[index].bathrooms = e.target.value; update("rooms", r); }} placeholder="1" className="h-10 rounded-xl bg-white text-xs" />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Pricing */}
                     <div className="space-y-1.5">
@@ -1213,7 +1299,7 @@ export default function AddHomestayPage() {
                       </label>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {[
-                          { field: "basePrice" as keyof FormData, label: "Base Price / Night", required: true },
+                          { field: "basePrice" as keyof FormData, label: formData.isEntirePlace ? "Base Price / Night" : "Starting Price / Night", required: true },
                           { field: "weekendPrice" as keyof FormData, label: "Weekend Price / Night" },
                           { field: "extraGuestPrice" as keyof FormData, label: "Extra Guest / Night" },
                           { field: "cleaningFee" as keyof FormData, label: "Cleaning Fee" },

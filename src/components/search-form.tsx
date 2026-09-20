@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, X, CalendarDays, Users, MapPin, Loader2, Navigation, AlertCircle } from "lucide-react";
+import { Search, ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, X, CalendarDays, Users, MapPin, Loader2, Navigation, AlertCircle, Home, Tent, Compass } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ──────────────── Calendar Helpers ──────────────── */
@@ -29,7 +29,7 @@ function isInRange(day: Date, start: Date, end: Date): boolean {
   return day >= start && day <= end;
 }
 
-function formatDateShort(d: Date): string {
+export function formatDateShort(d: Date): string {
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
@@ -39,7 +39,7 @@ function formatDateFull(d: Date): string {
 
 /* ──────────────── DatePicker Component ──────────────── */
 
-function DatePicker({
+export function DatePicker({
   checkIn,
   checkOut,
   onSelect,
@@ -204,21 +204,23 @@ function DatePicker({
 
 /* ──────────────── GuestSelector Component ──────────────── */
 
-interface GuestCounts {
+export interface GuestCounts {
+  rooms: number;
   adults: number;
   children: number;
   infants: number;
   pets: number;
 }
 
-const GUEST_CATEGORIES: { key: keyof GuestCounts; label: string; description: string; max: number }[] = [
+const GUEST_CATEGORIES: { key: keyof GuestCounts; label: string; description: string; max: number; min?: number }[] = [
+  { key: "rooms", label: "Rooms", description: "Number of rooms", max: 10, min: 1 },
   { key: "adults", label: "Adults", description: "Ages 13 or above", max: 16 },
   { key: "children", label: "Children", description: "Ages 2–12", max: 10 },
   { key: "infants", label: "Infants", description: "Under 2", max: 5 },
   { key: "pets", label: "Pets", description: "Bringing a pet?", max: 5 },
 ];
 
-function GuestSelector({
+export function GuestSelector({
   guests,
   onChange,
   onClose,
@@ -231,8 +233,8 @@ function GuestSelector({
 
   const adjust = (key: keyof GuestCounts, delta: number) => {
     const cat = GUEST_CATEGORIES.find((c) => c.key === key)!;
-    const next = Math.max(0, Math.min(cat.max, guests[key] + delta));
-    // Adults minimum is 0 now — can be cleared
+    const min = cat.min ?? 0;
+    const next = Math.max(min, Math.min(cat.max, guests[key] + delta));
     onChange({ ...guests, [key]: next });
   };
 
@@ -287,7 +289,7 @@ function GuestSelector({
 
       {totalGuests > 0 && (
         <button
-          onClick={() => onChange({ adults: 0, children: 0, infants: 0, pets: 0 })}
+          onClick={() => onChange({ rooms: 1, adults: 0, children: 0, infants: 0, pets: 0 })}
           className="mt-2 text-xs font-bold text-red-500 hover:text-red-600 transition-colors"
         >
           Clear all
@@ -320,7 +322,7 @@ export function SearchForm() {
 
   // Guest state
   const [showGuestPicker, setShowGuestPicker] = useState(false);
-  const [guests, setGuests] = useState<GuestCounts>({ adults: 0, children: 0, infants: 0, pets: 0 });
+  const [guests, setGuests] = useState<GuestCounts>({ rooms: 1, adults: 0, children: 0, infants: 0, pets: 0 });
 
   // Refs for click-outside
   const dateRef = useRef<HTMLDivElement>(null);
@@ -356,12 +358,26 @@ export function SearchForm() {
     fetchTimeoutRef.current = setTimeout(async () => {
       setIsFetchingLocations(true);
       try {
-        const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-        const res = await fetch(`${API_BASE}/locations/suggest?q=${encodeURIComponent(location.trim())}`);
-        const body = await res.json().catch(() => ({}));
-        if (res.ok && body.data?.suggestions) {
-          setLocationSuggestions(body.data.suggestions);
-          setShowLocationSuggestions(body.data.suggestions.length > 0);
+        // Fetch global location suggestions using OpenStreetMap Nominatim API (India focus)
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location.trim())}&format=json&addressdetails=1&limit=5&countrycodes=in`, {
+          headers: {
+            'Accept-Language': 'en'
+          }
+        });
+        
+        const body = await res.json().catch(() => ([]));
+        
+        if (res.ok && Array.isArray(body)) {
+          const globalSuggestions = body.map((item: any) => {
+            const address = item.address || {};
+            const city = address.city || address.town || address.village || address.state || item.name;
+            const country = address.country || "";
+            return city && country ? `${city}, ${country}` : city || item.display_name.split(",")[0];
+          });
+          
+          const uniqueSuggestions = [...new Set(globalSuggestions)].filter(Boolean) as string[];
+          setLocationSuggestions(uniqueSuggestions);
+          setShowLocationSuggestions(uniqueSuggestions.length > 0);
         } else {
           setLocationSuggestions([]);
           setShowLocationSuggestions(false);
@@ -441,6 +457,7 @@ export function SearchForm() {
     if (checkIn) params.set("checkIn", checkIn.toISOString().split("T")[0]);
     if (checkOut) params.set("checkOut", checkOut.toISOString().split("T")[0]);
     if (totalGuests > 0) params.set("guests", String(totalGuests));
+    if (guests.rooms > 1) params.set("rooms", String(guests.rooms));
     router.push(`/explore?${params.toString()}`);
   };
 
@@ -452,8 +469,8 @@ export function SearchForm() {
         : "Add dates";
 
   const guestSummary =
-    totalGuests > 0
-      ? `${totalGuests} guest${totalGuests !== 1 ? "s" : ""}`
+    totalGuests > 0 || guests.rooms > 1
+      ? `${guests.rooms} room${guests.rooms !== 1 ? "s" : ""}, ${totalGuests} guest${totalGuests !== 1 ? "s" : ""}`
       : "Add guests";
 
   return (
@@ -463,18 +480,11 @@ export function SearchForm() {
         <button
           onClick={() => setActiveTab("homestays")}
           className={cn(
-            "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-0 md:gap-1.5 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
-            activeTab === "homestays" ? "text-zinc-900 !border-zinc-300 md:!border-transparent" : "text-zinc-400 hover:text-zinc-600"
+            "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-1.5 md:gap-2 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
+            activeTab === "homestays" ? "text-primary !border-primary md:!border-transparent" : "text-zinc-500 hover:text-zinc-900"
           )}
         >
-          <img
-            src="/icons/homestay2.png"
-            alt="Homestays"
-            className={cn(
-              "h-6 w-6 md:h-8 md:w-8 object-contain transition-all duration-300",
-              activeTab === "homestays" ? "scale-[2.2] -translate-y-4 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
-            )}
-          />
+          <Home className={cn("w-5 h-5 md:w-6 md:h-6 transition-all duration-300", activeTab === "homestays" && "fill-primary")} />
           Homestays
           {activeTab === "homestays" && (
             <motion.div
@@ -486,18 +496,11 @@ export function SearchForm() {
         <button
           onClick={() => setActiveTab("activities")}
           className={cn(
-            "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-0 md:gap-1.5 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
-            activeTab === "activities" ? "text-zinc-900 !border-zinc-300 md:!border-transparent" : "text-zinc-400 hover:text-zinc-600"
+            "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-1.5 md:gap-2 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
+            activeTab === "activities" ? "text-primary !border-primary md:!border-transparent" : "text-zinc-500 hover:text-zinc-900"
           )}
         >
-          <img
-            src="/icons/activities.png"
-            alt="Activities"
-            className={cn(
-              "h-6 w-6 md:h-8 md:w-8 object-contain transition-all duration-300",
-              activeTab === "activities" ? "scale-[2.2] -translate-y-4 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
-            )}
-          />
+          <Tent className={cn("w-5 h-5 md:w-6 md:h-6 transition-all duration-300", activeTab === "activities" && "fill-primary")} />
           Activities
           {activeTab === "activities" && (
             <motion.div
@@ -509,18 +512,11 @@ export function SearchForm() {
         <button
           onClick={() => setActiveTab("nearby")}
           className={cn(
-            "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-0 md:gap-1.5 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
-            activeTab === "nearby" ? "text-zinc-900 !border-zinc-300 md:!border-transparent" : "text-zinc-400 hover:text-zinc-600"
+            "w-full text-[12px] md:text-[15px] font-bold transition-all relative flex flex-col md:flex-row items-center justify-center gap-1.5 md:gap-2 py-2 md:pb-1 flex-shrink-0 bg-white border border-zinc-200 rounded-xl md:bg-transparent md:border-transparent md:rounded-none",
+            activeTab === "nearby" ? "text-primary !border-primary md:!border-transparent" : "text-zinc-500 hover:text-zinc-900"
           )}
         >
-          <img
-            src="/icons/nearby.png"
-            alt="Find Nearby"
-            className={cn(
-              "h-6 w-6 md:h-8 md:w-8 object-contain transition-all duration-300",
-              activeTab === "nearby" ? "scale-[2.2] -translate-y-4 filter-none" : "opacity-40 grayscale hover:opacity-80 hover:grayscale-[30%]"
-            )}
-          />
+          <Compass className={cn("w-5 h-5 md:w-6 md:h-6 transition-all duration-300", activeTab === "nearby" && "fill-primary")} />
           Nearby
           {activeTab === "nearby" && (
             <motion.div

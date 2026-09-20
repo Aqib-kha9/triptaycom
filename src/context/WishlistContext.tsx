@@ -1,7 +1,10 @@
 "use client";
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
-import { wishlistApi, getToken } from "@/lib/api-client";
+import { useRouter } from "next/navigation";
+import { wishlistApi, getToken, UnauthorizedError } from "@/lib/api-client";
+import { buildLoginHref } from "@/lib/navigation";
+import { AuthModal } from "@/components/auth-modal";
 
 // ──────────────────────── Local Types ────────────────────────
 
@@ -65,12 +68,25 @@ function mapNestedItem(raw: Record<string, unknown> | null): WishlistItem | null
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
 export function WishlistProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set());
   const [stays, setStays] = useState<WishlistEntry[]>([]);
   const [activities, setActivities] = useState<WishlistEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [pendingWishlistAction, setPendingWishlistAction] = useState<{ itemId: string, itemType: "stay" | "activity" } | null>(null);
 
   const fetchWishlist = useCallback(async () => {
+    // Guests never have a wishlist to load. Skipping the call here avoids a
+    // guaranteed 401 (and the resulting session-expiry redirect) on every
+    // public page, and lets the skeletons clear immediately.
+    if (!getToken()) {
+      setStays([]);
+      setActivities([]);
+      setWishlistedIds(new Set());
+      setLoading(false);
+      return;
+    }
     try {
       const res = await wishlistApi.getAll();
 
@@ -111,7 +127,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
         setWishlistedIds(ids);
       }
     } catch {
-      // silently ignore — user may not be logged in
+      // silently ignore — the token may have expired between render and fetch
     } finally {
       setLoading(false);
     }
@@ -133,7 +149,8 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
     async (itemId: string, itemType: "stay" | "activity"): Promise<boolean> => {
       const token = getToken();
       if (!token) {
-        window.location.href = "/login";
+        setPendingWishlistAction({ itemId, itemType });
+        setAuthModalOpen(true);
         return false;
       }
       try {
@@ -160,12 +177,16 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
 
           return isNowWishlisted;
         }
-      } catch {
-        // silently ignore
+      } catch (err) {
+        // A rejected token means the session expired mid-action: send the user
+        // through the SPA login flow instead of a full page reload.
+        if (err instanceof UnauthorizedError) {
+          setAuthModalOpen(true);
+        }
       }
       return false;
     },
-    [fetchWishlist],
+    [fetchWishlist, router],
   );
 
   return (
@@ -181,6 +202,24 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
+      <AuthModal
+        open={authModalOpen}
+        onClose={() => {
+          setAuthModalOpen(false);
+          setPendingWishlistAction(null);
+        }}
+        onSuccess={() => {
+          setAuthModalOpen(false);
+          if (pendingWishlistAction) {
+            toggleWishlist(pendingWishlistAction.itemId, pendingWishlistAction.itemType);
+            setPendingWishlistAction(null);
+          } else {
+            fetchWishlist();
+          }
+        }}
+        title="Login to Wishlist"
+        subtitle="Save your favorite stays and activities."
+      />
     </WishlistContext.Provider>
   );
 }

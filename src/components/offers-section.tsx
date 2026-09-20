@@ -1,36 +1,43 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 import { Tag, ChevronRight } from "lucide-react";
-
-const OFFERS = [
-  {
-    id: 1,
-    title: "Domestic Stays",
-    discount: "Flat 25% OFF",
-    desc: "Valid on all villa bookings",
-    image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&q=80&w=400",
-    bg: "bg-blue-50/50"
-  },
-  {
-    id: 2,
-    title: "Activity Bundles",
-    discount: "Save ₹2,000",
-    desc: "On 2+ adventure activities",
-    image: "https://images.unsplash.com/photo-1533240332313-0db49b459ad6?auto=format&fit=crop&q=80&w=400",
-    bg: "bg-orange-50/50"
-  },
-  {
-    id: 3,
-    title: "Early Bird Deal",
-    discount: "15% Extra OFF",
-    desc: "30 days in advance",
-    image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&q=80&w=400",
-    bg: "bg-emerald-50/50"
-  }
-];
+import { offersApi, OfferItem } from "@/lib/api-client";
+import { useRouter } from "next/navigation";
 
 export function OffersSection() {
+  const [offers, setOffers] = useState<OfferItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    offersApi.getActive()
+      .then(res => {
+        if (res.data?.data) {
+          setOffers(res.data.data);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="container mx-auto px-4 py-8 sm:py-16">
+        <div className="flex items-center justify-between mb-4 sm:mb-8">
+          <div className="h-8 w-48 bg-zinc-200 rounded-lg animate-pulse" />
+        </div>
+        <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 gap-4 sm:gap-6 sm:grid sm:grid-cols-2 lg:grid-cols-3 pb-2 sm:pb-0">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="w-[85vw] sm:w-auto min-w-[280px] max-w-[340px] sm:max-w-none sm:min-w-0 h-[280px] shrink-0 bg-zinc-100 animate-pulse rounded-[2rem]" />
+          ))}
+        </div>
+      </section>
+    );
+  }
+
+  if (offers.length === 0) return null;
+
   return (
     <section className="container mx-auto px-4 py-8 sm:py-16">
       <div className="flex items-center justify-between mb-4 sm:mb-8">
@@ -42,12 +49,12 @@ export function OffersSection() {
         </button>
       </div>
 
-      {/* Responsive Layout: Horizontal Scroll on Mobile, Grid on Desktop */}
       <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0 gap-4 sm:gap-6 sm:grid sm:grid-cols-2 lg:grid-cols-3 pb-2 sm:pb-0">
-        {OFFERS.map((offer) => (
+        {offers.map((offer) => (
           <div 
             key={offer.id}
-            className="w-[85vw] sm:w-auto min-w-[280px] max-w-[340px] sm:max-w-none sm:min-w-0 shrink-0 snap-center flex flex-col justify-between border border-zinc-100 rounded-[2rem] bg-zinc-50 transition-all cursor-pointer p-2 group hover:border-zinc-200"
+            onClick={() => offer.linkUrl && router.push(offer.linkUrl)}
+            className={`w-[85vw] sm:w-auto min-w-[280px] max-w-[340px] sm:max-w-none sm:min-w-0 shrink-0 snap-center flex flex-col justify-between border border-zinc-100 rounded-[2rem] ${offer.bgClass || 'bg-zinc-50'} transition-all cursor-pointer p-2 group hover:border-zinc-200`}
           >
             <div className="w-full h-36 rounded-[1.5rem] overflow-hidden relative">
               <img 
@@ -55,10 +62,12 @@ export function OffersSection() {
                 alt={offer.title} 
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
               />
-              <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
-                 <Tag className="w-3 h-3 text-primary" />
-                 <span className="text-[9px] font-black uppercase tracking-widest text-primary">Limited</span>
-              </div>
+              {offer.tag && (
+                <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-sm">
+                   <Tag className="w-3 h-3 text-primary" />
+                   <span className="text-[9px] font-black uppercase tracking-widest text-primary">{offer.tag}</span>
+                </div>
+              )}
             </div>
             <div className="p-4 pt-5 pb-3 flex items-end justify-between">
                <div className="space-y-1">

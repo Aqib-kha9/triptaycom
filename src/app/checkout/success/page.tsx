@@ -18,7 +18,7 @@ import {
   MessageSquare,
   Loader2,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -26,7 +26,7 @@ import confetti from "canvas-confetti";
 import { bookingsApi } from "@/lib/api-client";
 import type { BookingItem } from "@/types/api";
 
-export default function BookingSuccessPage() {
+function BookingSuccessContent() {
   const [booking, setBooking] = useState<BookingItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
@@ -279,5 +279,13 @@ export default function BookingSuccessPage() {
       <InvoiceModal open={invoiceOpen} onClose={() => setInvoiceOpen(false)} booking={booking} />
       <ShareModal open={shareOpen} onClose={() => setShareOpen(false)} booking={booking} />
     </div>
+  );
+}
+
+export default function BookingSuccessPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-white flex items-center justify-center">Loading...</div>}>
+      <BookingSuccessContent />
+    </Suspense>
   );
 }

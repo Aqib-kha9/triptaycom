@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Loader2, ShieldAlert, Clock, CheckCircle2, RefreshCw, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/navigation/back-button";
 import { clearAuthData, getToken } from "@/lib/auth-utils";
 import { authApi } from "@/lib/api-client";
 
@@ -36,7 +37,9 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
       }
 
       try {
-        const res = await authApi.getMe();
+        // Bounded timeout: this call gates the whole vendor area, so a slow or
+        // cold backend must surface the retry UI well before the 30s default.
+        const res = await authApi.getMe(10000);
 
         if (!res.data?.user) {
           clearAuthData();
@@ -177,11 +180,11 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
               Go to Guest Dashboard
             </Button>
           </Link>
-          <Link href="/">
-            <Button variant="outline" className="rounded-xl h-11 px-8 text-xs font-bold border-zinc-200 hover:bg-zinc-50 text-zinc-600">
-              Back to Home
-            </Button>
-          </Link>
+          <BackButton
+            fallback="/"
+            label="Back to Home"
+            className="rounded-xl h-11 px-8 text-xs border-zinc-200 hover:bg-zinc-50 text-zinc-600"
+          />
         </div>
       </div>
     );

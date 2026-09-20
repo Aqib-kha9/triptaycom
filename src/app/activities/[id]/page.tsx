@@ -5,8 +5,9 @@ import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { useWishlist } from "@/context/WishlistContext";
 import { ItemCard } from "@/components/cards";
+import { BackButton } from "@/components/navigation/back-button";
 import { activitiesApi, getToken, bookingsApi, reviewsApi } from "@/lib/api-client";
-import { ApiError, NetworkError } from "@/lib/api-client";
+import { ApiError, NetworkError, UnauthorizedError } from "@/lib/api-client";
 import type { ActivityItem } from "@/types/api";
 import {
   Star,
@@ -19,7 +20,6 @@ import {
   ArrowRight,
   Inbox,
   ShieldCheck,
-  ArrowLeft,
   Award,
   Gem,
   Flame,
@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { AuthModal } from "@/components/auth-modal";
 
 // ── TypeScript Interfaces ──
 
@@ -173,6 +174,9 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
 
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
+  // Bumped after a successful login so the protected pricing preview refetches.
+  const [authVersion, setAuthVersion] = useState(0);
 
   // Reviews states
   const [reviews, setReviews] = useState<any[]>([]);
@@ -199,10 +203,18 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
     return () => { active = false; };
   }, [activity]);
 
-  // Fetch pricing preview from backend to ensure consistent platform fee / tax calculation
+  // Fetch pricing preview from backend to ensure consistent platform fee / tax calculation.
+  // NOTE: `POST /bookings/preview` is a protected endpoint, so this must never fire for
+  // anonymous visitors - doing so guarantees a 401 and console noise. Guests simply get
+  // the local estimate that is rendered as the fallback in the price breakdown below.
   useEffect(() => {
     const activityId = activity?.id;
     if (!activityId) return;
+    if (!getToken()) {
+      setPreviewData(null);
+      setPreviewLoading(false);
+      return;
+    }
     let active = true;
     (async () => {
       setPreviewLoading(true);
@@ -216,15 +228,23 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
         if (!active) return;
         if (res.status === "success" && res.data?.pricing) {
           setPreviewData(res.data.pricing);
+        } else {
+          setPreviewData(null);
         }
       } catch (err) {
-        console.error("Failed to fetch booking preview pricing:", err);
+        // A stale/expired session is an expected condition on a public page: quietly
+        // fall back to the local estimate instead of logging an error.
+        if (err instanceof UnauthorizedError) {
+          if (active) setPreviewData(null);
+        } else {
+          console.error("Failed to fetch booking preview pricing:", err);
+        }
       } finally {
         if (active) setPreviewLoading(false);
       }
     })();
     return () => { active = false; };
-  }, [activity, selectedDate, personCount]);
+  }, [activity, selectedDate, personCount, authVersion]);
 
   // Fetch activity availability
   useEffect(() => {
@@ -360,11 +380,11 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
               <AlertCircle className="w-6 h-6 text-red-500" />
             </div>
             <p className="font-semibold text-gray-900">{error || "Activity not found"}</p>
-            <Link href="/activities">
-              <Button variant="outline" className="gap-2">
-                <ArrowLeft className="w-4 h-4" /> Back to Activities
-              </Button>
-            </Link>
+            <BackButton
+              fallback="/activities"
+              label="Back to Activities"
+              className="rounded-xl"
+            />
           </motion.div>
         </main>
         <Footer />
@@ -378,10 +398,21 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
       <Navbar />
 
       <main className="flex-grow">
+        {/* Back navigation — retraces the user's actual route */}
+        <div className="max-w-7xl mx-auto px-4 md:px-6 pt-24">
+          <BackButton
+            fallback="/activities"
+            label="Back"
+            fallbackLabel="Back to Activities"
+            variant="ghost"
+            className="px-0 text-zinc-500 hover:bg-transparent hover:text-zinc-900"
+          />
+        </div>
+
         {/* ================================================================ */}
         {/* GALLERY                                                           */}
         {/* ================================================================ */}
-        <section className="pt-20 pb-0">
+        <section className="pt-4 pb-0">
           {images.length > 0 ? (
             <div className="max-w-7xl mx-auto px-2 md:px-4">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-2 h-[300px] md:h-[400px]">
@@ -1058,7 +1089,22 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
                         setAvailabilityError("Please select a date and time slot first.");
                         return;
                       }
-                      router.push(`/checkout/activity/${activity.slug || activity.id}?activityDate=${selectedDate}&startTime=${selectedSlot}&guests=${personCount}`);
+
+                      if (activity.advanceNoticeHours && activity.advanceNoticeHours > 0) {
+                        const actDate = new Date(selectedDate);
+                        const hoursUntilAct = (actDate.getTime() - Date.now()) / (1000 * 60 * 60);
+                        if (hoursUntilAct < activity.advanceNoticeHours) {
+                           setAvailabilityError(`This activity requires ${activity.advanceNoticeHours} hours advance notice.`);
+                           return;
+                        }
+                      }
+
+                      const checkoutUrl = `/checkout/activity/${activity.slug || activity.id}?activityDate=${selectedDate}&startTime=${selectedSlot}&guests=${personCount}`;
+                      if (getToken()) {
+                        router.push(checkoutUrl);
+                      } else {
+                        setAuthOpen(true);
+                      }
                     }}
                     disabled={!selectedDate || !selectedSlot || !!availabilityError}
                     className={cn(
@@ -1145,6 +1191,12 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
                     )}
                   </div>
 
+                  {!previewData && (
+                    <p className="text-[10px] text-gray-400 text-right">
+                      Estimated total &middot; final fees are confirmed on the checkout page.
+                    </p>
+                  )}
+
                   {/* Popular badge */}
                   {activity.avgRating >= 4.5 && activity.totalReviews > 10 && (
                     <div className="mt-6 flex gap-3 p-4 bg-primary/5 rounded-xl text-sm text-primary">
@@ -1220,6 +1272,19 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
           )}
         </section>
       </main>
+
+      <AuthModal
+        open={authOpen}
+        onClose={() => setAuthOpen(false)}
+        onSuccess={() => {
+          setAuthOpen(false);
+          // Refresh the (now authorized) pricing preview before navigating.
+          setAuthVersion((v) => v + 1);
+          router.push(`/checkout/activity/${activity?.slug || activity?.id}?activityDate=${selectedDate}&startTime=${selectedSlot}&guests=${personCount}`);
+        }}
+        title="Login to continue booking"
+        subtitle="Verify your number or email with an OTP to confirm your reservation."
+      />
 
       <Footer />
     </div>

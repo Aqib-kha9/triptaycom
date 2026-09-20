@@ -3,9 +3,9 @@
 import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/navigation/back-button";
 import { listingsApi } from "@/lib/api-client";
 import {
-    ArrowLeft,
     Edit2,
     Trash2,
     Home,
@@ -337,9 +337,7 @@ export default function ViewListingPage() {
                         </div>
                         <div className="flex gap-3">
                             <Button onClick={fetchListing} variant="outline" className="rounded-xl h-10 text-xs font-bold">Retry</Button>
-                            <Link href="/vendor/stays">
-                                <Button className="rounded-xl h-10 text-xs font-bold">Back to Stays</Button>
-                            </Link>
+                            <BackButton fallback="/vendor/stays" label="Back to Stays" className="rounded-xl h-10 text-xs font-bold" />
                         </div>
                     </div>
                 </main>
@@ -364,11 +362,7 @@ export default function ViewListingPage() {
                             {/* ── Top Bar ── */}
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
                                 <div className="flex items-center gap-3">
-                                    <Link href="/vendor/stays">
-                                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg">
-                                            <ArrowLeft className="w-4 h-4" />
-                                        </Button>
-                                    </Link>
+                                    <BackButton fallback="/vendor/stays" variant="ghost" size="icon" className="h-9 w-9 rounded-lg" aria-label="Back to Stays" />
                                     <div>
                                         <h1 className="text-xl font-bold text-zinc-900 truncate max-w-[300px]">{listing.name}</h1>
                                         <p className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider">/{listing.slug}</p>

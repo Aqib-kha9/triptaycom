@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
 import { DestinationCard } from "./cards";
 
@@ -8,6 +8,22 @@ export function StackedDestinations({ destinations }: { destinations: any[] }) {
   const [cards, setCards] = useState(destinations);
   const controls = useAnimation();
   const constraintsRef = useRef(null);
+
+  // The top card is rendered with `animate={controls}`, and framer-motion
+  // leaves a controller sitting at the element's `initial` state (opacity: 0)
+  // until something calls `start()`. Without this, the top destination card
+  // stayed invisible on mobile until the user swiped. Kick the entrance
+  // animation off on mount so the stack is always visible.
+  useEffect(() => {
+    controls.start({
+      x: 0,
+      y: 0,
+      scale: 1,
+      opacity: 1,
+      rotate: 0,
+      transition: { duration: 0.3, ease: "easeOut" },
+    });
+  }, [controls]);
 
   const handleDragEnd = (event: any, info: any) => {
     const swipeThreshold = 70;
@@ -46,7 +62,7 @@ export function StackedDestinations({ destinations }: { destinations: any[] }) {
       <AnimatePresence>
         {cards.slice(0, 3).reverse().map((dest, idx) => {
           // Since we reversed, the last item in the map is actually index 0 in the visible stack
-          const visibleIndex = 2 - idx; 
+          const visibleIndex = 2 - idx;
           const isTop = visibleIndex === 0;
 
           return (

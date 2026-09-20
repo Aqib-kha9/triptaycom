@@ -42,7 +42,7 @@ function ResetPasswordForm() {
     }
     setLoading(true);
     try {
-      await authApi.resetPassword({ token, password });
+      await authApi.resetPassword({ token, newPassword: password });
       setIsSuccess(true);
       setTimeout(() => {
         router.push("/login");

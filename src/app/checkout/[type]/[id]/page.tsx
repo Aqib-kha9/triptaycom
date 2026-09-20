@@ -4,9 +4,9 @@ import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BackButton } from "@/components/navigation/back-button";
 import {
   CreditCard,
-  ChevronLeft,
   Zap,
   CheckCircle2,
   Info,
@@ -85,6 +85,12 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
   const queryActivityDate = searchParams ? searchParams.get("activityDate") : null;
   const queryCoupon = searchParams ? searchParams.get("coupon") : null;
   const querySpecialRequests = searchParams ? searchParams.get("specialRequests") : null;
+  // For multi-unit listings: { [roomId]: quantity }
+  const queryRoomsParam = searchParams ? searchParams.get("rooms") : null;
+  const [selectedRoomsFromUrl] = useState<Record<string, number>>(() => {
+    if (!queryRoomsParam) return {};
+    try { return JSON.parse(decodeURIComponent(queryRoomsParam)); } catch { return {}; }
+  });
 
   const [checkIn, setCheckIn] = useState(queryCheckIn || (params.type === "stay" ? getTomorrow() : ""));
   const [checkOut, setCheckOut] = useState(queryCheckOut || (params.type === "stay" ? getDayAfterTomorrow() : ""));
@@ -492,6 +498,8 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
         specialRequests: finalSpecialRequests,
         couponCode: couponApplied ? coupon : undefined,
         bookingType: "instant",
+        // Multi-unit room selection — pass if rooms were chosen on detail page
+        ...(Object.keys(selectedRoomsFromUrl).length > 0 && { roomSelections: selectedRoomsFromUrl }),
       });
       const booking = bookingRes.data?.booking;
       if (!booking) throw new Error("Booking creation failed.");
@@ -555,9 +563,11 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
               <AlertCircle className="w-10 h-10 text-rose-500" />
             </div>
             <p className="text-sm font-bold text-zinc-800">{error}</p>
-            <Link href="/explore">
-              <Button className="rounded-2xl px-6 h-12 font-bold text-xs bg-primary hover:bg-primary/95 text-white shadow-xl shadow-primary/20">Back to Explore</Button>
-            </Link>
+            <BackButton
+              fallback="/explore"
+              label="Back to Explore"
+              className="rounded-2xl px-6 h-12 text-xs bg-primary hover:bg-primary/95 text-white shadow-xl shadow-primary/20"
+            />
           </div>
         </main>
         <Footer />
@@ -574,13 +584,13 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
           {/* Header */}
           <div className="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <Link
-                href={`/${params.type}s/${params.id}`}
-                className="inline-flex items-center gap-2 text-zinc-500 hover:text-zinc-900 transition-colors font-semibold text-sm mb-2 group"
-              >
-                <ChevronLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-                Back to {params.type} details
-              </Link>
+              <BackButton
+                fallback={`/${params.type}s/${params.id}`}
+                label="Back"
+                fallbackLabel={`Back to ${params.type} details`}
+                variant="ghost"
+                className="px-0 mb-2 text-zinc-500 hover:bg-transparent hover:text-zinc-900 font-semibold text-sm"
+              />
               <h1 className="text-3xl md:text-4xl font-extrabold text-zinc-900 tracking-tight flex items-center gap-2.5">
                 Confirm & Pay
                 <Sparkles className="w-6 h-6 text-primary fill-primary/10 hidden md:block" />

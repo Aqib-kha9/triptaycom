@@ -87,6 +87,7 @@ export interface ListingItem {
   country: string;
   address?: string;
   coordinates?: { lat: number; lng: number };
+  isEntirePlace: boolean;
   basePrice: number;
   weekendPrice?: number;
   effectiveWeekendPrice?: number;
@@ -98,6 +99,7 @@ export interface ListingItem {
   status: "draft" | "published" | "unlisted" | "rejected";
   isActive: boolean;
   isFeatured?: boolean;
+  rooms?: RoomItem[];
   amenities?: string[];
   houseRules?: string[];
   meals?: { type: string; included: boolean; price?: number }[];
@@ -110,6 +112,20 @@ export interface ListingItem {
   host: ListingHost | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface RoomItem {
+  id: string;
+  name: string;
+  description?: string;
+  maxGuests: number;
+  basePrice: number;
+  inventory: number;
+  beds: number;
+  bathrooms: number;
+  amenities: string[];
+  images: string[];
+  isActive: boolean;
 }
 
 export interface ListingsResponse {

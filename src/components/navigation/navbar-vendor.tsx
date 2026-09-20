@@ -9,13 +9,9 @@ import { Button } from "@/components/ui/button";
 import { useRole } from "@/components/role-provider";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { getSessionToken } from "@/lib/session";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
-}
 
 export function NavbarVendor() {
   const pathname = usePathname();
@@ -34,7 +30,7 @@ export function NavbarVendor() {
   ];
 
   const fetchUnreadCounts = useCallback(async () => {
-    const token = getToken();
+    const token = getSessionToken();
     if (!token) return;
 
     try {
@@ -68,7 +64,7 @@ export function NavbarVendor() {
 
   // Socket.IO listener for real-time unread count updates
   useEffect(() => {
-    const token = getToken();
+    const token = getSessionToken();
     if (!token) return;
 
     let cancelled = false;
