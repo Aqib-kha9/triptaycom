@@ -21,6 +21,7 @@ import { RoleProvider } from "@/components/role-provider";
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
 import { NavigationTracker } from "@/components/navigation/navigation-tracker";
 import { SessionGuard } from "@/components/session-guard";
+import { RoleGuard } from "@/components/role-guard";
 import { WishlistProvider } from "@/context/WishlistContext";
 
 export default function RootLayout({
@@ -38,6 +39,7 @@ export default function RootLayout({
           <WishlistProvider>
             <NavigationTracker />
             <SessionGuard />
+            <RoleGuard />
             {children}
             <MobileBottomNav />
           </WishlistProvider>

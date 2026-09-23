@@ -40,6 +40,12 @@ export function DashboardSidebar() {
 
   useEffect(() => {
     async function fetchUser() {
+      // Don't call if there's no session token — middleware will redirect
+      const token = typeof window !== "undefined"
+        ? window.localStorage.getItem("token")
+        : null;
+      if (!token) return;
+
       try {
         const res = await authApi.getProfile();
         if (res.data?.user) {

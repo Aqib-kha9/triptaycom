@@ -22,6 +22,12 @@ interface RoleContextType {
   setIsLoggedIn: (val: boolean) => void;
   hasVendorAccess: boolean;
   setHasVendorAccess: (val: boolean) => void;
+  actualRole?: string;
+  setActualRole: (val?: string) => void;
+  kycStatus?: string;
+  setKycStatus: (val?: string) => void;
+  avatar?: string;
+  setAvatar: (val?: string) => void;
   logout: () => Promise<void>;
 }
 
@@ -31,12 +37,18 @@ const RoleContext = createContext<RoleContextType | undefined>(undefined);
  * Map a backend user object onto the frontend role + vendor-access flags.
  * Backend roles are "Guest" | "Vendor" | "Dual Mode" | "Admin".
  */
-function resolveUserFlags(user: { role?: string; kycStatus?: string }): CachedUser {
+function resolveUserFlags(user: { role?: string; kycStatus?: string; avatar?: string }): CachedUser {
   const resolvedRole = (user.role || "").toLowerCase();
   const isVendor = resolvedRole === "vendor" || resolvedRole === "dual mode";
+  const isApproved = user.kycStatus === "Approved";
+  
   return {
-    role: isVendor ? "vendor" : "guest",
-    hasVendorAccess: isVendor ? user.kycStatus === "Approved" : false,
+    // Force UI role to 'guest' if they are a vendor but not approved.
+    role: isVendor && isApproved ? "vendor" : "guest",
+    hasVendorAccess: isVendor && isApproved,
+    actualRole: resolvedRole,
+    kycStatus: user.kycStatus,
+    avatar: user.avatar,
   };
 }
 
@@ -46,6 +58,9 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
   const [isVendorMode, setIsVendorMode] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [hasVendorAccess, setHasVendorAccess] = useState(false);
+  const [actualRole, setActualRole] = useState<string | undefined>();
+  const [kycStatus, setKycStatus] = useState<string | undefined>();
+  const [avatar, setAvatar] = useState<string | undefined>();
 
   // Sync isVendorMode with role if needed
   useEffect(() => {
@@ -85,6 +100,9 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
       setIsLoggedIn(true);
       setRole(cached.role);
       setHasVendorAccess(cached.hasVendorAccess);
+      setActualRole(cached.actualRole);
+      setKycStatus(cached.kycStatus);
+      setAvatar(cached.avatar);
     } else {
       // A token exists but the identity was never cached — assume signed in
       // rather than flashing a signed-out UI before validation completes.
@@ -125,6 +143,9 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
             setIsLoggedIn(true);
             setRole(flags.role);
             setHasVendorAccess(flags.hasVendorAccess);
+            setActualRole(flags.actualRole);
+            setKycStatus(flags.kycStatus);
+            setAvatar(flags.avatar);
             setCachedUser(flags);
           } else {
             // Malformed success payload — treat as unauthenticated.
@@ -181,7 +202,16 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <RoleContext.Provider value={{ role, setRole, isVendorMode, setIsVendorMode, isLoggedIn, setIsLoggedIn, hasVendorAccess, setHasVendorAccess, logout }}>
+    <RoleContext.Provider value={{ 
+      role, setRole, 
+      isVendorMode, setIsVendorMode, 
+      isLoggedIn, setIsLoggedIn, 
+      hasVendorAccess, setHasVendorAccess, 
+      actualRole, setActualRole,
+      kycStatus, setKycStatus,
+      avatar, setAvatar,
+      logout 
+    }}>
       {children}
     </RoleContext.Provider>
   );

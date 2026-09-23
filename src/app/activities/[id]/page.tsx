@@ -163,6 +163,7 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
   const [personCount, setPersonCount] = useState(2);
   const [similarActivities, setSimilarActivities] = useState<ActivityItem[]>([]);
   const [showFullGallery, setShowFullGallery] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
 
   // Availability calendar/slot states
   const [selectedDate, setSelectedDate] = useState("");
@@ -522,12 +523,22 @@ export default function ActivityDetailPage({ params: paramsPromise }: { params: 
                 </Button>
                 <Button
                   variant="outline"
-                  className="rounded-xl gap-2 font-semibold text-sm"
+                  className="rounded-xl gap-2 font-semibold text-sm w-[100px]"
                   onClick={() => {
                     navigator.clipboard.writeText(window.location.href);
+                    setIsCopied(true);
+                    setTimeout(() => setIsCopied(false), 2000);
                   }}
                 >
-                  <Share2 className="w-4 h-4" /> Share
+                  {isCopied ? (
+                    <>
+                      <Check className="w-4 h-4 text-emerald-500" /> <span className="text-emerald-600">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="w-4 h-4" /> Share
+                    </>
+                  )}
                 </Button>
               </div>
 

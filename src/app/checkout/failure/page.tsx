@@ -115,6 +115,9 @@ export default function BookingFailurePage() {
                   if (booking.guests) query.append("guests", booking.guests.toString());
                   if (booking.couponCode) query.append("coupon", booking.couponCode);
                   if (booking.specialRequests) query.append("specialRequests", booking.specialRequests);
+                  if (booking.roomSelections && Object.keys(booking.roomSelections).length > 0) {
+                    query.append("rooms", encodeURIComponent(JSON.stringify(booking.roomSelections)));
+                  }
                   if (booking.itemType === "listing") {
                     if (booking.checkIn) query.append("checkIn", booking.checkIn.split("T")[0]);
                     if (booking.checkOut) query.append("checkOut", booking.checkOut.split("T")[0]);

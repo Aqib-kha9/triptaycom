@@ -13,7 +13,8 @@ import {
   Loader2,
   User,
   CheckCircle2,
-  Store
+  Store,
+  ArrowLeft
 } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -131,7 +132,7 @@ export default function LoginPage() {
   const [canResend, setCanResend] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const { setIsLoggedIn, setRole, setHasVendorAccess } = useRole();
+  const { setIsLoggedIn, setRole, setHasVendorAccess, setActualRole, setKycStatus } = useRole();
   const router = useRouter();
 
   // ──────────── Countdown timer ────────────
@@ -252,17 +253,21 @@ export default function LoginPage() {
   const routeAfterAuth = (user: any) => {
     const resolvedRole: string = (user?.role || "guest").toLowerCase();
     const isVendorOrDual = resolvedRole === "vendor" || resolvedRole === "dual mode";
+    const isApproved = user?.kycStatus === "Approved";
 
     // Sync navbar/role state before navigating.
-    if (isVendorOrDual) {
-      // Always show vendor navbar/UI; KYC gating is handled by vendor/layout.tsx
+    if (isVendorOrDual && isApproved) {
       setRole("vendor");
-      setHasVendorAccess(user?.kycStatus === "Approved");
-      setCachedUser({ role: "vendor", hasVendorAccess: user?.kycStatus === "Approved" });
+      setHasVendorAccess(true);
+      setActualRole(resolvedRole);
+      setKycStatus(user?.kycStatus);
+      setCachedUser({ role: "vendor", hasVendorAccess: true, actualRole: resolvedRole, kycStatus: user?.kycStatus });
     } else {
-      setHasVendorAccess(false);
       setRole("guest");
-      setCachedUser({ role: "guest", hasVendorAccess: false });
+      setHasVendorAccess(false);
+      setActualRole(isVendorOrDual ? resolvedRole : "guest");
+      setKycStatus(user?.kycStatus);
+      setCachedUser({ role: "guest", hasVendorAccess: false, actualRole: isVendorOrDual ? resolvedRole : "guest", kycStatus: user?.kycStatus });
     }
 
     // The user's original destination always wins over the role default —
@@ -518,13 +523,15 @@ export default function LoginPage() {
 
       {/* Right Column: Auth Form */}
       <div className="w-full lg:w-1/2 flex flex-col p-8 md:p-24 justify-center relative">
-        <BackButton
-          fallback="/"
-          label="Back"
-          fallbackLabel="Back to home"
-          variant="ghost"
-          className="absolute top-8 left-8 lg:left-24 px-0 text-zinc-400 hover:bg-transparent hover:text-zinc-900 text-sm"
-        />
+        <Link href="/">
+          <Button
+            variant="ghost"
+            className="absolute top-8 left-8 lg:left-24 px-0 text-zinc-400 hover:bg-transparent hover:text-zinc-900 text-sm rounded-xl gap-2 font-bold"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Back</span>
+          </Button>
+        </Link>
 
         <div className="max-w-md mx-auto w-full space-y-10">
           <div className="space-y-3">

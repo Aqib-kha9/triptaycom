@@ -58,11 +58,55 @@ export default function WalletPage() {
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Add money state
   const [isAddingMoney, setIsAddingMoney] = useState(false);
   const [amountToAdd, setAmountToAdd] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<{type: "success" | "error" | null, message: string}>({ type: null, message: "" });
+  const [selectedTxn, setSelectedTxn] = useState<WalletTransaction | null>(null);
+
+  const [filter, setFilter] = useState<"all" | "credit" | "debit">("all");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setActiveMenuId(null);
+      setIsFilterOpen(false);
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  const filteredTransactions = transactions.filter(t => filter === "all" ? true : t.type === filter);
+  const totalPages = Math.max(1, Math.ceil(filteredTransactions.length / itemsPerPage));
+  const paginatedTransactions = filteredTransactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
+
+  const handleDownloadCSV = () => {
+    if (filteredTransactions.length === 0) return;
+    const headers = ["Date", "Title", "Description", "Type", "Amount", "Status"];
+    const rows = filteredTransactions.map(t => [
+      `"${new Date(t.createdAt).toISOString()}"`,
+      `"${t.title.replace(/"/g, '""')}"`,
+      `"${(t.description || "").replace(/"/g, '""')}"`,
+      `"${t.type}"`,
+      `"${t.amount}"`,
+      `"${t.status}"`
+    ]);
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `wallet_history_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   useEffect(() => {
     fetchWalletData();
@@ -108,7 +152,7 @@ export default function WalletPage() {
 
       // 3. Open Razorpay Checkout
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "",
+        key: orderRes.data.keyId || "",
         amount: orderRes.data.amount,
         currency: orderRes.data.currency,
         name: "Triptay",
@@ -293,13 +337,62 @@ export default function WalletPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between px-1">
                   <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-widest">History</h2>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-zinc-400 hover:text-zinc-900"><Download className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-zinc-400 hover:text-zinc-900"><Filter className="w-4 h-4" /></Button>
+                  <div className="flex items-center gap-1 relative">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 rounded-lg text-zinc-400 hover:text-zinc-900"
+                      onClick={handleDownloadCSV}
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                    <div className="relative">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className={cn(
+                          "h-8 w-8 rounded-lg transition-colors",
+                          filter !== "all" ? "text-primary bg-primary/10" : "text-zinc-400 hover:text-zinc-900"
+                        )}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.nativeEvent.stopImmediatePropagation();
+                          setIsFilterOpen(!isFilterOpen);
+                          setActiveMenuId(null);
+                        }}
+                      >
+                        <Filter className="w-4 h-4" />
+                      </Button>
+                      {isFilterOpen && (
+                        <div 
+                          className="absolute right-0 mt-2 w-40 bg-white rounded-xl shadow-lg border border-zinc-100 py-1 z-50"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.nativeEvent.stopImmediatePropagation();
+                          }}
+                        >
+                          {["all", "credit", "debit"].map(f => (
+                            <button
+                              key={f}
+                              className={cn(
+                                "w-full text-left px-4 py-2 text-xs font-bold uppercase tracking-wider",
+                                filter === f ? "text-primary bg-primary/5" : "text-zinc-600 hover:bg-zinc-50"
+                              )}
+                              onClick={() => {
+                                setFilter(f as any);
+                                setIsFilterOpen(false);
+                              }}
+                            >
+                              {f}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden divide-y divide-zinc-50">
+                <div className="bg-white rounded-2xl border border-zinc-100 divide-y divide-zinc-50">
                   {loading ? (
                     [1, 2, 3].map((i) => (
                       <div key={i} className="p-5 flex items-center justify-between animate-pulse">
@@ -310,9 +403,9 @@ export default function WalletPage() {
                         <div className="w-16 h-5 bg-zinc-100 rounded" />
                       </div>
                     ))
-                  ) : transactions.length > 0 ? (
-                    transactions.map((txn) => (
-                      <div key={txn.id} className="p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 hover:bg-zinc-50/50 transition-colors group">
+                  ) : paginatedTransactions.length > 0 ? (
+                    paginatedTransactions.map((txn) => (
+                      <div key={txn.id} className="p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4 hover:bg-zinc-50/50 transition-colors group first:rounded-t-2xl last:rounded-b-2xl relative">
                         <div className="flex items-center gap-4 w-full sm:w-auto">
                           <div className={cn(
                             "w-10 h-10 rounded-full flex items-center justify-center shrink-0 border",
@@ -340,9 +433,54 @@ export default function WalletPage() {
                             </p>
                             <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mt-1">{txn.status}</p>
                           </div>
-                          <button className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-300 hover:text-zinc-900 hover:bg-zinc-100 transition-colors opacity-0 group-hover:opacity-100 shrink-0">
-                            <MoreVertical className="w-4 h-4" />
-                          </button>
+                          <div className="relative">
+                            <button 
+                              className={cn(
+                                "w-8 h-8 rounded-lg flex items-center justify-center transition-colors shrink-0",
+                                activeMenuId === txn.id ? "text-zinc-900 bg-zinc-100 opacity-100" : "text-zinc-300 hover:text-zinc-900 hover:bg-zinc-100 opacity-0 group-hover:opacity-100"
+                              )}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.nativeEvent.stopImmediatePropagation();
+                                setActiveMenuId(activeMenuId === txn.id ? null : txn.id);
+                                setIsFilterOpen(false);
+                              }}
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                            {activeMenuId === txn.id && (
+                              <div 
+                                className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-zinc-100 py-1 z-50"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.nativeEvent.stopImmediatePropagation();
+                                }}
+                              >
+                                <button 
+                                  className="w-full text-left px-4 py-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition-colors"
+                                  onClick={() => {
+                                    setSelectedTxn(txn);
+                                    setActiveMenuId(null);
+                                  }}
+                                >
+                                  View Details
+                                </button>
+                                <button className="w-full text-left px-4 py-2.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition-colors" onClick={handleDownloadCSV}>
+                                  Download Receipt
+                                </button>
+                                <div className="h-px bg-zinc-100 my-1" />
+                                <button 
+                                  className="w-full text-left px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 transition-colors"
+                                  onClick={() => {
+                                    window.location.href = `mailto:support@triptay.com?subject=Issue with Transaction ${txn.id}&body=Hi Triptay Support,%0D%0A%0D%0AI have an issue with transaction ${txn.id}.%0D%0A%0D%0ADetails:%0D%0AAmount: ${txn.amount}%0D%0ADate: ${formatDate(txn.createdAt)}%0D%0A%0D%0APlease help me resolve this.`;
+                                    setActiveMenuId(null);
+                                  }}
+                                >
+                                  Report Issue
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ))
@@ -356,6 +494,34 @@ export default function WalletPage() {
                     </div>
                   )}
                 </div>
+                
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between px-1 mt-4">
+                    <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                      Page {currentPage} of {totalPages}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        className="h-8 px-3 text-xs font-bold rounded-lg"
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        className="h-8 px-3 text-xs font-bold rounded-lg"
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Info Alert */}
@@ -366,6 +532,71 @@ export default function WalletPage() {
                   <p className="text-xs text-blue-700/80 leading-relaxed">Refunds are typically credited instantly to your Triptay Wallet. If you wish to withdraw to your original bank method, it may take 5-7 business days depending on your bank.</p>
                 </div>
               </div>
+
+              {/* Transaction Details Modal */}
+              {selectedTxn && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-zinc-900/40 backdrop-blur-sm p-4">
+                  <div className="bg-white rounded-2xl shadow-xl w-full max-w-md animate-in zoom-in-95 fade-in duration-200 overflow-hidden">
+                    <div className="p-6">
+                      <div className="flex justify-between items-start mb-6">
+                        <div>
+                          <h3 className="font-bold text-lg text-zinc-900">Transaction Details</h3>
+                          <p className="text-xs text-zinc-500 mt-1 uppercase tracking-widest">{selectedTxn.id}</p>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full -mr-2 -mt-2 text-zinc-400 hover:text-zinc-900" onClick={() => setSelectedTxn(null)}>
+                          <AlertCircle className="w-5 h-5 rotate-45" />
+                        </Button>
+                      </div>
+
+                      <div className="flex items-center gap-4 p-4 rounded-xl bg-zinc-50 border border-zinc-100 mb-6">
+                        <div className={cn(
+                          "w-12 h-12 rounded-full flex items-center justify-center shrink-0 border",
+                          selectedTxn.type === "credit" ? "bg-emerald-50 border-emerald-100 text-emerald-600" : "bg-rose-50 border-rose-100 text-rose-600"
+                        )}>
+                          {selectedTxn.type === "credit" ? <ArrowDownLeft className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
+                        </div>
+                        <div>
+                          <p className={cn(
+                            "text-2xl font-black",
+                            selectedTxn.type === "credit" ? "text-emerald-600" : "text-zinc-900"
+                          )}>
+                            {selectedTxn.type === "credit" ? "+" : "-"}{formatCurrency(selectedTxn.amount)}
+                          </p>
+                          <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mt-0.5">{selectedTxn.status}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">Title</p>
+                          <p className="text-sm font-medium text-zinc-900">{selectedTxn.title}</p>
+                        </div>
+                        {selectedTxn.description && (
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">Description</p>
+                            <p className="text-sm text-zinc-600 leading-relaxed">{selectedTxn.description}</p>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">Date & Time</p>
+                            <p className="text-sm font-medium text-zinc-900">{new Date(selectedTxn.createdAt).toLocaleString('en-IN')}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-1">Transaction Type</p>
+                            <p className="text-sm font-medium text-zinc-900 capitalize">{selectedTxn.type}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4 bg-zinc-50 border-t border-zinc-100">
+                      <Button className="w-full rounded-xl font-bold" onClick={() => setSelectedTxn(null)}>
+                        Close Details
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
             </div>
 

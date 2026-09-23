@@ -40,6 +40,15 @@ export default function ProfilePage() {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
+  // OTP states
+  const [originalPhone, setOriginalPhone] = useState("");
+  const [showPhoneOtpModal, setShowPhoneOtpModal] = useState(false);
+  const [showPasswordOtpModal, setShowPasswordOtpModal] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [devCode, setDevCode] = useState("");
+  const [passwordResetNewPassword, setPasswordResetNewPassword] = useState("");
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -57,9 +66,11 @@ export default function ProfilePage() {
           if (isPhoneAsEmail) {
             setEmail("");
             setPhone(user.email || "");
+            setOriginalPhone(user.email || "");
           } else {
             setEmail(user.email || "");
             setPhone(user.phone || "");
+            setOriginalPhone(user.phone || "");
           }
           
           setGender(user.gender || "");
@@ -77,13 +88,33 @@ export default function ProfilePage() {
   }, []);
 
   const handleSave = async () => {
+    // If phone has changed, trigger OTP flow instead of standard save
+    if (phone !== originalPhone && !isPhoneIdentifier) {
+      setIsSaving(true);
+      setError(null);
+      setSuccess(null);
+      try {
+        const res = await authApi.sendPhoneUpdateOtp(phone);
+        if (res.data?.devCode) {
+          setDevCode(res.data.devCode);
+        }
+        setShowPhoneOtpModal(true);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || "Failed to send OTP to new phone number.");
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    // Standard save for non-phone fields
     setIsSaving(true);
     setError(null);
     setSuccess(null);
     try {
       const response = await authApi.updateProfile({
         name,
-        phone,
         gender,
         bio,
         avatar,
@@ -93,7 +124,6 @@ export default function ProfilePage() {
         if (response.data?.user) {
           const user = response.data.user;
           setName(user.name || "");
-          setPhone(user.phone || "");
           setGender(user.gender || "");
           setBio(user.bio || "");
           setAvatar(user.avatar || "");
@@ -104,6 +134,66 @@ export default function ProfilePage() {
       setError(err.message || "Failed to update profile settings.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleVerifyPhoneOtp = async () => {
+    if (!otpCode) return;
+    setIsVerifyingOtp(true);
+    setError(null);
+    try {
+      const response = await authApi.verifyPhoneUpdateOtp(phone, otpCode);
+      if (response.status === "success") {
+        setSuccess("Phone number updated successfully! Updating profile...");
+        setShowPhoneOtpModal(false);
+        setOtpCode("");
+        setDevCode("");
+        setOriginalPhone(phone);
+        
+        // Save the rest of the fields automatically
+        await authApi.updateProfile({ name, gender, bio, avatar });
+        setSuccess("Profile and phone number updated successfully!");
+      }
+    } catch (err: any) {
+      setError(err.message || "Invalid OTP code.");
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
+  const handleSendPasswordResetOtp = async () => {
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await authApi.sendPasswordResetOtp();
+      if (res.data?.devCode) {
+        setDevCode(res.data.devCode);
+      }
+      setShowPasswordOtpModal(true);
+    } catch (err: any) {
+      setError(err.message || "Failed to send password reset OTP.");
+    }
+  };
+
+  const handleVerifyPasswordOtp = async () => {
+    if (!otpCode || !passwordResetNewPassword) return;
+    if (passwordResetNewPassword.length < 6) {
+      setError("New password must be at least 6 characters.");
+      return;
+    }
+    setIsVerifyingOtp(true);
+    setError(null);
+    try {
+      await authApi.verifyPasswordResetOtp(otpCode, passwordResetNewPassword);
+      setSuccess("Password reset successfully via OTP!");
+      setShowPasswordOtpModal(false);
+      setOtpCode("");
+      setDevCode("");
+      setPasswordResetNewPassword("");
+    } catch (err: any) {
+      setError(err.message || "Invalid OTP code.");
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -285,9 +375,14 @@ export default function ProfilePage() {
                           <Input type="password" value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="••••••••" className="h-10 rounded-xl border-zinc-100 bg-zinc-50 text-xs" />
                         </div>
                       </div>
-                      <Button onClick={handleUpdatePassword} disabled={isUpdatingPassword} variant="outline" className="rounded-xl font-bold border-rose-100 text-rose-600 hover:bg-rose-50 h-9 px-4 text-xs mt-2">
-                        {isUpdatingPassword ? "Updating..." : "Update Password"}
-                      </Button>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <Button onClick={handleUpdatePassword} disabled={isUpdatingPassword} variant="outline" className="rounded-xl font-bold border-rose-100 text-rose-600 hover:bg-rose-50 h-9 px-4 text-xs mt-2 w-fit">
+                            {isUpdatingPassword ? "Updating..." : "Update Password"}
+                          </Button>
+                          <button onClick={handleSendPasswordResetOtp} className="text-[10px] font-bold text-rose-500 hover:underline">
+                            Forgot Current Password? Reset via OTP
+                          </button>
+                        </div>
                     </div>
                   </div>
 
@@ -336,6 +431,69 @@ export default function ProfilePage() {
           </div>
         </div>
       </main>
+
+      {/* Modals for OTPs */}
+      {showPhoneOtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl relative">
+            <button onClick={() => setShowPhoneOtpModal(false)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 text-zinc-400">
+              ✕
+            </button>
+            <h3 className="text-lg font-bold text-zinc-900 mb-1">Verify New Phone</h3>
+            <p className="text-xs text-zinc-500 font-medium mb-6">Enter the OTP sent to {phone} to verify and save your new number.</p>
+            
+            {devCode && (
+              <div className="bg-orange-50 border border-orange-200 text-orange-700 text-xs p-3 rounded-xl mb-4 font-bold flex flex-col gap-1">
+                <span>[DEV MODE] OTP Code: {devCode}</span>
+                <span className="text-[10px] font-medium opacity-80">Visible only because DLT SMS is disabled in dev.</span>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">OTP Code</label>
+                <Input value={otpCode} onChange={(e) => setOtpCode(e.target.value)} placeholder="123456" className="h-12 rounded-xl text-center tracking-widest text-lg font-bold border-zinc-200" />
+              </div>
+              <Button onClick={handleVerifyPhoneOtp} disabled={!otpCode || isVerifyingOtp} className="w-full h-12 rounded-xl font-bold">
+                {isVerifyingOtp ? "Verifying..." : "Verify & Save"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showPasswordOtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl relative">
+            <button onClick={() => setShowPasswordOtpModal(false)} className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 text-zinc-400">
+              ✕
+            </button>
+            <h3 className="text-lg font-bold text-zinc-900 mb-1">Reset Password</h3>
+            <p className="text-xs text-zinc-500 font-medium mb-6">Enter the OTP sent to your registered contact to securely reset your password.</p>
+            
+            {devCode && (
+              <div className="bg-orange-50 border border-orange-200 text-orange-700 text-xs p-3 rounded-xl mb-4 font-bold flex flex-col gap-1">
+                <span>[DEV MODE] OTP Code: {devCode}</span>
+                <span className="text-[10px] font-medium opacity-80">Visible only because DLT SMS is disabled in dev.</span>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">OTP Code</label>
+                <Input value={otpCode} onChange={(e) => setOtpCode(e.target.value)} placeholder="123456" className="h-10 rounded-xl text-center tracking-widest font-bold border-zinc-200" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black uppercase tracking-widest text-zinc-400">New Password</label>
+                <Input type="password" value={passwordResetNewPassword} onChange={(e) => setPasswordResetNewPassword(e.target.value)} placeholder="••••••••" className="h-10 rounded-xl border-zinc-200" />
+              </div>
+              <Button onClick={handleVerifyPasswordOtp} disabled={!otpCode || !passwordResetNewPassword || isVerifyingOtp} className="w-full h-12 rounded-xl font-bold bg-rose-500 hover:bg-rose-600">
+                {isVerifyingOtp ? "Resetting..." : "Reset Password"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

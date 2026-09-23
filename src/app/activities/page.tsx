@@ -30,8 +30,9 @@ interface FilterParams {
   sort?: string;
 }
 
-interface ActivityCardItem {
+interface ActivityItemMapped {
   id: string;
+  slug?: string;
   image: string;
   title: string;
   location: string;
@@ -60,9 +61,10 @@ const SORT_OPTIONS = [
 // Helpers
 // ---------------------------------------------------------------------------
 
-function mapApiActivity(item: ActivityItem): ActivityCardItem {
+function mapApiActivity(item: ActivityItem): ActivityItemMapped {
   return {
     id: item.id,
+    slug: item.slug,
     image: item.media?.[0]?.url || "/placeholder.jpg",
     title: item.name,
     location: [item.city, item.state].filter(Boolean).join(", ") || "Unknown",
@@ -77,7 +79,7 @@ function mapApiActivity(item: ActivityItem): ActivityCardItem {
 
 export default function ActivitiesPage() {
   // ---- Data ----
-  const [activities, setActivities] = useState<ActivityCardItem[]>([]);
+  const [activities, setActivities] = useState<ActivityItemMapped[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -147,7 +149,7 @@ export default function ActivitiesPage() {
         const res = await activitiesApi.browse(params);
 
         const rawItems: ActivityItem[] = res.data?.activities || [];
-        const mapped: ActivityCardItem[] = rawItems.map(mapApiActivity);
+        const mapped: ActivityItemMapped[] = rawItems.map(mapApiActivity);
 
         if (append) {
           setActivities((prev) => [...prev, ...mapped]);

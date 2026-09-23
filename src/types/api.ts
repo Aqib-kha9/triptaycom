@@ -286,6 +286,8 @@ export interface BookingItem {
   itemName: string;
   itemImage?: string;
   itemSlug?: string;
+  roomSelections?: Record<string, number>;
+  roomDetails?: { name: string; qty: number }[];
   location: string;
   checkIn: string;
   checkOut?: string;
@@ -304,6 +306,7 @@ export interface BookingItem {
   platformFee?: number;
   discountAmount?: number;
   totalAmount: number;
+  refundAmount?: number;
   // Guest details
   guestName?: string;
   guestEmail?: string;
@@ -330,6 +333,7 @@ export interface BookingItem {
 
 export interface NearbyItem {
   id: string;
+  slug?: string;
   name: string;
   type: "listing" | "activity";
   media: MediaItem[];

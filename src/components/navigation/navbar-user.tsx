@@ -13,7 +13,7 @@ import { useWishlist } from "@/context/WishlistContext";
 export function NavbarUser() {
   const pathname = usePathname();
   const router = useRouter();
-  const { role, setRole, hasVendorAccess, logout } = useRole();
+  const { setRole, hasVendorAccess, actualRole, kycStatus, logout, avatar } = useRole();
   const { wishlistedIds } = useWishlist();
   const wishlistCount = wishlistedIds.size;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -105,8 +105,8 @@ export function NavbarUser() {
         <div className="flex items-center gap-3">
           {hasVendorAccess ? (
             <Button
-              variant="ghost"
-              className="text-xs font-bold rounded-full hidden lg:flex"
+              variant="outline"
+              className="text-xs font-bold rounded-full border-zinc-200 hover:bg-zinc-50 hidden lg:flex"
               onClick={() => {
                 setRole("vendor");
                 router.push("/vendor/dashboard");
@@ -114,6 +114,12 @@ export function NavbarUser() {
             >
               Switch to Vendor
             </Button>
+          ) : actualRole === "vendor" || actualRole === "dual mode" ? (
+            <Link href="/vendor/onboarding">
+              <Button variant="outline" className={cn("text-xs font-bold rounded-full hidden lg:flex", kycStatus === "Pending" ? "border-amber-200 text-amber-600 hover:bg-amber-50" : "border-rose-200 text-rose-600 hover:bg-rose-50")}>
+                {kycStatus === "Pending" ? "Vendor Status: Pending ⏳" : "Complete Vendor Profile"}
+              </Button>
+            </Link>
           ) : (
             <Link href="/vendor/onboarding">
               <Button variant="ghost" className="text-xs font-bold rounded-full hidden lg:flex">
@@ -146,7 +152,11 @@ export function NavbarUser() {
                 className="flex items-center gap-2 bg-white border border-zinc-200 rounded-full px-3 py-1.5 hover:border-zinc-300 transition-all cursor-pointer"
               >
                 <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center overflow-hidden">
-                  <User className="w-4 h-4" />
+                  {avatar ? (
+                    <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-4 h-4" />
+                  )}
                 </div>
                 <ChevronDown className={cn("w-3 h-3 text-zinc-400 transition-transform", isMenuOpen && "rotate-180")} />
               </button>

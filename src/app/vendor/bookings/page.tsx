@@ -219,8 +219,11 @@ export default function VendorBookingsPage() {
                         <div className="flex flex-col sm:flex-row items-center gap-6 xl:pl-6 xl:border-l border-zinc-50">
                           <div className="text-center sm:text-right">
                             <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Payout</p>
-                            <p className="text-lg font-black text-zinc-900 italic">
-                              ₹{booking.totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            <p className={cn(
+                              "text-lg font-black italic",
+                              ["Cancelled", "Expired", "Rejected"].includes(booking.status) ? "text-zinc-300 line-through" : "text-zinc-900"
+                            )}>
+                              ₹{["Cancelled", "Expired", "Rejected"].includes(booking.status) ? 0 : (booking.hostPayoutAmount || booking.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -275,6 +278,18 @@ export default function VendorBookingsPage() {
                   <h4 className="font-black uppercase text-zinc-400 tracking-widest">Details</h4>
                   <div className="space-y-3 p-4 rounded-xl border border-zinc-100 font-bold">
                     <p className="flex justify-between"><span>Guests</span> <span className="text-zinc-900">{selectedBooking.guests} People</span></p>
+                    {/* Show room selections for multi-unit hotel-type listings */}
+                    {selectedBooking.roomDetails && selectedBooking.roomDetails.length > 0 && (
+                      <div className="pt-2 border-t border-zinc-50 space-y-1">
+                        <p className="text-zinc-400 uppercase tracking-widest text-[9px] font-black mb-1.5">Rooms Booked</p>
+                        {selectedBooking.roomDetails.map((room: any, i: number) => (
+                          <p key={i} className="flex justify-between text-zinc-600">
+                            <span className="font-medium text-[11px]">{room.name}</span>
+                            <span className="text-zinc-900">× {room.qty}</span>
+                          </p>
+                        ))}
+                      </div>
+                    )}
                     {selectedBooking.specialRequests && <p className="pt-2 border-t border-zinc-50 italic text-zinc-500">"{selectedBooking.specialRequests}"</p>}
                   </div>
                 </div>

@@ -276,6 +276,7 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
   const [bookedDates, setBookedDates] = useState<string[]>([]);
   const [calendarError, setCalendarError] = useState("");
+  const [bookingCardError, setBookingCardError] = useState("");
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
@@ -681,21 +682,35 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
 
               {/* Quick stats pills */}
               <div className="flex flex-wrap gap-2 pt-1">
-                <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
-                  <Users className="w-4 h-4 text-gray-400" /> {listing.maxGuests} guests
-                </span>
-                <span className="text-gray-300">·</span>
-                <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
-                  <Bed className="w-4 h-4 text-gray-400" /> {listing.bedrooms} bedroom{listing.bedrooms !== 1 ? "s" : ""}
-                </span>
-                <span className="text-gray-300">·</span>
-                <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
-                  <Bed className="w-4 h-4 text-gray-400" /> {listing.beds} bed{listing.beds !== 1 ? "s" : ""}
-                </span>
-                <span className="text-gray-300">·</span>
-                <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
-                  <Bath className="w-4 h-4 text-gray-400" /> {listing.bathrooms} bathroom{listing.bathrooms !== 1 ? "s" : ""}
-                </span>
+                {listing.isEntirePlace ? (
+                  <>
+                    <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+                      <Users className="w-4 h-4 text-gray-400" /> {listing.maxGuests} guests
+                    </span>
+                    <span className="text-gray-300">·</span>
+                    <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+                      <Bed className="w-4 h-4 text-gray-400" /> {listing.bedrooms} bedroom{listing.bedrooms !== 1 ? "s" : ""}
+                    </span>
+                    <span className="text-gray-300">·</span>
+                    <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+                      <Bed className="w-4 h-4 text-gray-400" /> {listing.beds} bed{listing.beds !== 1 ? "s" : ""}
+                    </span>
+                    <span className="text-gray-300">·</span>
+                    <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+                      <Bath className="w-4 h-4 text-gray-400" /> {listing.bathrooms} bathroom{listing.bathrooms !== 1 ? "s" : ""}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+                      <DoorOpen className="w-4 h-4 text-gray-400" /> Multiple rooms available
+                    </span>
+                    <span className="text-gray-300">·</span>
+                    <span className="inline-flex items-center gap-1.5 text-sm text-gray-700">
+                      <Users className="w-4 h-4 text-gray-400" /> {listing.maxGuests > 0 ? `Up to ${listing.maxGuests} guests` : "Suitable for groups"}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 
@@ -797,24 +812,40 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                   Where you'll sleep
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {Array.from({ length: listing.bedrooms }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="p-4 rounded-xl border border-gray-200 space-y-2"
-                    >
-                      <Bed className="w-5 h-5 text-gray-500" />
-                      <p className="text-sm font-semibold text-gray-900">Bedroom {i + 1}</p>
-                      <p className="text-xs text-gray-500">
-                        {Math.ceil(listing.beds / listing.bedrooms) >= 2 ? "2 beds" : "1 bed"}
-                      </p>
-                    </div>
-                  ))}
-                  {listing.extraMattresses != null && listing.extraMattresses > 0 && (
-                    <div className="p-4 rounded-xl border border-gray-200 space-y-2">
-                      <Hash className="w-5 h-5 text-gray-500" />
-                      <p className="text-sm font-semibold text-gray-900">Extra Mattresses</p>
-                      <p className="text-xs text-gray-500">{listing.extraMattresses} available</p>
-                    </div>
+                  {listing.isEntirePlace ? (
+                    <>
+                      {Array.from({ length: listing.bedrooms }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="p-4 rounded-xl border border-gray-200 space-y-2"
+                        >
+                          <Bed className="w-5 h-5 text-gray-500" />
+                          <p className="text-sm font-semibold text-gray-900">Bedroom {i + 1}</p>
+                          <p className="text-xs text-gray-500">
+                            {Math.ceil(listing.beds / listing.bedrooms) >= 2 ? "2 beds" : "1 bed"}
+                          </p>
+                        </div>
+                      ))}
+                      {listing.extraMattresses != null && listing.extraMattresses > 0 && (
+                        <div className="p-4 rounded-xl border border-gray-200 space-y-2">
+                          <Hash className="w-5 h-5 text-gray-500" />
+                          <p className="text-sm font-semibold text-gray-900">Extra Mattresses</p>
+                          <p className="text-xs text-gray-500">{listing.extraMattresses} available</p>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {listing.rooms?.map((room) => (
+                        <div key={room.id} className="p-4 rounded-xl border border-gray-200 space-y-2">
+                          <DoorOpen className="w-5 h-5 text-gray-500" />
+                          <p className="text-sm font-semibold text-gray-900 truncate" title={room.name}>{room.name}</p>
+                          <p className="text-xs text-gray-500">
+                            {room.beds} bed{room.beds !== 1 ? "s" : ""} · Up to {room.maxGuests} guests
+                          </p>
+                        </div>
+                      ))}
+                    </>
                   )}
                 </div>
               </div>
@@ -1501,9 +1532,19 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                     </div>
                   )}
 
+                  {/* Local Booking Error */}
+                  {bookingCardError && (
+                    <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-100 flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-rose-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-rose-700 font-medium">{bookingCardError}</p>
+                    </div>
+                  )}
+
                   {/* Book button */}
                   <Button
                     onClick={() => {
+                      setBookingCardError("");
+
                       if (!checkIn || !checkOut) {
                         document.getElementById("availability-calendar")?.scrollIntoView({ behavior: "smooth" });
                         setCalendarError("Please select check-in and check-out dates first.");
@@ -1511,7 +1552,12 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                       }
 
                       if (hasRoomSelection && selectedRoomCount === 0) {
-                        setCalendarError("Please select at least one room to continue.");
+                        setBookingCardError("Please select at least one room to continue.");
+                        return;
+                      }
+
+                      if (hasRoomSelection && totalRoomGuests < guestCount) {
+                        setBookingCardError(`Your selected rooms can only accommodate up to ${totalRoomGuests} guests. Please select more rooms.`);
                         return;
                       }
 
@@ -1560,7 +1606,7 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                     ) : (
                       <div className="flex justify-between text-sm text-gray-600">
                         <span className="underline decoration-gray-200 underline-offset-4">
-                          ₹{fmt(listing.basePrice)} × {nights} night{nights !== 1 ? "s" : ""}
+                          {hasRoomSelection ? "Select rooms to view total" : `₹${fmt(listing.basePrice)} × ${nights} night${nights !== 1 ? "s" : ""}`}
                         </span>
                         <span>₹{fmt(baseTotal)}</span>
                       </div>

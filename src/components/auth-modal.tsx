@@ -161,7 +161,7 @@ export function AuthModal({ open, onClose, onSuccess, title, subtitle }: AuthMod
     const [resendLoading, setResendLoading] = useState(false);
     const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    const { setIsLoggedIn, setRole, setHasVendorAccess } = useRole();
+    const { setIsLoggedIn, setRole, setHasVendorAccess, setActualRole, setKycStatus } = useRole();
 
     /* ── Countdown ── */
     const stopCountdown = useCallback(() => {
@@ -237,17 +237,28 @@ export function AuthModal({ open, onClose, onSuccess, title, subtitle }: AuthMod
     const finishAuth = (user: any) => {
         const resolvedRole: string = (user?.role || "guest").toLowerCase();
         const isVendorOrDual = resolvedRole === "vendor" || resolvedRole === "dual mode";
-        if (isVendorOrDual) {
+        const isApproved = user?.kycStatus === "Approved";
+
+        if (isVendorOrDual && isApproved) {
             setRole("vendor");
-            setHasVendorAccess(user?.kycStatus === "Approved");
-            setCachedUser({ role: "vendor", hasVendorAccess: user?.kycStatus === "Approved" });
+            setHasVendorAccess(true);
+            setActualRole(resolvedRole);
+            setKycStatus(user?.kycStatus);
+            setCachedUser({ role: "vendor", hasVendorAccess: true, actualRole: resolvedRole, kycStatus: user?.kycStatus });
         } else {
             setRole("guest");
             setHasVendorAccess(false);
-            setCachedUser({ role: "guest", hasVendorAccess: false });
+            setActualRole(isVendorOrDual ? resolvedRole : "guest");
+            setKycStatus(user?.kycStatus);
+            setCachedUser({ role: "guest", hasVendorAccess: false, actualRole: isVendorOrDual ? resolvedRole : "guest", kycStatus: user?.kycStatus });
         }
         setIsLoggedIn(true);
-        onSuccess(user);
+        
+        if (isVendorOrDual && !isApproved) {
+            window.location.href = "/vendor/onboarding";
+        } else {
+            onSuccess(user);
+        }
     };
 
     const handleResendOtp = async () => {

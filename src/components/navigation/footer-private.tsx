@@ -16,7 +16,6 @@ export function FooterPrivate() {
           
           <div className="flex flex-wrap justify-center items-center gap-4 md:gap-8 text-xs font-bold text-zinc-400 uppercase tracking-widest text-center">
             <Link href="/faq" className="hover:text-zinc-900">FAQs</Link>
-            <Link href="/contact" className="hover:text-zinc-900">Contact</Link>
             <Link href="/support" className="hover:text-zinc-900">Support</Link>
             <Link href="/terms" className="hover:text-zinc-900">Terms</Link>
             <Link href="/privacy" className="hover:text-zinc-900">Privacy</Link>

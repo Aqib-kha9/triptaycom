@@ -984,12 +984,16 @@ export default function EditListingPage() {
                                         {step === 5 && (
                                             <>
                                                 {renderSectionHeader("Food & Dining", "Meal options and kitchen")}
-                                                {renderToggle("Kitchen Available", "hasKitchen")}
-                                                {formData.hasKitchen && (
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Kitchen Details</label>
-                                                        <Textarea placeholder="Describe what's in the kitchen..." value={formData.kitchenDetails} onChange={(e) => update("kitchenDetails", e.target.value)} className="min-h-[80px] rounded-xl border-zinc-100 bg-zinc-50/50 text-xs font-medium resize-y" />
-                                                    </div>
+                                                {formData.isEntirePlace && (
+                                                    <>
+                                                        {renderToggle("Kitchen Available", "hasKitchen")}
+                                                        {formData.hasKitchen && (
+                                                            <div className="space-y-1.5">
+                                                                <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Kitchen Details</label>
+                                                                <Textarea placeholder="Describe what's in the kitchen..." value={formData.kitchenDetails} onChange={(e) => update("kitchenDetails", e.target.value)} className="min-h-[80px] rounded-xl border-zinc-100 bg-zinc-50/50 text-xs font-medium resize-y" />
+                                                            </div>
+                                                        )}
+                                                    </>
                                                 )}
                                                 <div className="space-y-3">
                                                     <label className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Meal Options</label>
@@ -1101,7 +1105,7 @@ export default function EditListingPage() {
                                                 </div>
                                                 {renderToggle("Instant Book", "instantBook")}
                                                 {renderInput("Advance Notice (hours)", "advanceNoticeHours", "e.g. 24")}
-                                                {renderInput("Max Guests Per Booking", "maxGuestsPerBooking", "e.g. 6")}
+                                                {formData.isEntirePlace && renderInput("Max Guests Per Booking", "maxGuestsPerBooking", "e.g. 6")}
                                                 {renderInput("Video Tour URL", "videoTourUrl", "YouTube / Vimeo link")}
                                             </>
                                         )}

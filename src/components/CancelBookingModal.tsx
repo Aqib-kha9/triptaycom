@@ -188,7 +188,7 @@ export function CancelBookingModal({ open, onClose, booking, onCancelled }: Canc
         <AnimatePresence>
             {open && (
                 <motion.div
-                    className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4"
+                    className="fixed inset-0 z-[120] flex items-end sm:items-center justify-center p-0 sm:p-4"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}

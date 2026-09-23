@@ -31,6 +31,7 @@ import { bookingsApi, chatApi } from "@/lib/api-client";
 import { getSessionToken } from "@/lib/session";
 import type { BookingItem } from "@/types/api";
 import { InvoiceModal } from "@/components/InvoiceModal";
+import { CancelBookingModal } from "@/components/CancelBookingModal";
 
 function formatDate(iso?: string): string {
   if (!iso) return "—";
@@ -49,6 +50,7 @@ export default function BookingDetailPage({ params: paramsPromise }: { params: P
   const [error, setError] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
   const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
 
   useEffect(() => {
@@ -109,17 +111,9 @@ export default function BookingDetailPage({ params: paramsPromise }: { params: P
     };
   }, [booking?.id]);
 
-  const handleCancel = async () => {
+  const handleCancel = () => {
     if (!booking) return;
-    setIsCancelling(true);
-    try {
-      await bookingsApi.cancelBooking(booking.id);
-      setBooking((prev) => (prev ? { ...prev, status: "Cancelled" } : prev));
-    } catch {
-      /* ignore */
-    } finally {
-      setIsCancelling(false);
-    }
+    setCancelModalOpen(true);
   };
 
   const handleChatWithHost = async () => {
@@ -297,6 +291,20 @@ export default function BookingDetailPage({ params: paramsPromise }: { params: P
                         {booking.guests} {booking.guests === 1 ? "Guest" : "Guests"}
                       </div>
                     </div>
+                    {/* Room Selections - shown for hotel/multi-unit listings */}
+                    {booking.roomSelections && Object.keys(booking.roomSelections).length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Rooms Booked</p>
+                        <div className="space-y-1">
+                          {Object.entries(booking.roomSelections).map(([roomId, qty]) => (
+                            <div key={roomId} className="flex items-center gap-2 text-zinc-700 font-semibold text-sm">
+                              <span className="w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-black flex items-center justify-center flex-shrink-0">{qty}</span>
+                              <span className="text-zinc-500 text-xs">Room ID: <span className="font-bold text-zinc-700 font-mono">{roomId.slice(-8)}</span></span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="pt-4 border-t border-zinc-50 flex items-center justify-between">
                       <div className="space-y-1">
                         <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Booking Date</p>
@@ -341,7 +349,7 @@ export default function BookingDetailPage({ params: paramsPromise }: { params: P
                         <div className="pt-1">
                           <p className="font-bold text-zinc-900">Payment Processed</p>
                           <p className="text-sm text-zinc-500 font-medium">
-                            {booking.status === "Paid" || booking.status === "Confirmed"
+                            {booking.status === "Paid" || booking.status === "Confirmed" || booking.status === "Completed"
                               ? `Payment of ${formatPrice(booking.totalAmount)} was successfully received.`
                               : "Awaiting payment confirmation."}
                           </p>
@@ -422,8 +430,14 @@ export default function BookingDetailPage({ params: paramsPromise }: { params: P
                     <p className={cn("text-xs font-black uppercase tracking-widest", isCancelled ? "text-rose-600" : "text-emerald-600")}>
                       {isCancelled ? "Payment Refunded" : "Payment Success"}
                     </p>
-                    <p className={cn("text-[10px] font-bold uppercase tracking-tight", isCancelled ? "text-rose-800/60" : "text-emerald-800/60")}>
-                      Ref: #{booking.bookingId}
+                    <p className={cn("text-[10px] font-bold uppercase tracking-tight flex items-center gap-2", isCancelled ? "text-rose-800/60" : "text-emerald-800/60")}>
+                      <span>Ref: #{booking.bookingId}</span>
+                      {isCancelled && (
+                        <>
+                          <span>•</span>
+                          <span>Amount: {formatPrice(booking.refundAmount || 0)}</span>
+                        </>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -438,7 +452,7 @@ export default function BookingDetailPage({ params: paramsPromise }: { params: P
                     Cancellation Policy
                   </h4>
                   <p className="text-xs text-rose-800/80 font-medium leading-relaxed">
-                    Cancel before check-in for a refund based on the host's cancellation policy. No refund for cancellations within 48 hours of check-in.
+                    Cancel your booking at any time before check-in. The exact refund amount and any applicable penalty fees will be dynamically calculated based on the host's active cancellation policy rules. Click "Request Cancellation" below to view a detailed refund preview before confirming.
                   </p>
                   <button
                     onClick={handleCancel}
@@ -458,6 +472,16 @@ export default function BookingDetailPage({ params: paramsPromise }: { params: P
         open={invoiceOpen}
         onClose={() => setInvoiceOpen(false)}
         booking={booking}
+      />
+
+      <CancelBookingModal
+        open={cancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        booking={booking}
+        onCancelled={() => {
+          setCancelModalOpen(false);
+          setBooking(prev => prev ? { ...prev, status: "Cancelled" } : prev);
+        }}
       />
 
       <Footer />

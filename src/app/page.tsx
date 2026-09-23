@@ -17,8 +17,13 @@ import Link from "next/link";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { listingsApi, activitiesApi, destinationsApi } from "@/lib/api-client";
 import type { DestinationItem, ListingItem, ActivityItem } from "@/types/api";
+import { useRole } from "@/components/role-provider";
+import { useRouter } from "next/navigation";
 
 export default function Home() {
+  const { role } = useRole();
+  const router = useRouter();
+
   const [destinations, setDestinations] = useState<DestinationItem[] | null>(null);
   const [destLoading, setDestLoading] = useState(true);
 
@@ -108,6 +113,10 @@ export default function Home() {
 
     const run = () => {
       if (cancelled) return;
+      if (role === "vendor") {
+        router.replace("/vendor/dashboard");
+        return;
+      }
       loadHomeData();
     };
 
@@ -184,7 +193,8 @@ export default function Home() {
               featuredListings.map((l) => (
                 <ItemCard
                   key={l.id}
-                  id={l.slug || l.id}
+                  id={l.id}
+                  slug={l.slug}
                   title={l.name}
                   location={`${l.city}, ${l.state}`}
                   price={l.basePrice.toLocaleString("en-IN")}
@@ -213,7 +223,8 @@ export default function Home() {
                 <ItemCard
                   key={a.id}
                   type="activity"
-                  id={a.slug || a.id}
+                  id={a.id}
+                  slug={a.slug}
                   title={a.name}
                   location={`${a.city}, ${a.state}`}
                   price={a.basePrice?.toLocaleString("en-IN") || String(a.basePrice)}

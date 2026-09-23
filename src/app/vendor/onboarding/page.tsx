@@ -27,6 +27,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { authApi, uploadApi } from "@/lib/api-client";
+import { useRole } from "@/components/role-provider";
 
 const STEPS = [
   { id: 1, title: "Business", icon: <Building2 className="w-4 h-4" /> },
@@ -69,29 +70,20 @@ export default function VendorOnboardingPage() {
 
   // On mount, check if the user already submitted KYC (kycStatus = Pending).
   // If so, auto-show the "Application Under Review" screen instead of the empty form.
+  const { kycStatus } = useRole();
   const [pageLoading, setPageLoading] = useState(true);
+  
   useEffect(() => {
-    const checkExistingKyc = async () => {
-      try {
-        const res = await authApi.getMe();
-        const user = res.data?.user;
-        const kyc = user?.kycStatus;
-        if (kyc === "Approved") {
-          router.replace("/vendor/dashboard");
-          return;
-        }
-        if (kyc === "Pending") {
-          setIsSubmitted(true);
-        }
-      } catch {
-        // ignore — show the form
-      } finally {
-        setPageLoading(false);
-      }
-    };
-    checkExistingKyc();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Only process if we have determined kycStatus (or lack thereof)
+    if (kycStatus === "Approved") {
+      router.replace("/vendor/dashboard");
+      return;
+    }
+    if (kycStatus === "Pending") {
+      setIsSubmitted(true);
+    }
+    setPageLoading(false);
+  }, [kycStatus, router]);
 
   const uploadFileToCloudinary = async (file: File, docType: DocType): Promise<string> => {
     const data = await uploadApi.uploadDocument(file, docType);

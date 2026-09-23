@@ -456,6 +456,114 @@ const FILLER_DATA: FormData = {
   rooms: [],
 };
 
+// ── Hotel / Room-based Sample Data ──
+const HOTEL_FILLER_DATA: FormData = {
+  name: "The Mountain View Inn",
+  summary: "A charming boutique hotel nestled in the heart of Manali offering individually curated rooms, each with stunning mountain views and modern comforts.",
+  description: "The Mountain View Inn is a boutique property with 3 distinct room types — each thoughtfully designed with premium furnishings, en-suite bathrooms, and curated mountain décor. Our dedicated team ensures personalized service, and guests enjoy access to the rooftop café, bonfire area, and guided trek bookings. Whether you're a couple seeking romance or a group of friends on an adventure, we have a room for every occasion.",
+  propertyType: "Homestay",
+  isEntirePlace: false,
+  floorNumber: "",
+  totalFloors: "3",
+  propertySizeSqFt: "",
+  yearBuilt: "2019",
+  address: "Near Mall Road, Siyal Village, Old Manali",
+  city: "Manali",
+  state: "Himachal Pradesh",
+  country: "India",
+  zipCode: "175131",
+  landmark: "Old Manali Bridge",
+  lat: "32.2432",
+  lng: "77.1892",
+  nearbyPlaces: [
+    { name: "Old Manali Market", distanceKm: 0.8, category: "Market" },
+    { name: "Manu Temple", distanceKm: 1.2, category: "Temple" },
+    { name: "Beas River", distanceKm: 0.5, category: "Tourist Spot" },
+    { name: "Mall Road", distanceKm: 2.0, category: "Market" },
+  ],
+  // These will be auto-calculated by backend from rooms
+  maxGuests: "",
+  bedrooms: "",
+  beds: "",
+  bathrooms: "",
+  extraMattresses: "0",
+  basePrice: "1800",
+  weekendPrice: "2400",
+  seasonalPrices: [
+    { seasonName: "Summer Peak (May–Jun)", startDate: "2026-05-01", endDate: "2026-06-30", pricePerNight: 2800 },
+    { seasonName: "New Year Getaway", startDate: "2026-12-25", endDate: "2027-01-03", pricePerNight: 4200 },
+  ],
+  cleaningFee: "0",
+  securityDeposit: "1000",
+  extraGuestPrice: "0",
+  taxes: "12",
+  minStay: "1",
+  maxStay: "14",
+  checkInTime: "01:00 PM",
+  checkOutTime: "11:00 AM",
+  flexibleCheckIn: true,
+  flexibleCheckOut: false,
+  amenities: ["wifi", "hotWater", "ac", "heating", "tv", "roomService", "toiletries", "linens", "housekeeping", "parking", "powerBackup", "firstAid", "smokeAlarm"],
+  meals: [
+    { mealType: "Breakfast", included: true, extraPrice: 150 },
+    { mealType: "Dinner", included: false, extraPrice: 300 },
+  ],
+  hasKitchen: false,
+  kitchenDetails: "",
+  houseRules: [
+    { rule: "No smoking inside rooms" },
+    { rule: "No loud music after 10 PM" },
+    { rule: "ID proof mandatory at check-in" },
+    { rule: "No unregistered guests allowed" },
+    { rule: "Checkout by 11 AM strictly" },
+  ],
+  cancellationPolicy: "Moderate",
+  cancellationDetails: "Free cancellation up to 5 days before check-in. 50% refund for cancellations 2–5 days before. No refund within 48 hours.",
+  isPetFriendly: false,
+  petRules: "",
+  isSmokingAllowed: false,
+  isPartyAllowed: false,
+  quietHoursStart: "22:00",
+  quietHoursEnd: "07:00",
+  languagesSpoken: ["English", "Hindi"],
+  instantBook: true,
+  advanceNoticeHours: "12",
+  maxGuestsPerBooking: "",
+  videoTourUrl: "",
+  rooms: [
+    {
+      name: "Deluxe Mountain View Room",
+      description: "Spacious room with a private balcony overlooking the Beas Valley. Comes with a king-size bed, premium linens, and a rainfall shower.",
+      maxGuests: "2",
+      basePrice: "1800",
+      inventory: "4",
+      beds: "1",
+      bathrooms: "1",
+      amenities: ["wifi", "ac", "tv", "hotWater", "balcony"],
+    },
+    {
+      name: "Super Deluxe Family Room",
+      description: "A larger room designed for families with 2 double beds, a sitting area, and mountain views. Ideal for groups of 3–4.",
+      maxGuests: "4",
+      basePrice: "2800",
+      inventory: "2",
+      beds: "2",
+      bathrooms: "1",
+      amenities: ["wifi", "ac", "tv", "hotWater", "workspace"],
+    },
+    {
+      name: "Presidential Suite",
+      description: "Our most luxurious offering — a fully-appointed suite with a private jacuzzi, panoramic Himalayan views, and a dedicated butler service.",
+      maxGuests: "2",
+      basePrice: "5500",
+      inventory: "1",
+      beds: "1",
+      bathrooms: "2",
+      amenities: ["wifi", "ac", "tv", "hotWater", "balcony", "workspace", "hotTub"],
+    },
+  ],
+};
+
 // ──────────────────────── Component ────────────────────────
 
 export default function AddHomestayPage() {
@@ -476,6 +584,13 @@ export default function AddHomestayPage() {
 
   const handleAutoFill = () => {
     setFormData({ ...FILLER_DATA });
+    setErrors({});
+    setSubmitSuccess(false);
+    setSubmitError("");
+  };
+
+  const handleAutoFillHotel = () => {
+    setFormData({ ...HOTEL_FILLER_DATA });
     setErrors({});
     setSubmitSuccess(false);
     setSubmitError("");
@@ -683,10 +798,20 @@ export default function AddHomestayPage() {
     }
     if (step === 3) {
       if (!f.basePrice || parseFloat(f.basePrice) <= 0) newErrors.basePrice = "Enter a valid price";
-      if (!f.maxGuests || parseInt(f.maxGuests) < 1) newErrors.maxGuests = "At least 1 guest required";
-      if (!f.bedrooms || parseInt(f.bedrooms) < 0) newErrors.bedrooms = "Enter bedrooms";
-      if (!f.beds || parseInt(f.beds) < 1) newErrors.beds = "At least 1 bed required";
-      if (!f.bathrooms || parseInt(f.bathrooms) < 0) newErrors.bathrooms = "Enter bathrooms";
+      
+      if (f.isEntirePlace) {
+        if (!f.maxGuests || parseInt(f.maxGuests) < 1) newErrors.maxGuests = "At least 1 guest required";
+        if (!f.bedrooms || parseInt(f.bedrooms) < 0) newErrors.bedrooms = "Enter bedrooms";
+        if (!f.beds || parseInt(f.beds) < 1) newErrors.beds = "At least 1 bed required";
+        if (!f.bathrooms || parseInt(f.bathrooms) < 0) newErrors.bathrooms = "Enter bathrooms";
+      } else {
+        if (f.rooms.length === 0) {
+          newErrors.rooms = "At least 1 room type must be added for room-based listings";
+        } else {
+          const hasInvalidRoom = f.rooms.some(r => !r.name.trim() || parseInt(r.inventory) < 1 || parseFloat(r.basePrice) <= 0);
+          if (hasInvalidRoom) newErrors.rooms = "Ensure all rooms have a name, inventory >= 1, and valid base price";
+        }
+      }
     }
     if (step === 7) {
       if (mediaFiles.length === 0) newErrors.media = "Upload at least 1 photo";
@@ -726,11 +851,19 @@ export default function AddHomestayPage() {
         lat: parseFloat(formData.lat) || 0,
         lng: parseFloat(formData.lng) || 0,
         coordinates: { lat: parseFloat(formData.lat) || 0, lng: parseFloat(formData.lng) || 0 },
-        maxGuests: parseInt(formData.maxGuests),
-        bedrooms: parseInt(formData.bedrooms),
-        beds: parseInt(formData.beds),
-        bathrooms: parseInt(formData.bathrooms),
-        extraMattresses: parseInt(formData.extraMattresses) || 0,
+        // For entire-place: read from form. For room-based: backend auto-calculates from rooms.
+        ...(formData.isEntirePlace
+          ? {
+              maxGuests: parseInt(formData.maxGuests) || 1,
+              bedrooms: parseInt(formData.bedrooms) || 0,
+              beds: parseInt(formData.beds) || 0,
+              bathrooms: parseInt(formData.bathrooms) || 0,
+              extraMattresses: parseInt(formData.extraMattresses) || 0,
+            }
+          : {
+              extraMattresses: 0,
+            }
+        ),
         basePrice: parseFloat(formData.basePrice),
         weekendPrice: formData.weekendPrice ? parseFloat(formData.weekendPrice) : undefined,
         seasonalPrices: formData.seasonalPrices?.map((sp: any) => ({
@@ -775,9 +908,12 @@ export default function AddHomestayPage() {
         languagesSpoken: formData.languagesSpoken,
         instantBook: formData.instantBook,
         advanceNoticeHours: parseInt(formData.advanceNoticeHours) || 0,
-        maxGuestsPerBooking: formData.maxGuestsPerBooking
-          ? parseInt(formData.maxGuestsPerBooking)
-          : parseInt(formData.maxGuests),
+        // maxGuestsPerBooking: only for entire-place listings
+        ...(formData.isEntirePlace && {
+          maxGuestsPerBooking: formData.maxGuestsPerBooking
+            ? parseInt(formData.maxGuestsPerBooking)
+            : parseInt(formData.maxGuests) || undefined,
+        }),
         videoTourUrl: formData.videoTourUrl.trim() || undefined,
         status: "published",
         rooms: formData.isEntirePlace ? [] : formData.rooms.map((r) => ({
@@ -984,8 +1120,8 @@ export default function AddHomestayPage() {
             {renderStepIndicator()}
           </div>
 
-          {/* Quick Fill Button */}
-          <div className="flex justify-end mb-4">
+          {/* Quick Fill Buttons */}
+          <div className="flex justify-end gap-2 mb-4">
             <Button
               type="button"
               variant="outline"
@@ -994,7 +1130,17 @@ export default function AddHomestayPage() {
               className="rounded-xl border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 hover:border-amber-300 gap-1.5 font-bold text-xs"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              Quick Fill Sample Data
+              🏡 Entire Place Demo
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleAutoFillHotel}
+              className="rounded-xl border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:border-violet-300 gap-1.5 font-bold text-xs"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              🏨 Hotel / Rooms Demo
             </Button>
           </div>
 
@@ -1513,21 +1659,25 @@ export default function AddHomestayPage() {
                     </div>
 
                     {/* Kitchen */}
-                    {renderToggle("Kitchen Available", "hasKitchen", "Guests can use the kitchen")}
-                    {formData.hasKitchen && (
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">
-                          Kitchen Details
-                        </label>
-                        <Textarea
-                          placeholder="What equipment is available? (e.g., gas stove, microwave, refrigerator, utensils)"
-                          value={formData.kitchenDetails}
-                          onChange={(e) => update("kitchenDetails", e.target.value)}
-                          maxLength={500}
-                          rows={3}
-                          className="rounded-xl border-zinc-100 bg-zinc-50 text-xs font-medium resize-none"
-                        />
-                      </div>
+                    {formData.isEntirePlace && (
+                      <>
+                        {renderToggle("Kitchen Available", "hasKitchen", "Guests can use the kitchen")}
+                        {formData.hasKitchen && (
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-zinc-400 ml-1">
+                              Kitchen Details
+                            </label>
+                            <Textarea
+                              placeholder="What equipment is available? (e.g., gas stove, microwave, refrigerator, utensils)"
+                              value={formData.kitchenDetails}
+                              onChange={(e) => update("kitchenDetails", e.target.value)}
+                              maxLength={500}
+                              rows={3}
+                              className="rounded-xl border-zinc-100 bg-zinc-50 text-xs font-medium resize-none"
+                            />
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 )}
@@ -1824,7 +1974,7 @@ export default function AddHomestayPage() {
                         type: "number",
                         placeholder: "0 = same day booking allowed",
                       })}
-                      {renderInput("Max Guests Per Booking", "maxGuestsPerBooking", {
+                      {formData.isEntirePlace && renderInput("Max Guests Per Booking", "maxGuestsPerBooking", {
                         type: "number",
                         placeholder: `Default: ${formData.maxGuests}`,
                       })}

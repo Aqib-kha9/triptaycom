@@ -230,6 +230,15 @@ export default function MyBookingsPage() {
                                   </div>
                                 )}
                               </div>
+                              {booking.roomDetails && booking.roomDetails.length > 0 && (
+                                <div className="mt-2 space-y-1">
+                                  {booking.roomDetails.map((room: any, idx: number) => (
+                                    <p key={idx} className="text-[10px] text-zinc-500 font-medium">
+                                      <span className="text-zinc-700">{room.name}</span> × {room.qty}
+                                    </p>
+                                  ))}
+                                </div>
+                              )}
                             </div>
 
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 mt-3 border-t border-zinc-50">

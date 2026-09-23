@@ -27,10 +27,13 @@ interface FilterParams {
   maxPrice?: number;
   amenities?: string[];
   sort?: string;
+  guests?: number;
+  rooms?: number;
 }
 
 interface StayItem {
   id: string;
+  slug?: string;
   image: string;
   title: string;
   location: string;
@@ -95,6 +98,8 @@ export default function StaysPage() {
         if (activeFilters.propertyType) params.propertyType = activeFilters.propertyType;
         if (activeFilters.minPrice !== undefined) params.minPrice = activeFilters.minPrice;
         if (activeFilters.maxPrice !== undefined) params.maxPrice = activeFilters.maxPrice;
+        if (activeFilters.guests !== undefined) params.guests = activeFilters.guests;
+        if (activeFilters.rooms !== undefined) params.rooms = activeFilters.rooms;
         if (activeFilters.amenities && activeFilters.amenities.length > 0) {
           params.amenities = activeFilters.amenities.join(",");
         }
@@ -108,6 +113,7 @@ export default function StaysPage() {
 
         const mapped: StayItem[] = rawItems.map((item) => ({
           id: item.id,
+          slug: item.slug,
           image: item.media?.[0]?.url || "/placeholder.jpg",
           title: item.name,
           location: [item.city, item.state].filter(Boolean).join(", ") || "Unknown",

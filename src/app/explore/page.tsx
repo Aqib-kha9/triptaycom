@@ -55,6 +55,7 @@ interface ResultItem {
   rating: string;
   type: "homestay" | "activity";
   distanceKm?: number;
+  slug?: string;
 }
 
 const SORT_OPTIONS = [
@@ -71,6 +72,7 @@ const SORT_OPTIONS = [
 function mapListingToResult(item: ListingItem): ResultItem {
   return {
     id: item.id,
+    slug: item.slug,
     image: item.media?.[0]?.url || "/placeholder.jpg",
     title: item.name,
     location: [item.city, item.state].filter(Boolean).join(", ") || "Unknown",
@@ -83,6 +85,7 @@ function mapListingToResult(item: ListingItem): ResultItem {
 function mapActivityToResult(item: ActivityItem): ResultItem {
   return {
     id: item.id,
+    slug: item.slug,
     image: item.media?.[0]?.url || "/placeholder.jpg",
     title: item.name,
     location: [item.city, item.state].filter(Boolean).join(", ") || "Unknown",
@@ -95,6 +98,7 @@ function mapActivityToResult(item: ActivityItem): ResultItem {
 function mapNearbyToResult(item: NearbyItem): ResultItem {
   return {
     id: item.id,
+    slug: item.slug,
     image: item.media?.[0]?.url || "/placeholder.jpg",
     title: item.name,
     location: [item.city, item.state].filter(Boolean).join(", ") || "Unknown",

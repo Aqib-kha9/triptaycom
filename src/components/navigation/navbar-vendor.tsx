@@ -16,7 +16,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 export function NavbarVendor() {
   const pathname = usePathname();
   const router = useRouter();
-  const { setRole, logout } = useRole();
+  const { setRole, logout, avatar } = useRole();
 
   const [msgUnread, setMsgUnread] = useState(0);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -106,7 +106,7 @@ export function NavbarVendor() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo & Role Badge */}
         <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/vendor/dashboard" className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white">
               <span className="text-xl font-bold italic">T</span>
             </div>
@@ -164,8 +164,12 @@ export function NavbarVendor() {
                 onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-2 py-1 hover:border-zinc-300 transition-all cursor-pointer"
               >
-                <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center">
-                  <User className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center overflow-hidden">
+                  {avatar ? (
+                    <img src={avatar} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-4 h-4" />
+                  )}
                 </div>
                 <ChevronDown className={cn("w-3 h-3 text-zinc-400 transition-transform", isUserMenuOpen && "rotate-180")} />
               </button>

@@ -254,17 +254,17 @@ export const authApi = {
 
   getMe: (timeout?: number) => request<ApiResponse<{ user: SanitizedUser }>>("/auth/me", { timeout }),
 
-  sendOtp: (identifier: string) =>
+  sendOtp: (identifier: string, purpose?: string) =>
     request<ApiResponse<{ message: string; devCode?: string }>>("/auth/send-otp", {
       method: "POST",
-      body: { identifier },
+      body: { identifier, purpose },
       auth: false,
     }),
 
-  verifyOtp: (identifier: string, code: string) =>
+  verifyOtp: (identifier: string, code: string, purpose?: string) =>
     request<ApiResponse<{ success: boolean }>>("/auth/verify-otp", {
       method: "POST",
-      body: { identifier, code },
+      body: { identifier, code, purpose },
       auth: false,
     }),
 
@@ -336,6 +336,29 @@ export const authApi = {
       body: data,
       auth: false,
     }),
+
+  sendPhoneUpdateOtp: (phone: string) =>
+    request<ApiResponse<{ message: string; devCode?: string }>>("/auth/send-phone-update-otp", {
+      method: "POST",
+      body: { phone },
+    }),
+
+  verifyPhoneUpdateOtp: (phone: string, code: string) =>
+    request<ApiResponse<{ message: string; data: { user: SanitizedUser } }>>("/auth/verify-phone-update-otp", {
+      method: "POST",
+      body: { phone, code },
+    }),
+
+  sendPasswordResetOtp: () =>
+    request<ApiResponse<{ message: string; devCode?: string }>>("/auth/send-password-reset-otp", {
+      method: "POST",
+    }),
+
+  verifyPasswordResetOtp: (code: string, newPassword: string) =>
+    request<ApiResponse<{ message: string }>>("/auth/verify-password-reset-otp", {
+      method: "POST",
+      body: { code, newPassword },
+    }),
 };
 
 // ─── Listings API ───────────────────────────────────────────
@@ -348,6 +371,8 @@ export const listingsApi = {
     minPrice?: number;
     maxPrice?: number;
     amenities?: string;
+    guests?: number;
+    rooms?: number;
     sort?: string;
     page?: number;
     limit?: number;
@@ -625,7 +650,7 @@ export const walletApi = {
     ),
 
   createOrder: (data: { amount: number }) =>
-    request<ApiResponse<{ message: string; orderId: string; amount: number; currency: string }>>("/wallet/create-order", {
+    request<ApiResponse<{ message: string; orderId: string; amount: number; currency: string; keyId?: string }>>("/wallet/create-order", {
       method: "POST",
       body: data,
     }),
@@ -689,6 +714,7 @@ export const bookingsApi = {
     activityDate?: string;
     guests: number;
     couponCode?: string;
+    roomSelections?: Record<string, number>;
   }) =>
     request<ApiResponse<{
       item: { id: string; name: string; slug: string };
@@ -829,6 +855,12 @@ export const paymentsApi = {
     request<ApiResponse<{ message: string; booking: BookingItem }>>(
       "/payments/payu/verify",
       { method: "POST", body: data }
+    ),
+
+  payWithWallet: (bookingId: string) =>
+    request<ApiResponse<{ message: string; booking: BookingItem }>>(
+      "/payments/wallet/pay",
+      { method: "POST", body: { bookingId } }
     ),
 
   getPayment: (bookingId: string) =>

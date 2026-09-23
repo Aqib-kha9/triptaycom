@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { Globe, Camera, Play, Mail, MapPin, Phone, Share2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { publicApi } from "@/lib/api-client";
 
 const FOOTER_LINKS = {
   company: [
@@ -18,11 +20,11 @@ const FOOTER_LINKS = {
     { label: "Offers", href: "/offers" },
   ],
   support: [
-    { label: "Help Center", href: "/help" },
+    { label: "Help Center", href: "/support" },
     { label: "Safety Info", href: "/safety" },
     { label: "Cancellation Options", href: "/cancellation" },
     { label: "Our Response", href: "/safety" },
-    { label: "Contact Us", href: "/contact" },
+    { label: "Contact Us", href: "/support" },
     { label: "FAQs", href: "/faq" },
   ],
   legal: [
@@ -33,6 +35,20 @@ const FOOTER_LINKS = {
 };
 
 export function FooterPublic() {
+  const [settings, setSettings] = useState<any>(null);
+
+  useEffect(() => {
+    publicApi.getConfigurations().then(res => {
+      if (res.status === "success" && res.data.configuration?.footer_settings) {
+        setSettings(res.data.configuration.footer_settings);
+      }
+    }).catch(console.error);
+  }, []);
+
+  const links = settings?.links || FOOTER_LINKS;
+  const companyDesc = settings?.companyDesc || "Curating India's most unique homestays and offbeat local experiences. Discover the authentic charm of every destination with Triptay.";
+  const contact = settings?.contact || { email: "hello@triptay.com", phone: "+91 98765 43210" };
+
   return (
     <footer className="bg-white text-zinc-500 pt-20 pb-10 border-t border-zinc-100">
       <div className="container mx-auto px-4">
@@ -44,7 +60,7 @@ export function FooterPublic() {
               TRIPTAY<span className="text-primary">.</span>
             </Link>
             <p className="text-zinc-400 max-w-sm text-sm leading-relaxed mx-auto md:mx-0">
-              Curating India's most unique homestays and offbeat local experiences. Discover the authentic charm of every destination with Triptay.
+              {companyDesc}
             </p>
             <div className="flex justify-center md:justify-start gap-4">
               <a href="#" className="w-10 h-10 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-400 hover:bg-primary hover:text-white transition-all border border-zinc-100">
@@ -66,7 +82,7 @@ export function FooterPublic() {
           <div>
             <h4 className="text-zinc-900 font-bold mb-6 uppercase tracking-widest text-[11px]">Company</h4>
             <ul className="space-y-4 text-sm">
-              {FOOTER_LINKS.company.map((link, i) => (
+              {links.company?.map((link: any, i: number) => (
                 <li key={i}><Link href={link.href} className="hover:text-primary transition-colors font-medium">{link.label}</Link></li>
               ))}
             </ul>
@@ -75,7 +91,7 @@ export function FooterPublic() {
           <div>
             <h4 className="text-zinc-900 font-bold mb-6 uppercase tracking-widest text-[11px]">Support</h4>
             <ul className="space-y-4 text-sm">
-              {FOOTER_LINKS.support.map((link, i) => (
+              {links.support?.map((link: any, i: number) => (
                 <li key={i}><Link href={link.href} className="hover:text-primary transition-colors font-medium">{link.label}</Link></li>
               ))}
             </ul>
@@ -84,7 +100,7 @@ export function FooterPublic() {
           <div>
             <h4 className="text-zinc-900 font-bold mb-6 uppercase tracking-widest text-[11px]">Legal</h4>
             <ul className="space-y-4 text-sm">
-              {FOOTER_LINKS.legal.map((link, i) => (
+              {links.legal?.map((link: any, i: number) => (
                 <li key={i}><Link href={link.href} className="hover:text-primary transition-colors font-medium">{link.label}</Link></li>
               ))}
             </ul>
@@ -96,10 +112,10 @@ export function FooterPublic() {
         <div className="pt-10 border-t border-zinc-100 flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex flex-col md:flex-row items-center gap-6 text-[10px] font-bold uppercase tracking-[0.2em]">
             <div className="flex items-center gap-2">
-              <Mail className="h-3.5 w-3.5 text-primary" /> hello@triptay.com
+              <Mail className="h-3.5 w-3.5 text-primary" /> {contact.email}
             </div>
             <div className="flex items-center gap-2">
-              <Phone className="h-3.5 w-3.5 text-primary" /> +91 98765 43210
+              <Phone className="h-3.5 w-3.5 text-primary" /> {contact.phone}
             </div>
             <div className="flex items-center gap-2">
               <MapPin className="h-3.5 w-3.5 text-primary" /> Made in India

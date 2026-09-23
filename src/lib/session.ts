@@ -82,6 +82,9 @@ export function hasSession(): boolean {
 export interface CachedUser {
   role: "guest" | "vendor";
   hasVendorAccess: boolean;
+  actualRole?: string;
+  kycStatus?: string;
+  avatar?: string;
 }
 
 /** Persist the last known identity for instant optimistic hydration. */
@@ -105,6 +108,9 @@ export function getCachedUser(): CachedUser | null {
       return {
         role: parsed.role,
         hasVendorAccess: Boolean(parsed.hasVendorAccess),
+        actualRole: parsed.actualRole,
+        kycStatus: parsed.kycStatus,
+        avatar: parsed.avatar,
       };
     }
     return null;

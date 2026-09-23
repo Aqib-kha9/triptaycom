@@ -37,7 +37,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { checkoutApi, bookingsApi, authApi, listingsApi, activitiesApi, couponsApi, ApiError } from "@/lib/api-client";
+import { checkoutApi, bookingsApi, authApi, listingsApi, activitiesApi, couponsApi, publicApi, ApiError } from "@/lib/api-client";
 import type { CheckoutItem } from "@/types/api";
 
 export default function CheckoutPage({ params: paramsPromise }: { params: Promise<{ type: string, id: string }> }) {
@@ -45,7 +45,9 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
   const router = useRouter();
   const itemType = params.type === "activity" ? "activity" : "stay";
   const [selectedAddons] = useState<string[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState("razorpay");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [sysConfig, setSysConfig] = useState<Record<string, any> | null>(null);
+  const [configLoading, setConfigLoading] = useState(true);
   const [coupon, setCoupon] = useState("");
   const [couponApplied, setCouponApplied] = useState(false);
   const [discount, setDiscount] = useState(0);
@@ -61,6 +63,14 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
   const [guestPhone, setGuestPhone] = useState("");
   const [specialRequests, setSpecialRequests] = useState("");
   const [userProfile, setUserProfile] = useState<any>(null);
+
+  // Email verification state
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [emailOtp, setEmailOtp] = useState("");
+  const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [otpMessage, setOtpMessage] = useState("");
+  const [otpError, setOtpError] = useState("");
 
   // Additional travelers/guests (for activities)
   const [additionalGuests, setAdditionalGuests] = useState<string[]>([]);
@@ -281,6 +291,38 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
     })();
   }, []);
 
+  // Fetch System Configurations
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const res = await publicApi.getConfigurations();
+        if (active && res?.status === "success" && res?.data?.configuration) {
+          const conf = res.data.configuration;
+          setSysConfig(conf);
+          
+          const defaultGw = conf.default_payment_gateway || "razorpay";
+          if (defaultGw === "razorpay" && String(conf.razorpay_enabled) === "true") {
+             setPaymentMethod("razorpay");
+          } else if (defaultGw === "payu" && String(conf.payu_enabled) === "true") {
+             setPaymentMethod("payu");
+          } else if (String(conf.razorpay_enabled) === "true") {
+             setPaymentMethod("razorpay");
+          } else if (String(conf.payu_enabled) === "true") {
+             setPaymentMethod("payu");
+          } else {
+             setPaymentMethod(""); 
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch public configurations:", err);
+      } finally {
+        if (active) setConfigLoading(false);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
   // Sync additionalGuests size with guests count for activities
   useEffect(() => {
     if (itemType === "activity" && guests > 1) {
@@ -316,6 +358,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
           activityDate: activityDate ? new Date(activityDate).toISOString() : undefined,
           guests,
           couponCode: couponApplied && coupon ? coupon : undefined,
+          roomSelections: Object.keys(selectedRoomsFromUrl).length > 0 ? selectedRoomsFromUrl : undefined,
         });
         if (!active) return;
         if (res.status === "success" && res.data?.pricing) {
@@ -377,6 +420,62 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
       );
     }
     return total;
+  };
+
+  const handleSendEmailOtp = async () => {
+    if (!guestEmail) {
+      setOtpError("Please enter an email address first.");
+      return;
+    }
+    setIsSendingOtp(true);
+    setOtpError("");
+    setOtpMessage("");
+    try {
+      const res = await authApi.sendOtp(guestEmail, "update_email");
+      if (res.status === "success") {
+        setShowOtpInput(true);
+        // Assuming devCode is returned in dev mode
+        const devCode = (res as any).devCode || res.data?.devCode;
+        if (devCode) {
+          setOtpMessage(`OTP Sent. (Dev Code: ${devCode})`);
+        } else {
+          setOtpMessage("OTP sent to your email.");
+        }
+      } else {
+        setOtpError("Failed to send OTP.");
+      }
+    } catch (err: any) {
+      setOtpError(err.message || "An error occurred while sending OTP.");
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyEmailOtp = async () => {
+    if (!emailOtp || emailOtp.length < 6) {
+      setOtpError("Please enter a valid 6-digit OTP.");
+      return;
+    }
+    setIsVerifyingEmail(true);
+    setOtpError("");
+    setOtpMessage("");
+    try {
+      const res = await authApi.verifyOtp(guestEmail, emailOtp, "update_email");
+      if (res.status === "success") {
+        // Update profile permanently
+        await authApi.updateProfile({ email: guestEmail });
+        
+        // Update local context
+        setUserProfile((prev: any) => ({ ...prev, email: guestEmail }));
+        setShowOtpInput(false);
+        setEmailOtp("");
+        setOtpMessage("");
+      }
+    } catch (err: any) {
+      setOtpError(err.message || "Invalid OTP.");
+    } finally {
+      setIsVerifyingEmail(false);
+    }
   };
 
   const handleApplyCoupon = async () => {
@@ -450,6 +549,11 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
       return;
     }
 
+    if (!paymentMethod) {
+      setError("No valid payment method selected. Please select a payment method to continue.");
+      return;
+    }
+
     setSubmitting(true);
 
     // Save guest details to database profile if they have changed or were placeholders
@@ -514,31 +618,38 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
     }
   };
 
-  const paymentMethods = [
-    {
+  const paymentMethods = [];
+  
+  if (String(sysConfig?.razorpay_enabled) === "true") {
+    paymentMethods.push({
       id: "razorpay",
       name: "Razorpay Secure Gateway",
       subName: "UPI / Cards / Netbanking",
       icon: <CreditCard className="w-5 h-5 text-indigo-600" />,
-      badge: "Popular"
-    },
-    {
+      badge: sysConfig?.default_payment_gateway === "razorpay" ? "Popular" : undefined
+    });
+  }
+
+  if (String(sysConfig?.payu_enabled) === "true") {
+    paymentMethods.push({
       id: "payu",
       name: "PayU Wallet & EMI",
       subName: "UPI / Netbanking / PayLater",
       icon: <Smartphone className="w-5 h-5 text-amber-600" />,
-    },
-    {
-      id: "wallet",
-      name: "Triptay Wallet",
-      subName: userProfile ? `Balance: ₹${userProfile.walletBalance?.toLocaleString()}` : "Loading balance...",
-      icon: <Wallet className="w-5 h-5 text-emerald-600" />,
-      badge: userProfile && !isWalletInsufficient ? "Instant Checkout" : undefined,
-      disabled: userProfile && isWalletInsufficient
-    },
-  ];
+      badge: sysConfig?.default_payment_gateway === "payu" ? "Popular" : undefined
+    });
+  }
 
-  if (loading) {
+  paymentMethods.push({
+    id: "wallet",
+    name: "Triptay Wallet",
+    subName: userProfile ? `Balance: ₹${userProfile.walletBalance?.toLocaleString()}` : "Loading balance...",
+    icon: <Wallet className="w-5 h-5 text-emerald-600" />,
+    badge: userProfile && !isWalletInsufficient ? "Instant Checkout" : undefined,
+    disabled: userProfile && isWalletInsufficient
+  });
+
+  if (loading || configLoading) {
     return (
       <div className="flex min-h-screen flex-col bg-zinc-50/50">
         <Navbar />
@@ -714,18 +825,67 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5 md:col-span-1">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 ml-1">Email Address</label>
                     <div className="relative">
                       <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                       <Input
                         type="email"
                         value={guestEmail}
-                        onChange={(e) => setGuestEmail(e.target.value)}
+                        onChange={(e) => {
+                          setGuestEmail(e.target.value);
+                          if (showOtpInput) setShowOtpInput(false);
+                        }}
                         placeholder="email@example.com"
-                        className="h-12 pl-10 rounded-xl border-zinc-200 bg-zinc-50/50 hover:bg-zinc-50 focus:bg-white text-sm font-semibold transition-all focus:ring-1 focus:ring-primary/20"
+                        className="h-12 pl-10 pr-24 rounded-xl border-zinc-200 bg-zinc-50/50 hover:bg-zinc-50 focus:bg-white text-sm font-semibold transition-all focus:ring-1 focus:ring-primary/20"
                       />
+                      {userProfile && guestEmail && guestEmail === userProfile.email ? (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-emerald-500 bg-emerald-50 px-2 py-1 rounded-md text-[10px] font-bold">
+                          <CheckCircle2 className="w-3 h-3" /> Verified
+                        </div>
+                      ) : guestEmail ? (
+                        <Button
+                          onClick={handleSendEmailOtp}
+                          disabled={isSendingOtp}
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-1.5 top-1/2 -translate-y-1/2 h-9 text-xs font-bold text-primary hover:bg-primary/10 hover:text-primary"
+                        >
+                          {isSendingOtp ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : null}
+                          Verify & Save
+                        </Button>
+                      ) : null}
                     </div>
+                    {/* OTP Input Field */}
+                    {showOtpInput && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        className="pt-2"
+                      >
+                        <div className="p-3 bg-primary/5 rounded-xl border border-primary/10">
+                          <label className="text-[10px] font-bold uppercase tracking-wider text-primary ml-1 block mb-2">Enter Verification Code</label>
+                          <div className="flex gap-2">
+                            <Input
+                              value={emailOtp}
+                              onChange={(e) => setEmailOtp(e.target.value)}
+                              placeholder="6-digit code"
+                              maxLength={6}
+                              className="h-10 bg-white border-primary/20 text-sm font-bold tracking-widest text-center"
+                            />
+                            <Button 
+                              onClick={handleVerifyEmailOtp} 
+                              disabled={isVerifyingEmail || emailOtp.length < 6}
+                              className="h-10 px-4 text-xs font-bold"
+                            >
+                              {isVerifyingEmail ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirm"}
+                            </Button>
+                          </div>
+                          {otpMessage && <p className="text-xs text-emerald-600 mt-2 font-medium">{otpMessage}</p>}
+                          {otpError && <p className="text-xs text-rose-500 mt-2 font-medium">{otpError}</p>}
+                        </div>
+                      </motion.div>
+                    )}
                   </div>
 
                   <div className="space-y-1.5">

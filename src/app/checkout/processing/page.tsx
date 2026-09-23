@@ -34,6 +34,12 @@ const STEPS_PAYU = [
   { id: 4, text: "Finalizing your reservation...", icon: <RefreshCcw className="w-5 h-5" /> },
 ];
 
+const STEPS_WALLET = [
+  { id: 1, text: "Verifying wallet balance...", icon: <ShieldCheck className="w-5 h-5" /> },
+  { id: 2, text: "Deducting funds...", icon: <Lock className="w-5 h-5" /> },
+  { id: 3, text: "Finalizing your reservation...", icon: <CheckCircle2 className="w-5 h-5" /> },
+];
+
 function loadRazorpayScript(): Promise<boolean> {
   return new Promise((resolve) => {
     if (typeof window === "undefined") return resolve(false);
@@ -58,7 +64,7 @@ export default function PaymentProcessingPage() {
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const router = useRouter();
 
-  const STEPS = paymentMethod === "payu" ? STEPS_PAYU : STEPS_RAZORPAY;
+  const STEPS = paymentMethod === "wallet" ? STEPS_WALLET : (paymentMethod === "payu" ? STEPS_PAYU : STEPS_RAZORPAY);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,6 +93,19 @@ export default function PaymentProcessingPage() {
 
         // Step 3: create order & process payment
         setCurrentStep(2);
+
+        if (method === "wallet") {
+          // ── Wallet Flow ──
+          await paymentsApi.payWithWallet(bookingId);
+          if (cancelled) return;
+          
+          sessionStorage.setItem("lastBookingId", bookingId);
+          sessionStorage.removeItem("pendingBookingId");
+          sessionStorage.removeItem("pendingBookingType");
+          
+          router.replace(`/checkout/success`);
+          return;
+        }
 
         if (method === "payu") {
           // ── PayU Flow: create order, then redirect via form POST to PayU hosted checkout ──
@@ -183,14 +202,6 @@ export default function PaymentProcessingPage() {
           };
           const rzp = new window.Razorpay(options);
           rzpInstance = rzp;
-          rzp.on("payment.failed", (resp: any) => {
-            try {
-              rzp.close();
-            } catch (e) {
-              console.error("Error closing Razorpay on payment.failed:", e);
-            }
-            reject(new Error(resp?.error?.description || "Payment failed."));
-          });
           rzp.open();
         });
 
