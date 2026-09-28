@@ -48,6 +48,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
   const [paymentMethod, setPaymentMethod] = useState("");
   const [sysConfig, setSysConfig] = useState<Record<string, any> | null>(null);
   const [configLoading, setConfigLoading] = useState(true);
+  const [isPapGloballyEnabled, setIsPapGloballyEnabled] = useState(false);
   const [coupon, setCoupon] = useState("");
   const [couponApplied, setCouponApplied] = useState(false);
   const [discount, setDiscount] = useState(0);
@@ -262,6 +263,8 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
     securityDeposit: number;
     extraGuestCharges: number;
     taxAmount: number;
+    accommodationTax?: number;
+    platformFeeTax?: number;
     platformFee: number;
     discountAmount: number;
     totalAmount: number;
@@ -312,6 +315,10 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
              setPaymentMethod("payu");
           } else {
              setPaymentMethod(""); 
+          }
+          // Check if Pay at Property is globally enabled
+          if (conf.pay_at_property_enabled === "true" || conf.pay_at_property_enabled === true) {
+            setIsPapGloballyEnabled(true);
           }
         }
       } catch (err) {
@@ -602,11 +609,20 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
         specialRequests: finalSpecialRequests,
         couponCode: couponApplied ? coupon : undefined,
         bookingType: "instant",
+        paymentMethod: paymentMethod === "pay_at_property" ? "PAY_AT_PROPERTY" : "ONLINE",
         // Multi-unit room selection — pass if rooms were chosen on detail page
         ...(Object.keys(selectedRoomsFromUrl).length > 0 && { roomSelections: selectedRoomsFromUrl }),
       });
       const booking = bookingRes.data?.booking;
       if (!booking) throw new Error("Booking creation failed.");
+
+      // Pay at Property: skip payment, go directly to success
+      if (paymentMethod === "pay_at_property") {
+        sessionStorage.setItem("papBookingRef", booking.bookingRef || "");
+        router.push(`/checkout/success?bookingId=${booking.id}&method=pay_at_property`);
+        return;
+      }
+
       // Store booking id for processing page, then navigate
       sessionStorage.setItem("pendingBookingId", booking.id);
       sessionStorage.setItem("pendingBookingType", paymentMethod);
@@ -648,6 +664,19 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
     badge: userProfile && !isWalletInsufficient ? "Instant Checkout" : undefined,
     disabled: userProfile && isWalletInsufficient
   });
+
+  // Pay at Property — show only if globally enabled AND listing supports it
+  const itemSupportsPap = (item as any)?.allowPayAtProperty === true;
+  if (isPapGloballyEnabled && itemSupportsPap) {
+    paymentMethods.push({
+      id: "pay_at_property",
+      name: "Pay at Property",
+      subName: "Book now, pay directly at the venue",
+      icon: <span className="text-lg">🏨</span>,
+      badge: "No Advance",
+      disabled: false,
+    });
+  }
 
   if (loading || configLoading) {
     return (
@@ -1101,10 +1130,24 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
                             <span className="text-zinc-800 font-bold">₹{previewData.platformFee.toLocaleString()}</span>
                           </div>
                         )}
-                        <div className="flex justify-between text-zinc-500 font-semibold text-xs">
-                          <span>GST / Taxes ({item?.taxes || 0}%)</span>
-                          <span className="text-zinc-800 font-bold">₹{previewData.taxAmount.toLocaleString()}</span>
-                        </div>
+                        {previewData.accommodationTax !== undefined && previewData.accommodationTax > 0 && (
+                          <div className="flex justify-between text-zinc-500 font-semibold text-xs">
+                            <span>Accommodation GST</span>
+                            <span className="text-zinc-800 font-bold">₹{previewData.accommodationTax.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {previewData.platformFeeTax !== undefined && previewData.platformFeeTax > 0 && (
+                          <div className="flex justify-between text-zinc-500 font-semibold text-xs">
+                            <span>Platform Fee GST (18%)</span>
+                            <span className="text-zinc-800 font-bold">₹{previewData.platformFeeTax.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {previewData.accommodationTax === undefined && previewData.taxAmount > 0 && (
+                           <div className="flex justify-between text-zinc-500 font-semibold text-xs">
+                             <span>GST / Taxes</span>
+                             <span className="text-zinc-800 font-bold">₹{previewData.taxAmount.toLocaleString()}</span>
+                           </div>
+                        )}
                         {previewData.discountAmount > 0 && (
                           <div className="flex justify-between text-emerald-600 font-bold text-xs bg-emerald-50/50 p-2.5 rounded-xl border border-emerald-100/50">
                             <span>Coupon Discount</span>

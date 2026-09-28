@@ -98,6 +98,7 @@ interface FormData {
   petRules: string;
 
   instantBook: boolean;
+  allowPayAtProperty: boolean;
   advanceNoticeHours: string;
   maxGuestsPerBooking: string;
   videoTourUrl: string;
@@ -232,6 +233,7 @@ const FILLER_DATA: FormData = {
   petRules: "",
 
   instantBook: true,
+  allowPayAtProperty: false,
   advanceNoticeHours: "2",
   maxGuestsPerBooking: "10",
   videoTourUrl: "",
@@ -259,7 +261,7 @@ export default function AddActivityPage() {
     included: [], excluded: [], houseRules: [],
     cancellationPolicy: "Moderate", cancellationDetails: "",
     isPetFriendly: false, petRules: "",
-    instantBook: true, advanceNoticeHours: "0", maxGuestsPerBooking: "", videoTourUrl: "",
+    instantBook: true, allowPayAtProperty: false, advanceNoticeHours: "0", maxGuestsPerBooking: "", videoTourUrl: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -272,6 +274,7 @@ export default function AddActivityPage() {
   // ── Cancellation Policy Admin Config ──
   const [vendorOverrideEnabled, setVendorOverrideEnabled] = useState(true);
   const [globalDefaultPolicy, setGlobalDefaultPolicy] = useState("Moderate");
+  const [isGlobalPayAtPropertyEnabled, setIsGlobalPayAtPropertyEnabled] = useState(false);
 
   // ── Helpers ──
 
@@ -290,8 +293,10 @@ export default function AddActivityPage() {
         if (res?.status === "success" && res.data?.configuration) {
           const overrideEnabled = res.data.configuration.cancellation_vendor_override_enabled;
           const defaultPolicy = res.data.configuration.cancellation_default_policy;
+          const papEnabled = res.data.configuration.pay_at_property_enabled;
           if (overrideEnabled !== undefined) setVendorOverrideEnabled(Boolean(overrideEnabled));
           if (defaultPolicy !== undefined) setGlobalDefaultPolicy(String(defaultPolicy));
+          if (papEnabled !== undefined) setIsGlobalPayAtPropertyEnabled(papEnabled === "true" || papEnabled === true);
         }
       } catch (err) {
         console.error("Failed to load cancellation config:", err);
@@ -540,6 +545,7 @@ export default function AddActivityPage() {
         petRules: formData.petRules.trim() || undefined,
         videoTourUrl: formData.videoTourUrl.trim() || undefined,
         instantBook: formData.instantBook,
+        allowPayAtProperty: formData.allowPayAtProperty,
         advanceNoticeHours: Number(formData.advanceNoticeHours) || 0,
         maxGuestsPerBooking: formData.maxGuestsPerBooking ? Number(formData.maxGuestsPerBooking) : Number(formData.maxGroupSize),
         status: "published",
@@ -700,7 +706,7 @@ export default function AddActivityPage() {
                     included: [], excluded: [], houseRules: [],
                     cancellationPolicy: "Moderate", cancellationDetails: "",
                     isPetFriendly: false, petRules: "",
-                    instantBook: true, advanceNoticeHours: "0", maxGuestsPerBooking: "", videoTourUrl: "",
+                    instantBook: true, allowPayAtProperty: false, advanceNoticeHours: "0", maxGuestsPerBooking: "", videoTourUrl: "",
                   });
                   setMediaFiles([]);
                   setStep(1);
@@ -1382,6 +1388,7 @@ export default function AddActivityPage() {
                     {renderSectionHeader("Booking Settings", "Control how guests book this activity.")}
                     <div className="space-y-4">
                       {renderToggle("Instant Book", "instantBook", "Guests can book without host approval")}
+                      {isGlobalPayAtPropertyEnabled && renderToggle("Allow Pay at Property", "allowPayAtProperty", "Let customers book online and pay when they arrive")}
                       {renderInput("Advance Notice (Hours)", "advanceNoticeHours", "e.g. 2 hours minimum notice", "number")}
                       {renderInput("Max Guests Per Booking", "maxGuestsPerBooking", "e.g. 10", "number")}
                       {renderInput("Video Tour URL", "videoTourUrl", "YouTube or Vimeo link (optional)", "text")}

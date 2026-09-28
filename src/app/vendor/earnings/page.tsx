@@ -30,6 +30,7 @@ export default function VendorEarningsPage() {
     totalEarnings: 0,
     availablePayout: 0,
     processingPayout: 0,
+    totalDebt: 0,
   });
   const [transactions, setTransactions] = useState<any[]>([]);
 
@@ -65,6 +66,7 @@ export default function VendorEarningsPage() {
           totalEarnings: ledgerSummary?.totalPayout || 0,
           availablePayout: ledgerSummary?.pendingPayout || 0,
           processingPayout: processingAmt,
+          totalDebt: ledgerSummary?.papDebtPending || 0,
         });
 
         // 4. Merge into unified transaction history
@@ -72,19 +74,53 @@ export default function VendorEarningsPage() {
 
         // Map Credits (Commissions earned)
         ledgerData.forEach((item: any) => {
-          mergedList.push({
-            id: item.id,
-            date: new Date(item.createdAt).toLocaleDateString("en-IN", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            }),
-            rawDate: new Date(item.createdAt),
-            item: item.booking?.itemName || "Stay Booking",
-            status: item.status === "processed" ? "Paid" : "Pending",
-            amount: `+₹${item.hostPayoutAmount.toLocaleString("en-IN")}`,
-            type: "Credit",
-          });
+          if (item.isPapBooking) {
+            const rawAmount = item.booking?.vendorDebtAmount || (item.commissionAmount + item.gstOnCommission);
+            mergedList.push({
+              id: item.id,
+              date: new Date(item.createdAt).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              }),
+              rawDate: new Date(item.createdAt),
+              item: `${item.booking?.itemName || "Stay Booking"} (PAP Comm. Debt)`,
+              status: item.status === "debt_settled" ? "Paid" : "Unpaid",
+              amount: `-₹${Math.round(rawAmount).toLocaleString("en-IN")}`,
+              type: "Debit",
+            });
+          } else {
+            // Check if it's a negative commission record (manual settlement)
+            if (item.rate === 0 && item.hostPayoutAmount <= 0) {
+              mergedList.push({
+                id: item.id,
+                date: new Date(item.createdAt).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                }),
+                rawDate: new Date(item.createdAt),
+                item: `Debt Offset/Settlement`,
+                status: item.status === "processed" ? "Paid" : "Pending",
+                amount: `${Math.round(item.hostPayoutAmount).toLocaleString("en-IN")}`,
+                type: "Debit",
+              });
+            } else {
+              mergedList.push({
+                id: item.id,
+                date: new Date(item.createdAt).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                }),
+                rawDate: new Date(item.createdAt),
+                item: item.booking?.itemName || "Stay Booking",
+                status: item.status === "processed" ? "Paid" : "Pending",
+                amount: `+₹${Math.round(item.hostPayoutAmount).toLocaleString("en-IN")}`,
+                type: "Credit",
+              });
+            }
+          }
         });
 
         // Map Debits (Payouts transferred to bank)
@@ -207,6 +243,26 @@ export default function VendorEarningsPage() {
                         `₹${summary.processingPayout.toLocaleString("en-IN")}`
                       )}
                     </h3>
+                  </div>
+                </div>
+
+                {/* Platform Debt Card */}
+                <div className="bg-white rounded-2xl border border-rose-100 p-5 space-y-3 min-w-[200px] flex-grow sm:flex-grow-0 snap-center shadow-sm shadow-rose-100/50">
+                  <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-bold text-rose-400 uppercase tracking-widest">Platform Debt</p>
+                    <h3 className="text-xl font-black text-rose-600">
+                      {loading ? (
+                        <span className="inline-block w-20 h-5 bg-rose-100 animate-pulse rounded" />
+                      ) : (
+                        `₹${Math.round(summary.totalDebt).toLocaleString("en-IN")}`
+                      )}
+                    </h3>
+                  </div>
+                  <div className="text-[9px] font-black text-rose-400 uppercase tracking-widest flex items-center gap-1">
+                    To be paid
                   </div>
                 </div>
               </div>

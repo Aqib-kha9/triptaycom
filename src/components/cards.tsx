@@ -43,7 +43,7 @@ export function ItemCard({ id = "1", slug, image, title, location, price, rating
         className="group flex flex-col gap-3"
       >
         {/* Compact Image Area */}
-        <div className="relative aspect-square md:aspect-[1.5/1] w-full overflow-hidden rounded-2xl md:rounded-xl bg-zinc-100">
+        <div className="relative aspect-[4/3] md:aspect-[1.5/1] w-full overflow-hidden rounded-2xl md:rounded-xl bg-zinc-100">
           <img
             src={image}
             alt={title}
@@ -65,10 +65,10 @@ export function ItemCard({ id = "1", slug, image, title, location, price, rating
         </div>
 
         {/* Balanced Information Section */}
-        <div className="space-y-1.5 px-1">
+        <div className="space-y-1.5 px-1 mt-1">
           {/* Row 1: Title and Rating */}
           <div className="flex items-start justify-between gap-3">
-            <h3 className="font-bold text-base text-zinc-900 line-clamp-1 flex-1">{title}</h3>
+            <h3 className="font-bold text-[15px] md:text-base text-zinc-900 line-clamp-1 flex-1">{title}</h3>
             <div className="flex items-center gap-1 shrink-0 bg-zinc-50 px-1.5 py-0.5 rounded-md border border-zinc-100">
               <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
               <span className="text-[11px] font-bold text-zinc-900">{rating}</span>
@@ -82,7 +82,7 @@ export function ItemCard({ id = "1", slug, image, title, location, price, rating
               <span className="text-[11px] font-medium truncate">{location}</span>
             </div>
             <div className="flex items-baseline gap-1 shrink-0 text-right">
-              <span className="text-sm font-bold text-zinc-900">₹{price}</span>
+              <span className="text-[13px] md:text-sm font-bold text-zinc-900">₹{price}</span>
               <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-tighter">/ {type === "homestay" ? "night" : "person"}</span>
             </div>
           </div>

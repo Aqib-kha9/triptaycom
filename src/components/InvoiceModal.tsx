@@ -53,6 +53,7 @@ function getGatewayLabel(gw?: string): string {
         razorpay: "Razorpay",
         payu: "PayU",
         wallet: "Wallet",
+        pay_at_property: "Pay at Property",
     };
     return map[gw.toLowerCase()] ?? gw;
 }
@@ -278,7 +279,7 @@ export function InvoiceModal({ open, onClose, booking }: InvoiceModalProps) {
                                         <span className="text-zinc-400 font-medium">Invoice Date</span>
                                         <span className="text-zinc-900 font-bold text-right">{formatDate(booking?.createdAt)}</span>
                                         <span className="text-zinc-400 font-medium">Payment Date</span>
-                                        <span className="text-zinc-900 font-bold text-right">{formatDate(booking?.paidAt)}</span>
+                                        <span className="text-zinc-900 font-bold text-right">{booking?.paymentMethod === "PAY_AT_PROPERTY" ? "At Venue" : formatDate(booking?.paidAt)}</span>
                                         <span className="text-zinc-400 font-medium">Payment Method</span>
                                         <span className="text-zinc-900 font-bold text-right">{getGatewayLabel(booking?.paymentGateway)}</span>
                                     </div>
@@ -385,7 +386,7 @@ export function InvoiceModal({ open, onClose, booking }: InvoiceModalProps) {
                                         </tbody>
                                         <tfoot>
                                             <tr className="bg-zinc-50 border-t-2 border-zinc-900">
-                                                <td className="px-5 py-4 font-black text-zinc-900 text-base">Total Paid</td>
+                                                <td className="px-5 py-4 font-black text-zinc-900 text-base">{booking?.paymentMethod === "PAY_AT_PROPERTY" ? "To Pay at Venue" : "Total Paid"}</td>
                                                 <td className="px-5 py-4 text-right font-black text-zinc-900 text-xl">
                                                     {formatCurrency(booking?.totalAmount)}
                                                 </td>
@@ -406,7 +407,7 @@ export function InvoiceModal({ open, onClose, booking }: InvoiceModalProps) {
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="text-zinc-400 font-medium">Status</span>
-                                            <span className="text-emerald-600 font-bold uppercase">{booking?.paymentStatus || "Paid"}</span>
+                                            <span className="text-emerald-600 font-bold uppercase">{booking?.paymentMethod === "PAY_AT_PROPERTY" && booking?.paymentStatus === "pending" ? "Pending (At Venue)" : booking?.paymentStatus || "Paid"}</span>
                                         </div>
                                         {booking?.gatewayPaymentId && (
                                             <div className="flex justify-between gap-4">

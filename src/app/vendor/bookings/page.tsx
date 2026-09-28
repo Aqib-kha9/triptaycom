@@ -14,7 +14,10 @@ import {
   Info,
   Inbox,
   ChevronRight,
-  Loader2
+  Loader2,
+  Banknote,
+  CheckCircle2,
+  DollarSign
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,6 +41,11 @@ export default function VendorBookingsPage() {
   const [otpError, setOtpError] = useState("");
   const [otpSuccess, setOtpSuccess] = useState(false);
 
+  // PAP State
+  const [papConfirming, setPapConfirming] = useState(false);
+  const [papSuccess, setPapSuccess] = useState(false);
+  const [papError, setPapError] = useState("");
+
   const handleVerifyOtp = async () => {
     if (!selectedBooking || !otpInput.trim()) return;
     setOtpVerifying(true);
@@ -56,6 +64,50 @@ export default function VendorBookingsPage() {
       setOtpError(err.message || "Failed to verify check-in. Please try again.");
     } finally {
       setOtpVerifying(false);
+    }
+  };
+
+  const handlePapCollect = async () => {
+    if (!selectedBooking) return;
+    setPapConfirming(true);
+    setPapError("");
+    setPapSuccess(false);
+    try {
+      await bookingsApi.confirmPapCollection(selectedBooking.id);
+      setPapSuccess(true);
+      setTimeout(async () => {
+        setSelectedBooking(null);
+        setPapSuccess(false);
+        await fetchBookings();
+      }, 1800);
+    } catch (err: any) {
+      setPapError(err.message || "Failed to confirm cash collection. Please try again.");
+    } finally {
+      setPapConfirming(false);
+    }
+  };
+
+  const [papSettling, setPapSettling] = useState(false);
+  const [papSettleSuccess, setPapSettleSuccess] = useState(false);
+  const [papSettleError, setPapSettleError] = useState("");
+
+  const handlePapSettle = async () => {
+    if (!selectedBooking) return;
+    setPapSettling(true);
+    setPapSettleError("");
+    setPapSettleSuccess(false);
+    try {
+      await bookingsApi.settlePapDebt(selectedBooking.id, "wallet_deduction");
+      setPapSettleSuccess(true);
+      setTimeout(async () => {
+        setSelectedBooking(null);
+        setPapSettleSuccess(false);
+        await fetchBookings();
+      }, 1800);
+    } catch (err: any) {
+      setPapSettleError(err.message || "Failed to settle debt. Please try again.");
+    } finally {
+      setPapSettling(false);
     }
   };
 
@@ -218,12 +270,12 @@ export default function VendorBookingsPage() {
 
                         <div className="flex flex-col sm:flex-row items-center gap-6 xl:pl-6 xl:border-l border-zinc-50">
                           <div className="text-center sm:text-right">
-                            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">Payout</p>
+                            <p className="text-[9px] font-black text-zinc-400 uppercase tracking-widest mb-0.5">{booking.paymentMethod === "PAY_AT_PROPERTY" ? "To Collect" : "Payout"}</p>
                             <p className={cn(
                               "text-lg font-black italic",
                               ["Cancelled", "Expired", "Rejected"].includes(booking.status) ? "text-zinc-300 line-through" : "text-zinc-900"
                             )}>
-                              ₹{["Cancelled", "Expired", "Rejected"].includes(booking.status) ? 0 : (booking.hostPayoutAmount || booking.totalAmount).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ₹{["Cancelled", "Expired", "Rejected"].includes(booking.status) ? 0 : (booking.paymentMethod === "PAY_AT_PROPERTY" ? booking.totalAmount : (booking.hostPayoutAmount || booking.totalAmount)).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
@@ -261,10 +313,33 @@ export default function VendorBookingsPage() {
           <div className="fixed inset-0 z-[150] flex items-center justify-center p-6">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setSelectedBooking(null); setChatLoading(false); }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
             <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="relative w-full max-w-lg bg-white rounded-2xl p-8 space-y-8">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-black text-zinc-900">{selectedBooking.bookingRef || selectedBooking.id}</h3>
+              <div className="flex items-start justify-between">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black text-zinc-900">{selectedBooking.bookingRef || selectedBooking.id}</h3>
+                  {selectedBooking.paymentMethod === "PAY_AT_PROPERTY" && selectedBooking.papSettlementStatus === "pending" && (
+                    <span className="inline-flex px-2 py-1 rounded-md bg-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-widest items-center gap-1">
+                      <Banknote className="w-3 h-3" /> Cash Booking
+                    </span>
+                  )}
+                </div>
                 <button onClick={() => { setSelectedBooking(null); setChatLoading(false); }} className="w-8 h-8 rounded-lg bg-zinc-50 flex items-center justify-center text-zinc-400 hover:text-zinc-900"><X className="w-4 h-4" /></button>
               </div>
+
+              {/* PAP Pre-Check-In Alert */}
+              {selectedBooking.paymentMethod === "PAY_AT_PROPERTY" && selectedBooking.papSettlementStatus === "pending" && selectedBooking.checkInStatus !== "checked_in" && selectedBooking.status === "Confirmed" && (
+                <div className="p-4 rounded-xl bg-amber-50 border border-amber-100 flex items-start gap-3">
+                  <div className="p-2 rounded-full bg-amber-100/50 text-amber-600 mt-0.5">
+                    <Banknote className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-amber-800 font-bold text-xs uppercase tracking-wider">Collect Cash Payment</h4>
+                    <p className="text-amber-700/80 font-medium text-xs leading-relaxed">
+                      This is a Pay at Property booking. You must collect <span className="font-bold text-amber-900">₹{selectedBooking.totalAmount?.toLocaleString()}</span> in cash from the guest upon arrival. Verify their OTP below to unlock the cash confirmation button.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-4 text-xs">
                   <h4 className="font-black uppercase text-zinc-400 tracking-widest">Guest Info</h4>
@@ -296,7 +371,7 @@ export default function VendorBookingsPage() {
               </div>
 
               {/* OTP Verification Section */}
-              {(selectedBooking.status === "Confirmed" || selectedBooking.status === "Paid") && (
+              {(selectedBooking.status === "Confirmed" || selectedBooking.status === "Paid") && selectedBooking.checkInStatus !== "checked_in" && (
                 <div className="space-y-3 p-5 rounded-2xl bg-zinc-50 border border-zinc-100 font-bold text-xs">
                   <div className="space-y-1">
                     <h4 className="font-black uppercase text-zinc-400 tracking-widest text-[10px]">Guest Check-In</h4>
@@ -305,7 +380,7 @@ export default function VendorBookingsPage() {
                   {otpSuccess ? (
                     <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl p-4 flex items-center justify-center gap-2 font-bold text-center">
                       <Check className="w-4 h-4 shrink-0" />
-                      Check-in Verified! Booking Completed.
+                      Check-in Verified! {selectedBooking.paymentMethod === "PAY_AT_PROPERTY" && selectedBooking.paymentStatus === "pending" ? "Proceed to collect cash." : "Booking Completed."}
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -330,6 +405,76 @@ export default function VendorBookingsPage() {
                         </Button>
                       </div>
                       {otpError && <p className="text-rose-500 font-bold text-[10px] uppercase tracking-wider">{otpError}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* PAP: Confirm Cash Collection Section */}
+              {selectedBooking.paymentMethod === "PAY_AT_PROPERTY" && selectedBooking.papSettlementStatus === "pending" && selectedBooking.status === "Confirmed" && selectedBooking.checkInStatus === "checked_in" && (
+                <div className="space-y-3 p-5 rounded-2xl bg-amber-50 border border-amber-100 font-bold text-xs">
+                  <div className="space-y-1">
+                    <h4 className="font-black uppercase text-amber-500 tracking-widest text-[10px] flex items-center gap-1.5">
+                      <Banknote className="w-3.5 h-3.5" />
+                      Pay at Property — Confirm Cash Collection
+                    </h4>
+                    <p className="text-zinc-600 font-medium leading-relaxed">Once the guest has paid in cash, click below to confirm receipt. This will complete the booking and log your commission debt to the platform.</p>
+                  </div>
+                  {papSuccess ? (
+                    <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl p-4 flex items-center justify-center gap-2 font-bold text-center">
+                      <Check className="w-4 h-4 shrink-0" />
+                      Cash Collected! Booking Completed.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Button
+                        onClick={handlePapCollect}
+                        disabled={papConfirming}
+                        className="w-full h-10 rounded-xl font-bold text-xs gap-2 bg-amber-500 hover:bg-amber-600 text-white"
+                      >
+                        {papConfirming ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Confirm Cash Received from Guest
+                          </>
+                        )}
+                      </Button>
+                      {papError && <p className="text-rose-500 font-bold text-[10px] uppercase tracking-wider">{papError}</p>}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* PAP: Settle Debt Section */}
+              {selectedBooking.paymentMethod === "PAY_AT_PROPERTY" && selectedBooking.papSettlementStatus === "pending" && selectedBooking.status === "Completed" && (
+                <div className="space-y-3 p-5 rounded-2xl bg-rose-50 border border-rose-100 font-bold text-xs">
+                  <div className="space-y-1">
+                    <h4 className="font-black uppercase text-rose-500 tracking-widest text-[10px] flex items-center gap-1.5">
+                      <DollarSign className="w-3.5 h-3.5" />
+                      Settle Commission Debt
+                    </h4>
+                    <p className="text-zinc-600 font-medium leading-relaxed">
+                      You have collected the full amount from the guest. Please settle the platform commission (₹{Math.round(selectedBooking.vendorDebtAmount || 0)}) by adjusting it against your pending online earnings.
+                    </p>
+                  </div>
+                  {papSettleSuccess ? (
+                    <div className="bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl p-4 flex items-center justify-center gap-2 font-bold text-center">
+                      <Check className="w-4 h-4 shrink-0" />
+                      Debt Adjusted Successfully!
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Button
+                        onClick={handlePapSettle}
+                        disabled={papSettling}
+                        className="w-full h-10 rounded-xl font-bold text-xs gap-2 bg-rose-500 hover:bg-rose-600 text-white"
+                      >
+                        {papSettling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : (
+                          <>
+                            <DollarSign className="w-3.5 h-3.5" /> Adjust from Earnings
+                          </>
+                        )}
+                      </Button>
+                      {papSettleError && <p className="text-rose-500 font-bold text-[10px] uppercase tracking-wider">{papSettleError}</p>}
                     </div>
                   )}
                 </div>

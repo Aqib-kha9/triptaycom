@@ -82,7 +82,7 @@ export default function VendorLayout({ children }: { children: React.ReactNode }
 
     checkKyc();
     return () => { cancelled = true; };
-  }, [pathname, isOnboardingPage, router]);
+  }, [isOnboardingPage]); // Removed pathname and router to prevent duplicate fetches on every navigation
 
   // ── Loading ──────────────────────────────────────────
   if (kycGate === "loading") {

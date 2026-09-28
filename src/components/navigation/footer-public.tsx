@@ -45,7 +45,12 @@ export function FooterPublic() {
     }).catch(console.error);
   }, []);
 
-  const links = settings?.links || FOOTER_LINKS;
+  const links = {
+    company: settings?.links?.company?.length ? settings.links.company : FOOTER_LINKS.company,
+    explore: settings?.links?.explore?.length ? settings.links.explore : FOOTER_LINKS.explore,
+    support: settings?.links?.support?.length ? settings.links.support : FOOTER_LINKS.support,
+    legal: settings?.links?.legal?.length ? settings.links.legal : FOOTER_LINKS.legal,
+  };
   const companyDesc = settings?.companyDesc || "Curating India's most unique homestays and offbeat local experiences. Discover the authentic charm of every destination with Triptay.";
   const contact = settings?.contact || { email: "hello@triptay.com", phone: "+91 98765 43210" };
 

@@ -347,11 +347,13 @@ export default function BookingDetailPage({ params: paramsPromise }: { params: P
                           <Zap className="w-6 h-6" />
                         </div>
                         <div className="pt-1">
-                          <p className="font-bold text-zinc-900">Payment Processed</p>
+                          <p className="font-bold text-zinc-900">{booking.paymentMethod === "PAY_AT_PROPERTY" && booking.paymentStatus === "pending" ? "Payment Pending" : "Payment Processed"}</p>
                           <p className="text-sm text-zinc-500 font-medium">
-                            {booking.status === "Paid" || booking.status === "Confirmed" || booking.status === "Completed"
+                            {booking.paymentMethod === "PAY_AT_PROPERTY" && booking.paymentStatus === "pending"
+                              ? `Payment of ${formatPrice(booking.totalAmount)} is due at the venue.`
+                              : (booking.status === "Paid" || booking.status === "Confirmed" || booking.status === "Completed"
                               ? `Payment of ${formatPrice(booking.totalAmount)} was successfully received.`
-                              : "Awaiting payment confirmation."}
+                              : "Awaiting payment confirmation.")}
                           </p>
                         </div>
                       </div>
@@ -400,6 +402,43 @@ export default function BookingDetailPage({ params: paramsPromise }: { params: P
                 </div>
               )}
 
+              {/* Host Contact Details */}
+              {booking.hostName && (
+                <div className="bg-white p-10 rounded-[40px] border border-zinc-100 shadow-xl shadow-zinc-200/50 space-y-6">
+                  <h3 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
+                    <User className="w-5 h-5 text-indigo-500" />
+                    Host Contact
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4 p-4 rounded-2xl bg-zinc-50 border border-zinc-100">
+                      <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-lg">
+                        {booking.hostName.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-zinc-900">{booking.hostName}</p>
+                        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">Property Host</p>
+                      </div>
+                    </div>
+                    {booking.hostEmail && (
+                      <div className="flex items-center gap-3 text-sm font-semibold text-zinc-600 px-2">
+                        <Mail className="w-4 h-4 text-zinc-400" />
+                        <a href={`mailto:${booking.hostEmail}`} className="hover:text-primary transition-colors">
+                          {booking.hostEmail}
+                        </a>
+                      </div>
+                    )}
+                    {booking.hostPhone && (
+                      <div className="flex items-center gap-3 text-sm font-semibold text-zinc-600 px-2">
+                        <Phone className="w-4 h-4 text-zinc-400" />
+                        <a href={`tel:${booking.hostPhone}`} className="hover:text-primary transition-colors">
+                          {booking.hostPhone}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Pricing Breakdown */}
               <div className="bg-white p-10 rounded-[40px] border border-zinc-100 shadow-xl shadow-zinc-200/50 space-y-8">
                 <h3 className="text-xl font-bold text-zinc-900 flex items-center gap-2">
@@ -408,29 +447,29 @@ export default function BookingDetailPage({ params: paramsPromise }: { params: P
                 </h3>
                 <div className="space-y-4">
                   <div className="pt-4 border-t border-zinc-100 flex justify-between items-center">
-                    <span className="text-lg font-bold text-zinc-900">Total Paid</span>
+                    <span className="text-lg font-bold text-zinc-900">{booking.paymentMethod === "PAY_AT_PROPERTY" && booking.paymentStatus === "pending" ? "To Pay at Venue" : "Total Paid"}</span>
                     <span className="text-2xl font-black text-primary">{formatPrice(booking.totalAmount)}</span>
                   </div>
                 </div>
                 <div
                   className={cn(
                     "p-4 rounded-2xl border flex items-center gap-3",
-                    isCancelled ? "bg-rose-50 border-rose-100" : "bg-emerald-50 border-emerald-100"
+                    isCancelled ? "bg-rose-50 border-rose-100" : (booking.paymentMethod === "PAY_AT_PROPERTY" && booking.paymentStatus === "pending" ? "bg-amber-50 border-amber-100" : "bg-emerald-50 border-emerald-100")
                   )}
                 >
                   <div
                     className={cn(
                       "w-8 h-8 rounded-full text-white flex items-center justify-center flex-shrink-0",
-                      isCancelled ? "bg-rose-500" : "bg-emerald-500"
+                      isCancelled ? "bg-rose-500" : (booking.paymentMethod === "PAY_AT_PROPERTY" && booking.paymentStatus === "pending" ? "bg-amber-500" : "bg-emerald-500")
                     )}
                   >
                     {isCancelled ? <XCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}
                   </div>
                   <div>
-                    <p className={cn("text-xs font-black uppercase tracking-widest", isCancelled ? "text-rose-600" : "text-emerald-600")}>
-                      {isCancelled ? "Payment Refunded" : "Payment Success"}
+                    <p className={cn("text-xs font-black uppercase tracking-widest", isCancelled ? "text-rose-600" : (booking.paymentMethod === "PAY_AT_PROPERTY" && booking.paymentStatus === "pending" ? "text-amber-600" : "text-emerald-600"))}>
+                      {isCancelled ? "Payment Refunded" : (booking.paymentMethod === "PAY_AT_PROPERTY" && booking.paymentStatus === "pending" ? "Payment Pending" : "Payment Success")}
                     </p>
-                    <p className={cn("text-[10px] font-bold uppercase tracking-tight flex items-center gap-2", isCancelled ? "text-rose-800/60" : "text-emerald-800/60")}>
+                    <p className={cn("text-[10px] font-bold uppercase tracking-tight flex items-center gap-2", isCancelled ? "text-rose-800/60" : (booking.paymentMethod === "PAY_AT_PROPERTY" && booking.paymentStatus === "pending" ? "text-amber-800/60" : "text-emerald-800/60"))}>
                       <span>Ref: #{booking.bookingId}</span>
                       {isCancelled && (
                         <>

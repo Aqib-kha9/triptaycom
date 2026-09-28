@@ -10,7 +10,7 @@ import {
   Calendar,
   Plus,
   ArrowUpRight,
-  DollarSign,
+  IndianRupee,
   MoreVertical,
   Loader2,
 } from "lucide-react";
@@ -109,7 +109,7 @@ export default function VendorDashboardPage() {
                 <div className="bg-white p-5 rounded-2xl border border-zinc-100 space-y-3 min-w-[150px] flex-grow sm:flex-grow-0 snap-center">
                   <div className="flex items-center justify-between">
                     <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                      <DollarSign className="w-4 h-4" />
+                      <IndianRupee className="w-4 h-4" />
                     </div>
                     <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded uppercase tracking-widest">
                       Live

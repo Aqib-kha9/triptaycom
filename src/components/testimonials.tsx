@@ -21,6 +21,11 @@ export function Testimonials() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [index]);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,113 +122,96 @@ export function Testimonials() {
   const palette = COLOR_PALETTE[index % COLOR_PALETTE.length];
 
   return (
-    <section className="container mx-auto px-4 py-16 bg-white overflow-hidden">
+    <section className="container mx-auto px-4 py-8 md:py-16 bg-white overflow-hidden">
       {/* Title & Nav */}
-      <div className="flex items-center justify-between mb-6 sm:mb-10">
-        <h2 className="text-lg sm:text-2xl md:text-3xl font-black text-zinc-900 uppercase tracking-widest leading-tight">
-          What they say
+      <div className="flex items-center justify-between mb-6 md:mb-10">
+        <h2 className="text-2xl md:text-4xl font-black text-zinc-900 tracking-tight">
+          What our customers say
         </h2>
-        <div className="flex gap-2">
+        <div className="hidden md:flex gap-2">
           <button 
             onClick={() => setIndex((prev) => (prev === 0 ? testimonials.length - 1 : prev - 1))}
-            className="w-10 h-10 rounded-full border border-zinc-100 flex items-center justify-center hover:bg-zinc-50 transition-all active:scale-90"
+            className="w-12 h-12 rounded-full border border-zinc-200 flex items-center justify-center hover:bg-zinc-50 transition-all active:scale-95"
           >
-            <ArrowLeft className="h-4 w-4 text-zinc-400" />
+            <ArrowLeft className="h-5 w-5 text-zinc-600" />
           </button>
           <button 
             onClick={() => setIndex((prev) => (prev === testimonials.length - 1 ? 0 : prev + 1))}
-            className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white hover:bg-primary/90 transition-all active:scale-90"
+            className="w-12 h-12 rounded-full bg-zinc-900 flex items-center justify-center text-white hover:bg-zinc-800 transition-all active:scale-95 shadow-lg shadow-zinc-900/20"
           >
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-5 w-5" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch min-h-[450px]">
-        
-        {/* Main Image Card (Left) */}
-        <div className="lg:col-span-5 relative">
-          <AnimatePresence mode="wait">
-            <motion.div 
-              key={current._id}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className={cn("p-4 rounded-[2.5rem] h-full transition-colors duration-700", palette.color)}
-            >
-              <div className="aspect-[1.3/1] rounded-[2rem] overflow-hidden shadow-lg">
-                {current.image ? (
-                  <img src={current.image} alt={current.name} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-zinc-100 flex items-center justify-center">
-                    <Star className="h-10 w-10 text-zinc-300" />
-                  </div>
-                )}
-              </div>
-              <div className="text-center py-6">
-                <h3 className="text-lg font-bold text-zinc-900">{current.name}</h3>
-                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">{current.role}</p>
-              </div>
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        {/* Dynamic Content Card (Right) */}
-        <motion.div 
-          animate={{ backgroundColor: palette.hex }}
-          className="lg:col-span-7 rounded-[2.5rem] p-10 flex flex-col justify-between transition-colors duration-700 relative border border-zinc-50"
-        >
-          {/* Connection Tail */}
+      <div className="relative bg-zinc-50/80 rounded-[2rem] p-5 md:p-8 border border-zinc-100 shadow-sm md:shadow-none">
+        <AnimatePresence mode="wait">
           <motion.div 
-            animate={{ borderRightColor: palette.hex }}
-            className="hidden lg:block absolute top-[20%] -left-6 w-0 h-0 border-y-[20px] border-y-transparent border-right-[30px] transition-colors duration-700"
-          />
-
-          <div className="relative">
-            <AnimatePresence mode="wait">
-              <motion.div 
-                key={current._id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="max-w-xl"
-              >
-                <Quote className="h-10 w-10 text-primary/10 mb-4" />
-                <p className="text-xl md:text-2xl font-medium text-zinc-700 leading-tight">
+            key={current._id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+            className="grid grid-cols-1 lg:grid-cols-12 gap-8 md:gap-10 items-center"
+          >
+            {/* Text Content */}
+            <div className="flex flex-col gap-4 md:gap-6 order-2 lg:order-1 lg:col-span-7">
+              <Quote className="h-8 w-8 md:h-10 md:w-10 text-zinc-300" />
+              <div>
+                <p className={cn("text-[15px] md:text-xl font-medium text-zinc-800 leading-relaxed transition-all duration-300", !isExpanded && "line-clamp-4 md:line-clamp-5")}>
                   "{current.text}"
                 </p>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-
-          {/* Bottom Area */}
-          <div className="flex flex-col items-center lg:items-start gap-4">
-            <div className="px-4 py-0.5 bg-white border border-zinc-100 rounded-full text-primary font-bold text-[9px] tracking-widest uppercase shadow-sm">
-              {index + 1} / {testimonials.length}
+                {current.text.length > 150 && (
+                  <button 
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="mt-2 text-sm font-bold text-primary hover:text-primary/80 transition-colors focus:outline-none"
+                  >
+                    {isExpanded ? "Read Less" : "Read More"}
+                  </button>
+                )}
+              </div>
+              <div className="mt-2">
+                <h3 className="text-base md:text-xl font-bold text-zinc-900">{current.name}</h3>
+                <p className="text-[11px] md:text-sm font-bold text-zinc-400 uppercase tracking-widest mt-0.5">{current.role}</p>
+              </div>
+              
+              {/* Thumbnails (App-like scrollable row on mobile) */}
+              <div className="flex overflow-x-auto no-scrollbar gap-2 md:gap-3 mt-4 pb-2 md:pb-0 snap-x">
+                {testimonials.map((t, i) => (
+                  <div 
+                    key={t._id}
+                    onClick={() => setIndex(i)}
+                    className={cn(
+                      "w-10 h-10 md:w-12 md:h-12 flex-shrink-0 rounded-full overflow-hidden cursor-pointer border-2 transition-all p-0.5 snap-center",
+                      index === i ? "border-zinc-900 scale-105 shadow-md" : "border-transparent opacity-50 hover:opacity-100 grayscale hover:grayscale-0"
+                    )}
+                  >
+                    {t.image ? (
+                      <img src={t.image} alt={t.name} className="w-full h-full object-cover rounded-full" />
+                    ) : (
+                      <div className="w-full h-full bg-zinc-200 rounded-full flex items-center justify-center">
+                        <Star className="h-3 w-3 md:h-4 md:w-4 text-zinc-400" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap justify-center lg:justify-start gap-3">
-              {testimonials.map((t, i) => (
-                <div 
-                  key={t._id}
-                  onClick={() => setIndex(i)}
-                  className={cn(
-                    "w-12 h-12 md:w-16 md:h-16 rounded-xl overflow-hidden cursor-pointer border-2 transition-all p-1 bg-white",
-                    index === i ? "border-primary opacity-100 grayscale-0 shadow-sm scale-110" : "border-transparent opacity-30 grayscale hover:opacity-100 hover:grayscale-0"
-                  )}
-                >
-                  {t.image ? (
-                    <img src={t.image} alt={t.name} className="w-full h-full object-cover rounded-lg" />
-                  ) : (
-                    <div className="w-full h-full bg-zinc-100 rounded-lg flex items-center justify-center">
-                      <Star className="h-4 w-4 text-zinc-300" />
-                    </div>
-                  )}
+
+            {/* Image Content */}
+            <div className="order-1 lg:order-2 flex justify-center lg:justify-end items-center lg:col-span-5 mb-2 md:mb-0">
+              {current.image ? (
+                <div className="bg-white rounded-[2rem] shadow-sm border border-zinc-100 overflow-hidden w-full flex items-end justify-center pt-4 px-4 md:pt-8 md:px-8 pb-0">
+                  <img src={current.image} alt={current.name} className="max-h-[160px] md:max-h-[320px] w-full object-contain object-bottom" />
                 </div>
-              ))}
+              ) : (
+                <div className="h-[150px] w-[150px] md:h-[200px] md:w-[200px] rounded-full bg-zinc-100 flex items-center justify-center shadow-inner">
+                  <Star className="h-10 w-10 md:h-16 md:w-16 text-zinc-300" />
+                </div>
+              )}
             </div>
-          </div>
-        </motion.div>
-
+          </motion.div>
+        </AnimatePresence>
       </div>
     </section>
   );

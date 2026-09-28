@@ -104,6 +104,7 @@ interface FormData {
     petRules: string;
     restrictions: string;
     instantBook: boolean;
+    allowPayAtProperty: boolean;
     advanceNoticeHours: string;
     maxGuestsPerBooking: string;
     languagesSpoken: string[];
@@ -233,7 +234,7 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
         safetyGuidelines: "", hasInsurance: true, certifiedGuides: true, guideRatio: "1:5",
         included: [], excluded: [], houseRules: [], cancellationPolicy: "Moderate",
         cancellationDetails: "", isPetFriendly: false, petRules: "", restrictions: "",
-        instantBook: false, advanceNoticeHours: "24", maxGuestsPerBooking: "20",
+        instantBook: false, allowPayAtProperty: false, advanceNoticeHours: "24", maxGuestsPerBooking: "20",
         languagesSpoken: ["English", "Hindi"], videoTourUrl: "",
     });
 
@@ -244,6 +245,7 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
     // ── Cancellation Policy Admin Config ──
     const [vendorOverrideEnabled, setVendorOverrideEnabled] = useState(true);
     const [globalDefaultPolicy, setGlobalDefaultPolicy] = useState("Moderate");
+    const [isGlobalPayAtPropertyEnabled, setIsGlobalPayAtPropertyEnabled] = useState(false);
 
     // ─── Fetch Existing Activity ──────────────────────────────────────────────
 
@@ -305,6 +307,7 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
                     category: np.type || np.category || "Other",
                 })),
                 instantBook: a.instantBook ?? false,
+                allowPayAtProperty: a.allowPayAtProperty ?? false,
                 advanceNoticeHours: a.advanceNoticeHours?.toString() || "24",
                 maxGuestsPerBooking: a.maxGuestsPerBooking?.toString() || "20",
                 languagesSpoken: a.languagesSpoken || ["English", "Hindi"],
@@ -328,8 +331,10 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
                 if (res?.status === "success" && res.data?.configuration) {
                     const overrideEnabled = res.data.configuration.cancellation_vendor_override_enabled;
                     const defaultPolicy = res.data.configuration.cancellation_default_policy;
+                    const papEnabled = res.data.configuration.pay_at_property_enabled;
                     if (overrideEnabled !== undefined) setVendorOverrideEnabled(Boolean(overrideEnabled));
                     if (defaultPolicy !== undefined) setGlobalDefaultPolicy(String(defaultPolicy));
+                    if (papEnabled !== undefined) setIsGlobalPayAtPropertyEnabled(papEnabled === "true" || papEnabled === true);
                 }
             } catch (err) {
                 console.error("Failed to load cancellation config:", err);
@@ -568,6 +573,7 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
                     distance: Number(np.distanceKm) || 0,
                 })),
                 instantBook: formData.instantBook,
+                allowPayAtProperty: formData.allowPayAtProperty,
                 advanceNoticeHours: parseInt(formData.advanceNoticeHours) || 24,
                 maxGuestsPerBooking: parseInt(formData.maxGuestsPerBooking) || 20,
                 languagesSpoken: formData.languagesSpoken,
@@ -1109,6 +1115,7 @@ export default function EditActivityPage({ params: paramsPromise }: { params: Pr
                                     <>
                                         {renderSectionHeader("Booking Settings", "Configure how guests can book.")}
                                         {renderToggle("Instant Book", "instantBook", "Guests can book without host approval")}
+                                        {isGlobalPayAtPropertyEnabled && renderToggle("Allow Pay at Property", "allowPayAtProperty", "Let customers book online and pay when they arrive")}
                                         {renderInput("Advance Notice (Hours)", "advanceNoticeHours", "e.g. 24", "number")}
                                         {renderInput("Max Guests Per Booking", "maxGuestsPerBooking", "e.g. 20", "number")}
                                         {renderInput("Security Deposit (₹)", "securityDeposit", "e.g. 0", "number")}

@@ -700,6 +700,7 @@ export const bookingsApi = {
     specialRequests?: string;
     couponCode?: string;
     bookingType?: "instant" | "request";
+    paymentMethod?: string;
   }) =>
     request<ApiResponse<{ booking: BookingItem }>>("/bookings", {
       method: "POST",
@@ -724,6 +725,8 @@ export const bookingsApi = {
         securityDeposit: number;
         extraGuestCharges: number;
         taxAmount: number;
+        accommodationTax?: number;
+        platformFeeTax?: number;
         platformFee: number;
         discountAmount: number;
         commissionAmount: number;
@@ -786,6 +789,17 @@ export const bookingsApi = {
     request<ApiResponse<{ message: string; data: { booking: BookingItem } }>>(`/bookings/${id}/verify-otp`, {
       method: "POST",
       body: { otp },
+    }),
+
+  confirmPapCollection: (id: string) =>
+    request<ApiResponse<{ message: string; data: { booking: BookingItem } }>>(`/bookings/${id}/pap-confirm`, {
+      method: "POST",
+    }),
+
+  settlePapDebt: (id: string, method: "wallet_deduction" | "manual" = "manual") =>
+    request<ApiResponse<{ message: string; data: { booking: BookingItem } }>>(`/bookings/${id}/pap-settle`, {
+      method: "POST",
+      body: { method },
     }),
 };
 
@@ -960,7 +974,7 @@ export const uploadApi = {
 
 export const commissionApi = {
   getHostLedger: (params?: { page?: number; limit?: number; startDate?: string; endDate?: string }) =>
-    request<ApiResponse<{ ledger: any[]; summary: { totalCommission: number; totalPayout: number; pendingPayout: number; count: number } }>>("/commission/ledger", {
+    request<ApiResponse<{ ledger: any[]; summary: { totalCommission: number; totalPayout: number; pendingPayout: number; count: number; papDebtPending?: number } }>>("/commission/ledger", {
       params: { ...params } as Record<string, string | number | undefined>,
     }),
 

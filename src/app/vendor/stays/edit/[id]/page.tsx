@@ -103,7 +103,7 @@ interface FormData {
     houseRules: HouseRule[]; cancellationPolicy: CancellationPolicy; cancellationDetails: string;
     isPetFriendly: boolean; petRules: string; isSmokingAllowed: boolean; isPartyAllowed: boolean;
     quietHoursStart: string; quietHoursEnd: string; languagesSpoken: string[];
-    instantBook: boolean; advanceNoticeHours: string; maxGuestsPerBooking: string; videoTourUrl: string;
+    instantBook: boolean; allowPayAtProperty: boolean; advanceNoticeHours: string; maxGuestsPerBooking: string; videoTourUrl: string;
     rooms?: {
         name: string;
         description: string;
@@ -236,7 +236,7 @@ const emptyForm: FormData = {
     houseRules: [], cancellationPolicy: "Moderate", cancellationDetails: "",
     isPetFriendly: false, petRules: "", isSmokingAllowed: false, isPartyAllowed: false,
     quietHoursStart: "", quietHoursEnd: "", languagesSpoken: ["English"],
-    instantBook: true, advanceNoticeHours: "", maxGuestsPerBooking: "", videoTourUrl: "", rooms: [],
+    instantBook: true, allowPayAtProperty: false, advanceNoticeHours: "", maxGuestsPerBooking: "", videoTourUrl: "", rooms: [],
 };
 
 // ──────────────────────── Main Component ────────────────────────
@@ -263,6 +263,7 @@ export default function EditListingPage() {
     // ── Cancellation Policy Admin Config ──
     const [vendorOverrideEnabled, setVendorOverrideEnabled] = useState(true);
     const [globalDefaultPolicy, setGlobalDefaultPolicy] = useState("Moderate");
+    const [isGlobalPayAtPropertyEnabled, setIsGlobalPayAtPropertyEnabled] = useState(false);
 
     // ── Fetch existing listing ──
     const fetchListing = useCallback(async () => {
@@ -318,7 +319,7 @@ export default function EditListingPage() {
                 isSmokingAllowed: l.isSmokingAllowed ?? false, isPartyAllowed: l.isPartyAllowed ?? false,
                 quietHoursStart: l.quietHoursStart || "", quietHoursEnd: l.quietHoursEnd || "",
                 languagesSpoken: l.languagesSpoken || ["English"],
-                instantBook: l.instantBook ?? true, advanceNoticeHours: l.advanceNoticeHours?.toString() || "",
+                instantBook: l.instantBook ?? true, allowPayAtProperty: l.allowPayAtProperty ?? false, advanceNoticeHours: l.advanceNoticeHours?.toString() || "",
                 maxGuestsPerBooking: l.maxGuestsPerBooking?.toString() || "", videoTourUrl: l.videoTourUrl || "",
                 rooms: (l.rooms || []).map((r: any) => ({
                     name: r.name || "",
@@ -349,8 +350,10 @@ export default function EditListingPage() {
                 if (res?.status === "success" && res.data?.configuration) {
                     const overrideEnabled = res.data.configuration.cancellation_vendor_override_enabled;
                     const defaultPolicy = res.data.configuration.cancellation_default_policy;
+                    const papEnabled = res.data.configuration.pay_at_property_enabled;
                     if (overrideEnabled !== undefined) setVendorOverrideEnabled(Boolean(overrideEnabled));
                     if (defaultPolicy !== undefined) setGlobalDefaultPolicy(String(defaultPolicy));
+                    if (papEnabled !== undefined) setIsGlobalPayAtPropertyEnabled(papEnabled === "true" || papEnabled === true);
                 }
             } catch (err) {
                 console.error("Failed to load cancellation config:", err);
@@ -577,8 +580,11 @@ export default function EditListingPage() {
                 })),
                 languagesSpoken: formData.languagesSpoken,
                 instantBook: formData.instantBook,
+                allowPayAtProperty: formData.allowPayAtProperty,
                 advanceNoticeHours: parseInt(formData.advanceNoticeHours) || 0,
-                maxGuestsPerBooking: formData.maxGuestsPerBooking ? parseInt(formData.maxGuestsPerBooking) : parseInt(formData.maxGuests),
+                ...(formData.isEntirePlace && {
+                    maxGuestsPerBooking: formData.maxGuestsPerBooking ? parseInt(formData.maxGuestsPerBooking) : parseInt(formData.maxGuests),
+                }),
                 videoTourUrl: formData.videoTourUrl.trim() || undefined,
                 rooms: formData.isEntirePlace ? [] : (formData.rooms || []).map((r: any) => ({
                     name: r.name,
@@ -932,10 +938,9 @@ export default function EditListingPage() {
                                                     {renderInput("Extra Guest (₹)", "extraGuestPrice", "e.g. 800")}
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-3">
-                                                    {renderInput("Taxes (%)", "taxes", "e.g. 12")}
                                                     {renderInput("Min Stay (nights)", "minStay", "e.g. 1")}
+                                                    {renderInput("Max Stay (nights)", "maxStay", "0 = no limit")}
                                                 </div>
-                                                {renderInput("Max Stay (nights)", "maxStay", "0 = no limit")}
                                                 <div className="grid grid-cols-2 gap-3">
                                                     {renderInput("Check-in Time", "checkInTime", "12:00 PM")}
                                                     {renderInput("Check-out Time", "checkOutTime", "11:00 AM")}
@@ -1104,6 +1109,7 @@ export default function EditListingPage() {
                                                     </div>
                                                 </div>
                                                 {renderToggle("Instant Book", "instantBook")}
+                                                {isGlobalPayAtPropertyEnabled && renderToggle("Allow Pay at Property", "allowPayAtProperty", "Let customers book online and pay when they arrive")}
                                                 {renderInput("Advance Notice (hours)", "advanceNoticeHours", "e.g. 24")}
                                                 {formData.isEntirePlace && renderInput("Max Guests Per Booking", "maxGuestsPerBooking", "e.g. 6")}
                                                 {renderInput("Video Tour URL", "videoTourUrl", "YouTube / Vimeo link")}
@@ -1139,7 +1145,7 @@ export default function EditListingPage() {
                                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                                                         {/* Existing media */}
                                                         {existingMedia.map((m, i) => (
-                                                            <div key={m._id} className="relative group rounded-xl overflow-hidden aspect-square bg-zinc-100 shadow-sm">
+                                                            <div key={`existing-${i}`} className="relative group rounded-xl overflow-hidden aspect-square bg-zinc-100 shadow-sm">
                                                                 <img src={m.url} alt="" className="w-full h-full object-cover" />
                                                                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex flex-col justify-between p-2">
                                                                     <div className="flex justify-between opacity-0 group-hover:opacity-100 transition-opacity">

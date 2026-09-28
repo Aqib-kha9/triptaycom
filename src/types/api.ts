@@ -281,6 +281,7 @@ export interface NotificationItem {
 export interface BookingItem {
   id: string;
   bookingId: string;
+  bookingRef?: string;
   itemId: string;
   itemType: "listing" | "activity";
   itemName: string;
@@ -303,10 +304,18 @@ export interface BookingItem {
   securityDeposit?: number;
   extraGuestCharges?: number;
   taxAmount?: number;
+  accommodationTax?: number;
+  platformFeeTax?: number;
+  commissionTax?: number;
+  tcsDeduction?: number;
+  tdsDeduction?: number;
   platformFee?: number;
   discountAmount?: number;
   totalAmount: number;
   refundAmount?: number;
+  vendorDebtAmount?: number;
+  papSettlementStatus?: string;
+  papCollectedAt?: string;
   // Guest details
   guestName?: string;
   guestEmail?: string;
@@ -320,12 +329,16 @@ export interface BookingItem {
   gatewayPaymentId?: string;
   paidAt?: string;
   paymentStatus?: string;
+  paymentMethod?: string;
   // Status
   status: "Confirmed" | "Paid" | "Completed" | "Cancelled" | "Pending" | "Expired" | "Rejected";
   checkInOtp?: string | null;
   checkInStatus?: string;
   userId: string;
   hostId: string;
+  hostName?: string;
+  hostEmail?: string;
+  hostPhone?: string;
   createdAt: string;
 }
 

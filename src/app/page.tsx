@@ -184,26 +184,27 @@ export default function Home() {
 
         {/* Featured Homestays */}
         <Section title="Featured Homestays" viewAll="/stays">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="flex overflow-x-auto gap-4 pb-4 snap-x no-scrollbar sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible sm:pb-0">
             {staysLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="aspect-[4/3] rounded-[2rem] bg-zinc-100 animate-pulse" />
+                <div key={i} className="w-[75%] sm:w-auto flex-shrink-0 snap-start aspect-[4/3] rounded-[2rem] bg-zinc-100 animate-pulse" />
               ))
             ) : featuredListings && featuredListings.length > 0 ? (
               featuredListings.map((l) => (
-                <ItemCard
-                  key={l.id}
-                  id={l.id}
-                  slug={l.slug}
-                  title={l.name}
-                  location={`${l.city}, ${l.state}`}
-                  price={l.basePrice.toLocaleString("en-IN")}
-                  rating={l.avgRating ? String(l.avgRating) : "New"}
-                  image={l.media?.[0]?.url || ""}
-                />
+                <div key={l.id} className="w-[75%] sm:w-auto flex-shrink-0 snap-start">
+                  <ItemCard
+                    id={l.id}
+                    slug={l.slug}
+                    title={l.name}
+                    location={`${l.city}, ${l.state}`}
+                    price={l.basePrice.toLocaleString("en-IN")}
+                    rating={l.avgRating ? String(l.avgRating) : "New"}
+                    image={l.media?.[0]?.url || ""}
+                  />
+                </div>
               ))
             ) : (
-              <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+              <div className="col-span-full w-full flex flex-col items-center justify-center py-16 text-center">
                 <p className="text-zinc-400 text-sm font-medium">No stays available yet.</p>
                 <p className="text-zinc-300 text-xs mt-1">Check back soon for exciting places to stay.</p>
               </div>
@@ -213,27 +214,28 @@ export default function Home() {
 
         {/* Top Activities */}
         <Section title="Top Activities" viewAll="/activities">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="flex overflow-x-auto gap-4 pb-4 snap-x no-scrollbar sm:grid sm:grid-cols-2 lg:grid-cols-4 sm:overflow-visible sm:pb-0">
             {actLoading ? (
               Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="aspect-[4/3] rounded-2xl bg-zinc-100 animate-pulse" />
+                <div key={i} className="w-[75%] sm:w-auto flex-shrink-0 snap-start aspect-[4/3] rounded-[2rem] bg-zinc-100 animate-pulse" />
               ))
             ) : topActivities && topActivities.length > 0 ? (
               topActivities.map((a) => (
-                <ItemCard
-                  key={a.id}
-                  type="activity"
-                  id={a.id}
-                  slug={a.slug}
-                  title={a.name}
-                  location={`${a.city}, ${a.state}`}
-                  price={a.basePrice?.toLocaleString("en-IN") || String(a.basePrice)}
-                  rating={a.avgRating ? String(a.avgRating) : "New"}
-                  image={a.media?.[0]?.url || ""}
-                />
+                <div key={a.id} className="w-[75%] sm:w-auto flex-shrink-0 snap-start">
+                  <ItemCard
+                    type="activity"
+                    id={a.id}
+                    slug={a.slug}
+                    title={a.name}
+                    location={`${a.city}, ${a.state}`}
+                    price={a.basePrice?.toLocaleString("en-IN") || String(a.basePrice)}
+                    rating={a.avgRating ? String(a.avgRating) : "New"}
+                    image={a.media?.[0]?.url || ""}
+                  />
+                </div>
               ))
             ) : (
-              <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
+              <div className="col-span-full w-full flex flex-col items-center justify-center py-16 text-center">
                 <p className="text-zinc-400 text-sm font-medium">No activities available yet.</p>
                 <p className="text-zinc-300 text-xs mt-1">Exciting adventures coming soon.</p>
               </div>

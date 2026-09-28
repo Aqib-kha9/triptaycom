@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, ChevronDown, ChevronLeft, ChevronRight, Minus, Plus, X, CalendarDays, Users, MapPin, Loader2, Navigation, AlertCircle, Home, Tent, Compass } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { publicApi } from "@/lib/api-client";
 
 /* ──────────────── Calendar Helpers ──────────────── */
 
@@ -358,21 +359,24 @@ export function SearchForm() {
     fetchTimeoutRef.current = setTimeout(async () => {
       setIsFetchingLocations(true);
       try {
-        // Fetch global location suggestions using OpenStreetMap Nominatim API (India focus)
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(location.trim())}&format=json&addressdetails=1&limit=5&countrycodes=in`, {
-          headers: {
-            'Accept-Language': 'en'
-          }
-        });
+        // Fetch global location suggestions using Photon API (Elasticsearch based OSM, much better for autocomplete)
+        const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(location.trim() + " India")}&osm_tag=place:city&osm_tag=place:town&osm_tag=place:village&limit=6`);
         
-        const body = await res.json().catch(() => ([]));
+        const data = await res.json().catch(() => ({}));
         
-        if (res.ok && Array.isArray(body)) {
-          const globalSuggestions = body.map((item: any) => {
-            const address = item.address || {};
-            const city = address.city || address.town || address.village || address.state || item.name;
-            const country = address.country || "";
-            return city && country ? `${city}, ${country}` : city || item.display_name.split(",")[0];
+        if (res.ok && data.features) {
+          const globalSuggestions = data.features.map((item: any) => {
+            const props = item.properties;
+            const city = props.name;
+            const state = props.state || "";
+            const country = props.country || "";
+            
+            if (city && state && city !== state) {
+              return `${city}, ${state}`;
+            } else if (city && country) {
+              return `${city}, ${country}`;
+            }
+            return city;
           });
           
           const uniqueSuggestions = [...new Set(globalSuggestions)].filter(Boolean) as string[];

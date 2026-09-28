@@ -104,6 +104,17 @@ function MessagesContent() {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
+
+  // Quick replies list — clicking populates input, does NOT auto-send
+  const quickReplies = [
+    "Hi! How can I help you today?",
+    "Your booking is confirmed ✅",
+    "Please share your check-in details.",
+    "We've processed your refund request.",
+    "Thank you for choosing us!",
+    "Sorry for the inconvenience. Let me look into this.",
+  ];
 
   // ── Refs ──
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -888,26 +899,34 @@ function MessagesContent() {
 
                               {group.messages.map((msg, mi) => {
                                 // Determine if message is mine based on conversation.otherUser
-                                const isMine =
-                                  msg.sender._id !==
-                                  activeConversation.otherUser?._id;
+                                const isSystem = !msg.sender;
+                                const isMine = !isSystem && msg.sender?._id !== activeConversation.otherUser?._id;
 
                                 return (
                                   <div
                                     key={msg._id}
                                     className={cn(
-                                      "flex flex-col max-w-[80%] space-y-0.5",
-                                      isMine
-                                        ? "ml-auto items-end"
-                                        : "items-start"
+                                      "flex flex-col space-y-0.5",
+                                      isSystem
+                                        ? "w-full items-center my-4"
+                                        : isMine
+                                        ? "ml-auto items-end max-w-[80%]"
+                                        : "items-start max-w-[80%]"
                                     )}
                                   >
+                                    {isSystem && (
+                                      <span className="text-[9px] font-black uppercase text-rose-500 tracking-wider mb-1">
+                                        System Arbitrator
+                                      </span>
+                                    )}
                                     {/* Text message */}
                                     {msg.type === "text" && msg.text && (
                                       <div
                                         className={cn(
                                           "px-4 py-2.5 rounded-2xl text-[11px] font-medium leading-relaxed break-words",
-                                          isMine
+                                          isSystem
+                                            ? "bg-rose-50 text-rose-700 border border-rose-100 shadow-sm"
+                                            : isMine
                                             ? "bg-zinc-900 text-white rounded-tr-none"
                                             : "bg-white border border-zinc-100 text-zinc-900 rounded-tl-none shadow-sm"
                                         )}
@@ -995,10 +1014,48 @@ function MessagesContent() {
 
                     {/* ── Message Input ── */}
                     <div className="p-4 bg-white border-t border-zinc-50 shrink-0">
+
+                      {/* Quick Replies Panel */}
+                      {activeConversation && showQuickReplies && (
+                        <div className="mb-3">
+                          <p className="text-[9px] font-black uppercase tracking-widest text-zinc-400 mb-2">Quick Replies</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {quickReplies.map((r, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                onClick={() => {
+                                  setMessageInput(r);
+                                  inputRef.current?.focus();
+                                }}
+                                className="px-3 py-1.5 rounded-full bg-zinc-100 hover:bg-primary hover:text-white text-zinc-600 text-[10px] font-semibold transition-all border border-zinc-200 hover:border-primary active:scale-95"
+                              >
+                                {r}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <form
                         onSubmit={sendMessage}
                         className="flex items-center gap-2 bg-zinc-50 p-1.5 rounded-xl border border-zinc-100"
                       >
+                        {activeConversation && (
+                          <button
+                            type="button"
+                            title="Quick Replies"
+                            onClick={() => setShowQuickReplies(v => !v)}
+                            className={`flex-shrink-0 h-8 w-8 rounded-lg flex items-center justify-center transition-all ${
+                              showQuickReplies
+                                ? "bg-primary text-white"
+                                : "bg-zinc-200 hover:bg-zinc-300 text-zinc-500"
+                            }`}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="m9 18 6-6-6-6"/>
+                            </svg>
+                          </button>
+                        )}
                         <Input
                           ref={inputRef}
                           value={messageInput}

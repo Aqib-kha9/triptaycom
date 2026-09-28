@@ -32,11 +32,12 @@ function BookingSuccessContent() {
   const [invoiceOpen, setInvoiceOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const searchParams = useSearchParams();
+  const paymentMethodUrl = searchParams.get("method");
 
   useEffect(() => {
     // Prefer the booking ID from the URL query param (persists across refresh),
     // fall back to sessionStorage for backward compatibility.
-    const bookingId = searchParams.get("booking") || sessionStorage.getItem("lastBookingId");
+    const bookingId = searchParams.get("bookingId") || searchParams.get("booking") || sessionStorage.getItem("lastBookingId");
     if (bookingId) {
       bookingsApi
         .getBookingById(bookingId)
@@ -111,7 +112,7 @@ function BookingSuccessContent() {
               transition={{ delay: 0.2 }}
               className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight"
             >
-              Booking Confirmed!
+              {paymentMethodUrl === "pay_at_property" ? "Booking Reserved!" : "Booking Confirmed!"}
             </motion.h1>
             <motion.p
               initial={{ y: 20, opacity: 0 }}
@@ -119,17 +120,26 @@ function BookingSuccessContent() {
               transition={{ delay: 0.3 }}
               className="text-lg text-zinc-500 font-medium"
             >
-              {booking ? (
-                <>
-                  Pack your bags! Your booking for{" "}
-                  <span className="text-zinc-900 font-bold">{booking.itemName}</span> is confirmed. We've sent
-                  the details to your email.
-                </>
-              ) : loading ? (
-                "Loading your booking details..."
-              ) : (
-                "Your booking is confirmed. We've sent the details to your email."
-              )}
+                {paymentMethodUrl === "pay_at_property" ? (
+                  booking ? (
+                    <>
+                      Your booking for <span className="text-zinc-900 font-bold">{booking.itemName}</span> is reserved.
+                      <br />You will pay the total amount directly at the property.
+                    </>
+                  ) : loading ? "Loading your booking details..." : "Your booking is reserved. You will pay directly at the venue."
+                ) : (
+                  booking ? (
+                    <>
+                      Pack your bags! Your booking for{" "}
+                      <span className="text-zinc-900 font-bold">{booking.itemName}</span> is confirmed. We've sent
+                      the details to your email.
+                    </>
+                  ) : loading ? (
+                    "Loading your booking details..."
+                  ) : (
+                    "Your booking is confirmed. We've sent the details to your email."
+                  )
+                )}
             </motion.p>
           </div>
 
@@ -187,7 +197,9 @@ function BookingSuccessContent() {
 
               <div className="pt-8 border-t border-dashed border-zinc-200 flex flex-col md:flex-row items-center justify-between gap-6">
                 <div className="text-left w-full md:w-auto">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Total Paid</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                    {paymentMethodUrl === "pay_at_property" ? "Amount to Pay at Venue" : "Total Paid"}
+                  </p>
                   <p className="text-2xl font-black text-zinc-900 italic">
                     {booking ? `₹${booking.totalAmount.toLocaleString("en-IN")}` : "—"}
                   </p>

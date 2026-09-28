@@ -98,6 +98,11 @@ export function NavbarPublic() {
               </span>
             )}
           </Link>
+          <Link href="/login" className="hidden lg:block">
+            <Button variant="ghost" className="rounded-full px-6 h-11 font-bold hover:bg-zinc-100">
+              Become a Host
+            </Button>
+          </Link>
           <Link href="/login">
             <Button className="rounded-full px-8 h-11 font-bold">
               Login / Sign Up
@@ -134,6 +139,7 @@ export function NavbarPublic() {
                 <Link href="/stays" onClick={() => setIsMobileMenuOpen(false)} className={`text-xl font-bold transition-colors ${pathname.startsWith("/stays") ? "text-primary" : "text-zinc-800"}`}>Stays</Link>
                 <Link href="/activities" onClick={() => setIsMobileMenuOpen(false)} className={`text-xl font-bold transition-colors ${pathname.startsWith("/activities") ? "text-primary" : "text-zinc-800"}`}>Activities</Link>
                 <div className="h-px bg-zinc-100 my-4" />
+                <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="text-xl font-bold text-zinc-800 text-left">Become a Host</Link>
                 <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="text-xl font-bold text-primary text-left">Login / Sign Up</Link>
               </div>
             </motion.div>

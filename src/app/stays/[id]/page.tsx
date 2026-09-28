@@ -1255,8 +1255,6 @@ export default function StayDetailPage({ params: paramsPromise }: { params: Prom
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                   <div><p className="text-xs text-gray-500">Type</p><p className="font-semibold text-gray-900">{listing.propertyType}</p></div>
-                  <div><p className="text-xs text-gray-500">Max Guests</p><p className="font-semibold text-gray-900">{listing.maxGuests}</p></div>
-                  <div><p className="text-xs text-gray-500">Bedrooms</p><p className="font-semibold text-gray-900">{listing.bedrooms}</p></div>
                   <div><p className="text-xs text-gray-500">Beds</p><p className="font-semibold text-gray-900">{listing.beds}</p></div>
                   <div><p className="text-xs text-gray-500">Bathrooms</p><p className="font-semibold text-gray-900">{listing.bathrooms}</p></div>
                   {listing.extraMattresses != null && listing.extraMattresses > 0 && (

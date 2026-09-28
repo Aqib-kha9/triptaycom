@@ -892,8 +892,8 @@ export default function VendorMessagesPage() {
                         <Link
                           href={
                             activeConversation.bookingContext.type === "listing"
-                              ? `/stays/${activeConversation.listingId || ""}`
-                              : `/activities/${activeConversation.activityId || ""}`
+                              ? `/vendor/stays/${activeConversation.listingId || ""}`
+                              : `/vendor/activities/${activeConversation.activityId || ""}`
                           }
                         >
                           <Button
@@ -947,25 +947,33 @@ export default function VendorMessagesPage() {
                               </div>
 
                               {group.messages.map((msg, mi) => {
-                                const isMine =
-                                  msg.sender._id !==
-                                  activeConversation.otherUser?._id;
+                                const isSystem = !msg.sender;
+                                const isMine = !isSystem && msg.sender?._id !== activeConversation.otherUser?._id;
 
                                 return (
                                   <div
                                     key={msg._id}
                                     className={cn(
-                                      "flex flex-col max-w-[80%] space-y-0.5",
-                                      isMine
-                                        ? "ml-auto items-end"
-                                        : "items-start"
+                                      "flex flex-col space-y-0.5",
+                                      isSystem
+                                        ? "w-full items-center my-4"
+                                        : isMine
+                                        ? "ml-auto items-end max-w-[80%]"
+                                        : "items-start max-w-[80%]"
                                     )}
                                   >
+                                    {isSystem && (
+                                      <span className="text-[9px] font-black uppercase text-rose-500 tracking-wider mb-1">
+                                        System Arbitrator
+                                      </span>
+                                    )}
                                     {msg.type === "text" && msg.text && (
                                       <div
                                         className={cn(
                                           "px-4 py-2.5 rounded-2xl text-[11px] font-medium leading-relaxed break-words",
-                                          isMine
+                                          isSystem
+                                            ? "bg-rose-50 text-rose-700 border border-rose-100 shadow-sm"
+                                            : isMine
                                             ? "bg-zinc-900 text-white rounded-tr-none"
                                             : "bg-white border border-zinc-100 text-zinc-900 rounded-tl-none shadow-sm"
                                         )}

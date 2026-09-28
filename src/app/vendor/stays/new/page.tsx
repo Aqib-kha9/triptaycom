@@ -192,6 +192,7 @@ interface FormData {
   advanceNoticeHours: string;
   maxGuestsPerBooking: string;
   videoTourUrl: string;
+  allowPayAtProperty: boolean;
 
   // Rooms
   rooms: RoomFormData[];
@@ -380,6 +381,7 @@ const INITIAL_FORM_DATA: FormData = {
   advanceNoticeHours: "0",
   maxGuestsPerBooking: "",
   videoTourUrl: "",
+  allowPayAtProperty: false,
   rooms: [],
 };
 
@@ -453,6 +455,7 @@ const FILLER_DATA: FormData = {
   advanceNoticeHours: "24",
   maxGuestsPerBooking: "6",
   videoTourUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  allowPayAtProperty: true,
   rooms: [],
 };
 
@@ -530,6 +533,7 @@ const HOTEL_FILLER_DATA: FormData = {
   advanceNoticeHours: "12",
   maxGuestsPerBooking: "",
   videoTourUrl: "",
+  allowPayAtProperty: false,
   rooms: [
     {
       name: "Deluxe Mountain View Room",
@@ -581,6 +585,7 @@ export default function AddHomestayPage() {
   // ── Cancellation Policy Admin Config ──
   const [vendorOverrideEnabled, setVendorOverrideEnabled] = useState(true);
   const [globalDefaultPolicy, setGlobalDefaultPolicy] = useState("Moderate");
+  const [isGlobalPayAtPropertyEnabled, setIsGlobalPayAtPropertyEnabled] = useState(false);
 
   const handleAutoFill = () => {
     setFormData({ ...FILLER_DATA });
@@ -616,8 +621,10 @@ export default function AddHomestayPage() {
         if (res?.status === "success" && res.data?.configuration) {
           const overrideEnabled = res.data.configuration.cancellation_vendor_override_enabled;
           const defaultPolicy = res.data.configuration.cancellation_default_policy;
+          const papEnabled = res.data.configuration.pay_at_property_enabled;
           if (overrideEnabled !== undefined) setVendorOverrideEnabled(Boolean(overrideEnabled));
           if (defaultPolicy !== undefined) setGlobalDefaultPolicy(String(defaultPolicy));
+          if (papEnabled !== undefined) setIsGlobalPayAtPropertyEnabled(papEnabled === "true" || papEnabled === true);
         }
       } catch (err) {
         console.error("Failed to load cancellation config:", err);
@@ -907,6 +914,7 @@ export default function AddHomestayPage() {
         })),
         languagesSpoken: formData.languagesSpoken,
         instantBook: formData.instantBook,
+          allowPayAtProperty: formData.allowPayAtProperty,
         advanceNoticeHours: parseInt(formData.advanceNoticeHours) || 0,
         // maxGuestsPerBooking: only for entire-place listings
         ...(formData.isEntirePlace && {
@@ -1450,7 +1458,6 @@ export default function AddHomestayPage() {
                           { field: "extraGuestPrice" as keyof FormData, label: "Extra Guest / Night" },
                           { field: "cleaningFee" as keyof FormData, label: "Cleaning Fee" },
                           { field: "securityDeposit" as keyof FormData, label: "Security Deposit" },
-                          { field: "taxes" as keyof FormData, label: "Taxes (%)" },
                         ].map(({ field, label, required }) => (
                           <div key={field} className="space-y-1">
                             <label className="text-[10px] font-bold text-zinc-400 uppercase flex items-center gap-1">
@@ -1970,6 +1977,7 @@ export default function AddHomestayPage() {
                         Booking Settings
                       </h3>
                       {renderToggle("Instant Book", "instantBook", "Guests can book without host approval")}
+                      {isGlobalPayAtPropertyEnabled && renderToggle("Allow Pay at Property", "allowPayAtProperty", "Let customers book online and pay when they arrive")}
                       {renderInput("Advance Notice (hours)", "advanceNoticeHours", {
                         type: "number",
                         placeholder: "0 = same day booking allowed",
