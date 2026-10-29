@@ -87,6 +87,20 @@ export function NavbarVendor() {
 
         socket.on("message:new", refresh);
         socket.on("messages:read", refresh);
+        socket.on("notification:new", (data: any) => {
+          if (typeof data?.unreadCount === "number") {
+            setNotifUnread(data.unreadCount);
+          } else {
+            refresh();
+          }
+        });
+        socket.on("notification:count", (data: any) => {
+          if (typeof data?.unreadCount === "number") {
+            setNotifUnread(data.unreadCount);
+          } else {
+            refresh();
+          }
+        });
       } catch {
         // Socket not available — polling handles it
       }

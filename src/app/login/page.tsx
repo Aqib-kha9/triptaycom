@@ -121,6 +121,7 @@ export default function LoginPage() {
   const [otp, setOtp] = useState("");
   const [password, setPassword] = useState("");
   const [receivedOtp, setReceivedOtp] = useState("");
+  const [dispatchChannel, setDispatchChannel] = useState<"whatsapp" | "email">("whatsapp");
   const [fullName, setFullName] = useState("");
   const [selectedRole, setSelectedRole] = useState<"guest" | "vendor">("guest");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
@@ -128,7 +129,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
-  const [countdown, setCountdown] = useState(45);
+  const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -145,7 +146,7 @@ export default function LoginPage() {
 
   const startCountdown = useCallback(() => {
     stopCountdown();
-    setCountdown(45);
+    setCountdown(60);
     setCanResend(false);
     countdownRef.current = setInterval(() => {
       setCountdown((prev) => {
@@ -182,7 +183,8 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        setReceivedOtp(data.devCode || "");
+        const channel = data.data?.channel || (authMethod === "mobile" ? "whatsapp" : "email");
+        setDispatchChannel(channel);
         setOtp("");
         startCountdown();
       } else {
@@ -335,7 +337,8 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        setReceivedOtp(data.devCode || "");
+        const channel = data.data?.channel || (authMethod === "mobile" ? "whatsapp" : "email");
+        setDispatchChannel(channel);
         setDetectedType(authMethod === "email" ? "email" : "mobile");
         setStep("otp");
         startCountdown();
@@ -674,9 +677,23 @@ export default function LoginPage() {
               >
                 {/* Back / Identifier View */}
                 <div className="flex items-center justify-between p-3.5 bg-zinc-50 border border-zinc-100 rounded-2xl">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Destination</span>
-                    <span className="text-sm font-semibold text-zinc-700">{identifier}</span>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5">
+                      {dispatchChannel === "whatsapp" ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Sent via WhatsApp
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          Sent via Email
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-sm font-semibold text-zinc-800">
+                      {dispatchChannel === "whatsapp" && !identifier.startsWith("+") ? `+91 ${identifier}` : identifier}
+                    </span>
                   </div>
                   <button
                     type="button"
@@ -685,6 +702,7 @@ export default function LoginPage() {
                       setError("");
                     }}
                     className="p-2 text-zinc-400 hover:text-primary transition-colors bg-white rounded-xl border border-zinc-150 shadow-sm"
+                    title="Change recipient"
                   >
                     <Pencil className="w-3.5 h-3.5" />
                   </button>
@@ -709,15 +727,8 @@ export default function LoginPage() {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <label className="text-xs font-bold uppercase tracking-widest text-zinc-400 ml-1">Enter 6-digit OTP</label>
+                      <label className="text-xs font-bold uppercase tracking-widest text-zinc-400 ml-1">Enter 6-digit Verification Code</label>
                       <OTPInput otp={otp} setOtp={setOtp} error={error} setError={setError} />
-                    </div>
-                  )}
-                  {/* Dev OTP banner — shows the OTP code during development (no SMS gateway) */}
-                  {!isAdmin && receivedOtp && (
-                    <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl">
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600">Dev OTP</span>
-                      <code className="text-lg font-black text-amber-800 tracking-[0.3em] ml-auto">{receivedOtp}</code>
                     </div>
                   )}
                   {error && <p className="text-xs font-bold text-rose-500 px-1">{error}</p>}

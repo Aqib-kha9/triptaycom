@@ -85,7 +85,7 @@ export default function VendorOnboardingPage() {
     setPageLoading(false);
   }, [kycStatus, router]);
 
-  const uploadFileToCloudinary = async (file: File, docType: DocType): Promise<string> => {
+  const uploadFileToStorage = async (file: File, docType: DocType): Promise<string> => {
     const data = await uploadApi.uploadDocument(file, docType);
     return data.data.url;
   };
@@ -97,7 +97,7 @@ export default function VendorOnboardingPage() {
     setter(prev => ({ ...prev, file, uploading: true, preview }));
 
     try {
-      const url = await uploadFileToCloudinary(file, docType);
+      const url = await uploadFileToStorage(file, docType);
       setter(prev => ({ ...prev, uploading: false, url }));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : `Failed to upload ${docType}. Please try again.`);

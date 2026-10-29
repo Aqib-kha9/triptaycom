@@ -20,6 +20,7 @@ import { VendorSidebar } from "@/components/navigation/vendor-sidebar";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { notificationsApi } from "@/lib/api-client";
+import { getSessionToken } from "@/lib/session";
 
 export default function VendorNotificationsPage() {
   const [filter, setFilter] = useState("All");
@@ -42,6 +43,38 @@ export default function VendorNotificationsPage() {
 
   useEffect(() => {
     fetchNotifications();
+
+    const token = getSessionToken();
+    if (!token) return;
+
+    let cancelled = false;
+    let socket: any = null;
+
+    (async () => {
+      try {
+        const { io } = await import("socket.io-client");
+        if (cancelled) return;
+
+        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
+        socket = io(socketUrl, {
+          auth: { token },
+          transports: ["websocket", "polling"],
+        });
+
+        socket.on("notification:new", (data: any) => {
+          if (data?.notification) {
+            setNotifications(prev => [data.notification, ...prev]);
+          }
+        });
+      } catch {
+        // Socket fallback
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (socket) socket.disconnect();
+    };
   }, []);
 
   const handleMarkAsRead = async (id: string) => {

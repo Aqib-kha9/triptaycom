@@ -255,7 +255,7 @@ export const authApi = {
   getMe: (timeout?: number) => request<ApiResponse<{ user: SanitizedUser }>>("/auth/me", { timeout }),
 
   sendOtp: (identifier: string, purpose?: string) =>
-    request<ApiResponse<{ message: string; devCode?: string }>>("/auth/send-otp", {
+    request<ApiResponse<{ message: string; channel?: "whatsapp" | "email"; target?: string }>>("/auth/send-otp", {
       method: "POST",
       body: { identifier, purpose },
       auth: false,
@@ -338,7 +338,7 @@ export const authApi = {
     }),
 
   sendPhoneUpdateOtp: (phone: string) =>
-    request<ApiResponse<{ message: string; devCode?: string }>>("/auth/send-phone-update-otp", {
+    request<ApiResponse<{ message: string; channel?: "whatsapp" | "email"; target?: string }>>("/auth/send-phone-update-otp", {
       method: "POST",
       body: { phone },
     }),
@@ -350,7 +350,7 @@ export const authApi = {
     }),
 
   sendPasswordResetOtp: () =>
-    request<ApiResponse<{ message: string; devCode?: string }>>("/auth/send-password-reset-otp", {
+    request<ApiResponse<{ message: string; channel?: "whatsapp" | "email"; target?: string }>>("/auth/send-password-reset-otp", {
       method: "POST",
     }),
 
@@ -636,18 +636,46 @@ export const notificationsApi = {
 export interface WalletTransaction {
   id: string;
   amount: number;
+  rawAmount?: number;
   type: "credit" | "debit";
+  category?: string;
   title: string;
   description?: string;
   status: string;
+  referenceId?: string;
+  bookingRef?: string;
+  expiresAt?: string | null;
+  isExpired?: boolean;
   createdAt: string;
 }
 
-export const walletApi = {
+export interface CreditsSummary {
+  availableCredits: number;
+  heldCredits: number;
+  totalEarned: number;
+  totalSpent: number;
+  expiringSoon: number;
+  transactions: WalletTransaction[];
+}
+
+export const creditsApi = {
+  getSummary: () => request<ApiResponse<CreditsSummary>>("/credits/summary"),
   getHistory: () =>
-    request<ApiResponse<{ balance: number; spent: number; refunds: number; transactions: WalletTransaction[] }>>(
-      "/wallet/history"
-    ),
+    request<
+      ApiResponse<{
+        balance: number;
+        spent: number;
+        refunds: number;
+        heldCredits?: number;
+        expiringSoon?: number;
+        transactions: WalletTransaction[];
+      }>
+    >("/credits/history"),
+};
+
+export const walletApi = {
+  getHistory: creditsApi.getHistory,
+  getSummary: creditsApi.getSummary,
 
   createOrder: (data: { amount: number }) =>
     request<ApiResponse<{ message: string; orderId: string; amount: number; currency: string; keyId?: string }>>("/wallet/create-order", {
@@ -760,10 +788,10 @@ export const bookingsApi = {
       canCancel: boolean;
     }>>(`/bookings/${id}/cancel-preview`),
 
-  cancelBooking: (id: string, reason?: string) =>
+  cancelBooking: (id: string, reason?: string, refundDestination: "credits" | "original_payment_method" = "credits") =>
     request<ApiResponse<{ message: string; data: { booking: BookingItem } }>>(`/bookings/${id}/cancel`, {
       method: "POST",
-      body: reason ? { reason } : undefined,
+      body: { reason, refundDestination },
     }),
 
   // Expire a pending booking — releases the blocked dates so other guests can book them.
@@ -806,10 +834,21 @@ export const bookingsApi = {
 // ─── Payments API ───────────────────────────────────────────
 
 export const paymentsApi = {
-  createRazorpayOrder: (bookingId: string) =>
-    request<ApiResponse<{ orderId: string; amount: number; currency: string; keyId: string; bookingId: string; paymentId: string }>>(
+  createRazorpayOrder: (bookingId: string, creditsApplied = 0) =>
+    request<ApiResponse<{
+      orderId?: string | null;
+      amount?: number;
+      currency?: string;
+      keyId?: string;
+      bookingId: string;
+      paymentId?: string;
+      creditsApplied?: number;
+      payableCash?: number;
+      isFullyCoveredByCredits?: boolean;
+      message?: string;
+    }>>(
       "/payments/razorpay/order",
-      { method: "POST", body: { bookingId } }
+      { method: "POST", body: { bookingId, creditsApplied } }
     ),
 
   verifyRazorpayPayment: (data: {
@@ -823,7 +862,7 @@ export const paymentsApi = {
       { method: "POST", body: data }
     ),
 
-  createPayuOrder: (bookingId: string) =>
+  createPayuOrder: (bookingId: string, creditsApplied = 0) =>
     request<ApiResponse<{
       txnid: string;
       amount: string;
@@ -843,7 +882,7 @@ export const paymentsApi = {
       udf5: string;
     }>>(
       "/payments/payu/order",
-      { method: "POST", body: { bookingId } }
+      { method: "POST", body: { bookingId, creditsApplied } }
     ),
 
   verifyPayuPayment: (data: {

@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { Heart, User, MessageSquare, Bell, Menu, X, ChevronDown, LayoutDashboard, Calendar, Star, LogOut, Settings, Building2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import type { Socket } from "socket.io-client";
 import { useRole } from "@/components/role-provider";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useWishlist } from "@/context/WishlistContext";
+import { getSessionToken } from "@/lib/session";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export function NavbarUser() {
   const pathname = usePathname();
@@ -18,6 +22,82 @@ export function NavbarUser() {
   const wishlistCount = wishlistedIds.size;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showCompactSearch, setShowCompactSearch] = useState(false);
+  const [notifUnread, setNotifUnread] = useState(0);
+  const socketRef = useRef<Socket | null>(null);
+
+  const fetchUnreadCounts = useCallback(async () => {
+    const token = getSessionToken();
+    if (!token) return;
+
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const notifRes = await fetch(`${API_BASE}/notifications/unread`, { headers });
+      if (notifRes.ok) {
+        const data = await notifRes.json();
+        setNotifUnread(data?.data?.count || data?.data?.unreadCount || 0);
+      }
+    } catch {
+      // Silently fail
+    }
+  }, []);
+
+  // Fetch unread count on mount and every 30 seconds
+  useEffect(() => {
+    fetchUnreadCounts();
+    const interval = setInterval(fetchUnreadCounts, 30000);
+    return () => clearInterval(interval);
+  }, [fetchUnreadCounts]);
+
+  // Realtime Socket.IO listener for notifications
+  useEffect(() => {
+    const token = getSessionToken();
+    if (!token) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { io } = await import("socket.io-client");
+        if (cancelled) return;
+
+        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
+        const socket = io(socketUrl, {
+          auth: { token },
+          transports: ["websocket", "polling"],
+        });
+        socketRef.current = socket;
+
+        const refresh = () => {
+          if (!cancelled) fetchUnreadCounts();
+        };
+
+        socket.on("notification:new", (data: any) => {
+          if (typeof data?.unreadCount === "number") {
+            setNotifUnread(data.unreadCount);
+          } else {
+            refresh();
+          }
+        });
+        socket.on("notification:count", (data: any) => {
+          if (typeof data?.unreadCount === "number") {
+            setNotifUnread(data.unreadCount);
+          } else {
+            refresh();
+          }
+        });
+      } catch {
+        // Socket not available — polling handles it
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, [fetchUnreadCounts]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -139,10 +219,15 @@ export function NavbarUser() {
                 </span>
               )}
             </Link>
-            <Link href="/notifications">
+            <Link href="/notifications" className="relative">
               <Button variant="ghost" size="icon" className={cn("rounded-full transition-colors", pathname === "/notifications" ? "text-primary bg-primary/5" : "text-zinc-400 hover:text-primary")}>
                 <Bell className="h-5 w-5" />
               </Button>
+              {notifUnread > 0 && (
+                <span className="absolute top-0 right-0 flex items-center justify-center min-w-[16px] h-4 px-1 bg-rose-500 text-white text-[10px] font-black rounded-full shadow-sm">
+                  {notifUnread > 99 ? "99+" : notifUnread}
+                </span>
+              )}
             </Link>
 
             {/* User Dropdown Trigger */}

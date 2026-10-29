@@ -31,17 +31,52 @@ const getTimeAgo = (date: string | Date) => {
   if (interval > 1) return Math.floor(interval) + "m ago";
   return "Just now";
 };
+import { useRouter } from "next/navigation";
 import { DashboardSidebar } from "@/components/navigation/dashboard-sidebar";
 import { notificationsApi } from "@/lib/api-client";
 import type { NotificationItem } from "@/types/api";
+import { getSessionToken } from "@/lib/session";
 
 export default function NotificationsPage() {
+  const router = useRouter();
   const [filter, setFilter] = useState<"all" | "booking" | "promo" | "system">("all");
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchNotifications();
+
+    const token = getSessionToken();
+    if (!token) return;
+
+    let cancelled = false;
+    let socket: any = null;
+
+    (async () => {
+      try {
+        const { io } = await import("socket.io-client");
+        if (cancelled) return;
+
+        const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/api$/, "");
+        socket = io(socketUrl, {
+          auth: { token },
+          transports: ["websocket", "polling"],
+        });
+
+        socket.on("notification:new", (data: any) => {
+          if (data?.notification) {
+            setNotifications(prev => [data.notification, ...prev]);
+          }
+        });
+      } catch {
+        // Socket fallback
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (socket) socket.disconnect();
+    };
   }, []);
 
   const fetchNotifications = async () => {
@@ -155,9 +190,12 @@ export default function NotificationsPage() {
                           initial={{ opacity: 0, scale: 0.98 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.98 }}
-                          onClick={() => !n.isRead && markAsRead(n.id)}
+                          onClick={() => {
+                            if (!n.isRead) markAsRead(n.id);
+                            if (n.link) router.push(n.link);
+                          }}
                           className={cn(
-                            "bg-white p-4 sm:p-5 rounded-2xl border transition-all group relative overflow-hidden cursor-pointer",
+                            "bg-white p-4 sm:p-5 rounded-2xl border transition-all group relative overflow-hidden cursor-pointer hover:border-zinc-300 hover:shadow-sm",
                             !n.isRead ? "border-primary/20 bg-primary/5" : "border-zinc-100"
                           )}
                         >
@@ -181,13 +219,18 @@ export default function NotificationsPage() {
                                 "text-xs line-clamp-2",
                                 !n.isRead ? "text-zinc-600 font-medium" : "text-zinc-500"
                               )}>
-                                {n.message}
+                                {n.description || n.message}
                               </p>
                               <div className="flex items-center gap-3 mt-3 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
                                 <span className="flex items-center gap-1">
                                   <Clock className="w-3 h-3" />
                                   {getTimeAgo(n.createdAt)}
                                 </span>
+                                {n.link && (
+                                  <span className="text-primary hover:underline flex items-center gap-0.5 normal-case font-bold text-xs">
+                                    View details →
+                                  </span>
+                                )}
                               </div>
                             </div>
                             

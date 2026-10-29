@@ -16,7 +16,7 @@ import {
   CalendarCheck,
   Star,
   Bell,
-  CreditCard,
+  Coins,
   DollarSign,
   Building2,
   Users,
@@ -53,7 +53,7 @@ export function MobileBottomNav() {
     { name: "Messages", href: "/messages", icon: MessageSquare },
     { name: "Reviews", href: "/reviews", icon: Star },
     { name: "Notifications", href: "/notifications", icon: Bell },
-    { name: "Wallet", href: "/wallet", icon: CreditCard },
+    { name: "TripTay Credits", href: "/credits", icon: Coins },
     { name: "Profile Settings", href: "/profile", icon: Settings },
   ];
 

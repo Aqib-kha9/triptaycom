@@ -150,13 +150,14 @@ export function AuthModal({ open, onClose, onSuccess, title, subtitle }: AuthMod
     const [otp, setOtp] = useState("");
     const [password, setPassword] = useState("");
     const [receivedOtp, setReceivedOtp] = useState("");
+    const [dispatchChannel, setDispatchChannel] = useState<"whatsapp" | "email">("whatsapp");
     const [fullName, setFullName] = useState("");
     const [selectedRole, setSelectedRole] = useState<"guest" | "vendor">("guest");
     const [agreedToTerms, setAgreedToTerms] = useState(true);
     const [isAdmin, setIsAdmin] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const [countdown, setCountdown] = useState(45);
+    const [countdown, setCountdown] = useState(60);
     const [canResend, setCanResend] = useState(false);
     const [resendLoading, setResendLoading] = useState(false);
     const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -173,7 +174,7 @@ export function AuthModal({ open, onClose, onSuccess, title, subtitle }: AuthMod
 
     const startCountdown = useCallback(() => {
         stopCountdown();
-        setCountdown(45);
+        setCountdown(60);
         setCanResend(false);
         countdownRef.current = setInterval(() => {
             setCountdown((prev) => {
@@ -275,7 +276,8 @@ export function AuthModal({ open, onClose, onSuccess, title, subtitle }: AuthMod
             });
             const data = await res.json();
             if (res.ok) {
-                setReceivedOtp(data.devCode || "");
+                const channel = data.data?.channel || (authMethod === "mobile" ? "whatsapp" : "email");
+                setDispatchChannel(channel);
                 setOtp("");
                 startCountdown();
             } else {
@@ -325,7 +327,8 @@ export function AuthModal({ open, onClose, onSuccess, title, subtitle }: AuthMod
             });
             const data = await res.json();
             if (res.ok) {
-                setReceivedOtp(data.devCode || "");
+                const channel = data.data?.channel || (authMethod === "mobile" ? "whatsapp" : "email");
+                setDispatchChannel(channel);
                 setStep("otp");
                 startCountdown();
             } else {
@@ -594,12 +597,24 @@ export function AuthModal({ open, onClose, onSuccess, title, subtitle }: AuthMod
                                     onSubmit={handleOtpVerify}
                                     className="space-y-5"
                                 >
-                                    <div className="flex items-center justify-between p-3 bg-zinc-50 border border-zinc-100 rounded-2xl">
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                                                Sent to
+                                    <div className="flex items-center justify-between p-3.5 bg-zinc-50 border border-zinc-100 rounded-2xl">
+                                        <div className="flex flex-col min-w-0 gap-1">
+                                            <div className="flex items-center gap-1.5">
+                                                {dispatchChannel === "whatsapp" ? (
+                                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                        Sent via WhatsApp
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                                        Sent via Email
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-sm font-semibold text-zinc-800 truncate">
+                                                {dispatchChannel === "whatsapp" && !identifier.startsWith("+") ? `+91 ${identifier}` : identifier}
                                             </span>
-                                            <span className="text-sm font-semibold text-zinc-700 truncate">{identifier}</span>
                                         </div>
                                         <button
                                             type="button"
@@ -608,6 +623,7 @@ export function AuthModal({ open, onClose, onSuccess, title, subtitle }: AuthMod
                                                 setError("");
                                             }}
                                             className="p-2 text-zinc-400 hover:text-primary transition-colors bg-white rounded-xl border border-zinc-200 shadow-sm shrink-0 ml-2"
+                                            title="Change recipient"
                                         >
                                             <Pencil className="w-3.5 h-3.5" />
                                         </button>
@@ -634,21 +650,9 @@ export function AuthModal({ open, onClose, onSuccess, title, subtitle }: AuthMod
                                     ) : (
                                         <div className="space-y-2">
                                             <label className="text-[11px] font-bold uppercase tracking-widest text-zinc-400 ml-1">
-                                                6-digit Code
+                                                6-digit Verification Code
                                             </label>
                                             <CompactOtpInput otp={otp} setOtp={setOtp} error={error} setError={setError} />
-                                        </div>
-                                    )}
-
-                                    {/* Dev OTP helper — only rendered when the backend dev-supplies a code */}
-                                    {!isAdmin && receivedOtp && (
-                                        <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-2xl">
-                                            <span className="text-[10px] font-bold uppercase tracking-widest text-amber-600">
-                                                Dev OTP
-                                            </span>
-                                            <code className="text-base font-black text-amber-800 tracking-[0.3em] ml-auto">
-                                                {receivedOtp}
-                                            </code>
                                         </div>
                                     )}
 

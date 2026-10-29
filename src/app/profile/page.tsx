@@ -46,7 +46,6 @@ export default function ProfilePage() {
   const [showPasswordOtpModal, setShowPasswordOtpModal] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const [devCode, setDevCode] = useState("");
   const [passwordResetNewPassword, setPasswordResetNewPassword] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -94,10 +93,7 @@ export default function ProfilePage() {
       setError(null);
       setSuccess(null);
       try {
-        const res = await authApi.sendPhoneUpdateOtp(phone);
-        if (res.data?.devCode) {
-          setDevCode(res.data.devCode);
-        }
+        await authApi.sendPhoneUpdateOtp(phone);
         setShowPhoneOtpModal(true);
       } catch (err: any) {
         console.error(err);
@@ -147,7 +143,6 @@ export default function ProfilePage() {
         setSuccess("Phone number updated successfully! Updating profile...");
         setShowPhoneOtpModal(false);
         setOtpCode("");
-        setDevCode("");
         setOriginalPhone(phone);
         
         // Save the rest of the fields automatically
@@ -165,10 +160,7 @@ export default function ProfilePage() {
     setError(null);
     setSuccess(null);
     try {
-      const res = await authApi.sendPasswordResetOtp();
-      if (res.data?.devCode) {
-        setDevCode(res.data.devCode);
-      }
+      await authApi.sendPasswordResetOtp();
       setShowPasswordOtpModal(true);
     } catch (err: any) {
       setError(err.message || "Failed to send password reset OTP.");
@@ -188,7 +180,6 @@ export default function ProfilePage() {
       setSuccess("Password reset successfully via OTP!");
       setShowPasswordOtpModal(false);
       setOtpCode("");
-      setDevCode("");
       setPasswordResetNewPassword("");
     } catch (err: any) {
       setError(err.message || "Invalid OTP code.");
@@ -440,14 +431,7 @@ export default function ProfilePage() {
               ✕
             </button>
             <h3 className="text-lg font-bold text-zinc-900 mb-1">Verify New Phone</h3>
-            <p className="text-xs text-zinc-500 font-medium mb-6">Enter the OTP sent to {phone} to verify and save your new number.</p>
-            
-            {devCode && (
-              <div className="bg-orange-50 border border-orange-200 text-orange-700 text-xs p-3 rounded-xl mb-4 font-bold flex flex-col gap-1">
-                <span>[DEV MODE] OTP Code: {devCode}</span>
-                <span className="text-[10px] font-medium opacity-80">Visible only because DLT SMS is disabled in dev.</span>
-              </div>
-            )}
+            <p className="text-xs text-zinc-500 font-medium mb-6">Enter the 6-digit verification code sent via WhatsApp to {phone} to verify and save your new number.</p>
 
             <div className="space-y-4">
               <div className="space-y-1.5">
@@ -469,14 +453,7 @@ export default function ProfilePage() {
               ✕
             </button>
             <h3 className="text-lg font-bold text-zinc-900 mb-1">Reset Password</h3>
-            <p className="text-xs text-zinc-500 font-medium mb-6">Enter the OTP sent to your registered contact to securely reset your password.</p>
-            
-            {devCode && (
-              <div className="bg-orange-50 border border-orange-200 text-orange-700 text-xs p-3 rounded-xl mb-4 font-bold flex flex-col gap-1">
-                <span>[DEV MODE] OTP Code: {devCode}</span>
-                <span className="text-[10px] font-medium opacity-80">Visible only because DLT SMS is disabled in dev.</span>
-              </div>
-            )}
+            <p className="text-xs text-zinc-500 font-medium mb-6">Enter the 6-digit verification code sent to your registered WhatsApp/Email to securely reset your password.</p>
 
             <div className="space-y-4">
               <div className="space-y-1.5">

@@ -34,6 +34,12 @@ const STEPS_PAYU = [
   { id: 4, text: "Finalizing your reservation...", icon: <RefreshCcw className="w-5 h-5" /> },
 ];
 
+const STEPS_CREDITS = [
+  { id: 1, text: "Verifying TripTay Credits...", icon: <ShieldCheck className="w-5 h-5" /> },
+  { id: 2, text: "Applying Credits discount...", icon: <Lock className="w-5 h-5" /> },
+  { id: 3, text: "Finalizing your reservation...", icon: <CheckCircle2 className="w-5 h-5" /> },
+];
+
 const STEPS_WALLET = [
   { id: 1, text: "Verifying wallet balance...", icon: <ShieldCheck className="w-5 h-5" /> },
   { id: 2, text: "Deducting funds...", icon: <Lock className="w-5 h-5" /> },
@@ -64,7 +70,7 @@ export default function PaymentProcessingPage() {
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const router = useRouter();
 
-  const STEPS = paymentMethod === "wallet" ? STEPS_WALLET : (paymentMethod === "payu" ? STEPS_PAYU : STEPS_RAZORPAY);
+  const STEPS = (paymentMethod === "wallet" || paymentMethod === "credits") ? STEPS_CREDITS : (paymentMethod === "payu" ? STEPS_PAYU : STEPS_RAZORPAY);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,7 +100,9 @@ export default function PaymentProcessingPage() {
         // Step 3: create order & process payment
         setCurrentStep(2);
 
-        if (method === "wallet") {
+        const creditsApplied = Number(sessionStorage.getItem("pendingCreditsApplied")) || 0;
+
+        if (method === "wallet" || method === "credits") {
           // ── Wallet Flow ──
           await paymentsApi.payWithWallet(bookingId);
           if (cancelled) return;
@@ -109,7 +117,7 @@ export default function PaymentProcessingPage() {
 
         if (method === "payu") {
           // ── PayU Flow: create order, then redirect via form POST to PayU hosted checkout ──
-          const orderRes = await paymentsApi.createPayuOrder(bookingId);
+          const orderRes = await paymentsApi.createPayuOrder(bookingId, creditsApplied);
           const payuData = orderRes.data;
           if (!payuData) throw new Error("Could not create PayU payment order.");
 
@@ -158,9 +166,20 @@ export default function PaymentProcessingPage() {
         }
 
         // ── Razorpay Flow (default) ──
-        const orderRes = await paymentsApi.createRazorpayOrder(bookingId);
+        const orderRes = await paymentsApi.createRazorpayOrder(bookingId, creditsApplied);
         const order = orderRes.data;
         if (!order) throw new Error("Could not create payment order.");
+
+        // If booking is 100% covered by credits, skip Razorpay popup and go directly to success
+        if (order.isFullyCoveredByCredits) {
+          setCurrentStep(3);
+          sessionStorage.setItem("lastBookingId", bookingId);
+          sessionStorage.removeItem("pendingBookingId");
+          sessionStorage.removeItem("pendingBookingType");
+          sessionStorage.removeItem("pendingCreditsApplied");
+          router.replace(`/checkout/success`);
+          return;
+        }
 
         const scriptLoaded = await loadRazorpayScript();
         if (!scriptLoaded || !window.Razorpay) {
@@ -222,6 +241,23 @@ export default function PaymentProcessingPage() {
             console.error("Error closing Razorpay:", e);
           }
         }
+        // Check if booking actually succeeded on the server (e.g. via webhook or async capture)
+        try {
+          const checkRes = await bookingsApi.getBookingById(bookingId);
+          const currentBooking = checkRes.data?.booking;
+          const statusLower = String(currentBooking?.status || "").toLowerCase();
+          const paymentLower = String(currentBooking?.paymentStatus || "").toLowerCase();
+          if (currentBooking && (statusLower === "confirmed" || statusLower === "paid" || paymentLower === "paid")) {
+            sessionStorage.setItem("lastBookingId", bookingId);
+            sessionStorage.removeItem("pendingBookingId");
+            sessionStorage.removeItem("pendingBookingType");
+            router.replace(`/checkout/success?booking=${encodeURIComponent(bookingId)}`);
+            return;
+          }
+        } catch {
+          // Proceed with failure handling
+        }
+
         const message =
           err instanceof ApiError
             ? err.message

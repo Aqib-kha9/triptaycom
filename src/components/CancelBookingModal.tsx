@@ -14,6 +14,8 @@ import {
     Calendar,
     Receipt,
     Info,
+    Zap,
+    Landmark,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { bookingsApi } from "@/lib/api-client";
@@ -96,6 +98,7 @@ export function CancelBookingModal({ open, onClose, booking, onCancelled }: Canc
 
     const [selectedReason, setSelectedReason] = useState<string>("");
     const [customReason, setCustomReason] = useState("");
+    const [refundDestination, setRefundDestination] = useState<"credits" | "original_payment_method">("credits");
     const [acknowledged, setAcknowledged] = useState(false);
     const [cancelling, setCancelling] = useState(false);
     const [cancelError, setCancelError] = useState("");
@@ -112,6 +115,7 @@ export function CancelBookingModal({ open, onClose, booking, onCancelled }: Canc
         setAcknowledged(false);
         setSelectedReason("");
         setCustomReason("");
+        setRefundDestination("credits");
         try {
             const res = await bookingsApi.getCancelPreview(booking.id);
             setPreview(res.data);
@@ -167,7 +171,11 @@ export function CancelBookingModal({ open, onClose, booking, onCancelled }: Canc
         setCancelling(true);
         setCancelError("");
         try {
-            await bookingsApi.cancelBooking(booking.id, finalReason || undefined);
+            await bookingsApi.cancelBooking(
+                booking.id,
+                finalReason || undefined,
+                preview?.isPaid && preview.refundAmount > 0 ? refundDestination : undefined
+            );
             setCancelled(true);
             onCancelled?.(booking.id);
         } catch (err) {
@@ -283,7 +291,9 @@ export function CancelBookingModal({ open, onClose, booking, onCancelled }: Canc
                                         <p className="text-xs text-zinc-500 font-medium max-w-xs">
                                             Your booking has been cancelled successfully.
                                             {preview.isPaid && preview.refundAmount > 0
-                                                ? ` A refund of ${formatCurrency(preview.refundAmount)} will be processed to your original payment method within 5-7 business days.`
+                                                ? refundDestination === "credits"
+                                                    ? ` A refund of ${formatCurrency(preview.refundAmount)} has been credited instantly to your TripTay Credits balance!`
+                                                    : ` A refund of ${formatCurrency(preview.refundAmount)} will be processed to your original payment method within 5-7 business days.`
                                                 : preview.isPaid
                                                     ? " As per the cancellation policy, no refund is applicable."
                                                     : " No payment was charged for this booking."}
@@ -300,11 +310,15 @@ export function CancelBookingModal({ open, onClose, booking, onCancelled }: Canc
                                             </div>
                                             <div className="flex items-center justify-between">
                                                 <span className="text-[11px] font-bold text-zinc-600">Refund Method</span>
-                                                <span className="text-[11px] font-bold text-zinc-900">Original payment method</span>
+                                                <span className="text-[11px] font-bold text-zinc-900">
+                                                    {refundDestination === "credits" ? "TripTay Credits (Instant ⚡)" : "Original payment method"}
+                                                </span>
                                             </div>
                                             <div className="flex items-center justify-between">
                                                 <span className="text-[11px] font-bold text-zinc-600">Expected Time</span>
-                                                <span className="text-[11px] font-bold text-zinc-900">5-7 business days</span>
+                                                <span className="text-[11px] font-bold text-zinc-900">
+                                                    {refundDestination === "credits" ? "Immediate" : "5-7 business days"}
+                                                </span>
                                             </div>
                                         </div>
                                     )}
@@ -478,13 +492,94 @@ export function CancelBookingModal({ open, onClose, booking, onCancelled }: Canc
                                             )}
                                         </div>
 
-                                        {preview.isPaid && preview.refundAmount > 0 && (
-                                            <p className="text-[10px] text-zinc-400 font-medium leading-relaxed px-1">
-                                                💡 The refund will be processed to your original payment method and
-                                                typically takes 5-7 business days to reflect, depending on your bank.
-                                            </p>
-                                        )}
                                     </div>
+
+                                    {/* ── Choose Refund Mode (Credits vs Bank) ── */}
+                                    {preview.isPaid && preview.refundAmount > 0 && (
+                                        <div className="space-y-2.5">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-[11px] font-black uppercase tracking-widest text-zinc-500">
+                                                    Refund Method
+                                                </span>
+                                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100 flex items-center gap-1">
+                                                    <Zap className="w-3 h-3 fill-emerald-500 text-emerald-500" />
+                                                    Instant Option Available
+                                                </span>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 gap-2.5">
+                                                {/* Option 1: Instant TripTay Credits (Recommended) */}
+                                                <div
+                                                    onClick={() => setRefundDestination("credits")}
+                                                    className={`cursor-pointer rounded-2xl p-3.5 border transition-all ${
+                                                        refundDestination === "credits"
+                                                            ? "border-emerald-500 bg-emerald-50/50 ring-1 ring-emerald-500/30 shadow-sm"
+                                                            : "border-zinc-200 hover:border-zinc-300 bg-white"
+                                                    }`}
+                                                >
+                                                    <div className="flex items-start gap-3">
+                                                        <div
+                                                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                                                                refundDestination === "credits"
+                                                                    ? "bg-emerald-500 text-white shadow-sm"
+                                                                    : "bg-zinc-100 text-zinc-500"
+                                                            }`}
+                                                        >
+                                                            <Zap className="w-4 h-4 fill-current" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center justify-between gap-1">
+                                                                <span className="text-xs font-black text-zinc-900">
+                                                                    TripTay Credits
+                                                                </span>
+                                                                <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                                                                    Instant • 0 Waiting
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[11px] text-zinc-600 font-medium mt-1 leading-relaxed">
+                                                                Credited immediately to your TripTay Credits account. 100% usable on your next homestay booking across India.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Option 2: Original Payment Method */}
+                                                <div
+                                                    onClick={() => setRefundDestination("original_payment_method")}
+                                                    className={`cursor-pointer rounded-2xl p-3.5 border transition-all ${
+                                                        refundDestination === "original_payment_method"
+                                                            ? "border-emerald-500 bg-emerald-50/50 ring-1 ring-emerald-500/30 shadow-sm"
+                                                            : "border-zinc-200 hover:border-zinc-300 bg-white"
+                                                    }`}
+                                                >
+                                                    <div className="flex items-start gap-3">
+                                                        <div
+                                                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                                                                refundDestination === "original_payment_method"
+                                                                    ? "bg-emerald-500 text-white shadow-sm"
+                                                                    : "bg-zinc-100 text-zinc-500"
+                                                            }`}
+                                                        >
+                                                            <Landmark className="w-4 h-4" />
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center justify-between gap-1">
+                                                                <span className="text-xs font-black text-zinc-900">
+                                                                    Original Payment Method
+                                                                </span>
+                                                                <span className="text-[9px] font-bold text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded-full">
+                                                                    5-7 Business Days
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[11px] text-zinc-600 font-medium mt-1 leading-relaxed">
+                                                                Standard banking refund to your original source (UPI / Card / NetBanking).
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {/* Reason selection */}
                                     <div className="space-y-2.5">
@@ -562,7 +657,11 @@ export function CancelBookingModal({ open, onClose, booking, onCancelled }: Canc
                                             I understand that this action is{" "}
                                             <span className="font-black text-zinc-700">irreversible</span>
                                             {preview.isPaid && preview.refundAmount > 0
-                                                ? ` and a refund of ${formatCurrency(preview.refundAmount)} will be processed as per the ${preview.cancellationPolicy} policy.`
+                                                ? ` and a refund of ${formatCurrency(preview.refundAmount)} will be processed ${
+                                                      refundDestination === "credits"
+                                                          ? "instantly to my TripTay Credits"
+                                                          : "to my original payment method (5-7 business days)"
+                                                  } as per the ${preview.cancellationPolicy} policy.`
                                                 : preview.isPaid
                                                     ? " and no refund is applicable as per the cancellation policy."
                                                     : " and the booking will be cancelled immediately."}

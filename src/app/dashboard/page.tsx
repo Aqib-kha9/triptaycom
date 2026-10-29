@@ -9,6 +9,7 @@ import {
   Heart, 
   Home,
   CreditCard,
+  Coins,
   MessageSquare,
   CheckCircle2,
   Zap,
@@ -222,16 +223,16 @@ export default function UserDashboardPage() {
                       </div>
                     </Link>
                     
-                    {/* Wallet Balance */}
-                    <div className="bg-white p-5 rounded-2xl border border-zinc-100 space-y-3 min-w-[140px] flex-shrink-0 snap-center flex-1">
-                      <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-                        <CreditCard className="w-5 h-5" />
+                    {/* TripTay Credits */}
+                    <Link href="/credits" className="bg-white hover:bg-emerald-50/20 transition-all p-5 rounded-2xl border border-zinc-100 space-y-3 min-w-[140px] flex-shrink-0 snap-center flex-1 group">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                        <Coins className="w-5 h-5" />
                       </div>
                       <div>
                         <p className="text-xl font-black text-zinc-900">{formatWalletBalance(profile?.walletBalance || 0)}</p>
-                        <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Wallet Balance</p>
+                        <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5 group-hover:text-emerald-700 transition-colors">TripTay Credits</p>
                       </div>
-                    </div>
+                    </Link>
                   </div>
 
                   {/* Upcoming Trips */}

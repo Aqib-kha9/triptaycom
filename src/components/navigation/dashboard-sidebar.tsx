@@ -11,7 +11,7 @@ import {
   Settings, 
   LogOut, 
   User,
-  CreditCard
+  Coins
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,7 @@ const DASHBOARD_LINKS = [
   { name: "Reviews", icon: <Star className="w-5 h-5" />, href: "/reviews" },
   { name: "Wishlist", icon: <Heart className="w-5 h-5" />, href: "/wishlist" },
   { name: "Notifications", icon: <Bell className="w-5 h-5" />, href: "/notifications" },
-  { name: "Wallet", icon: <CreditCard className="w-5 h-5" />, href: "/wallet" },
+  { name: "TripTay Credits", icon: <Coins className="w-5 h-5" />, href: "/credits" },
   { name: "Profile Settings", icon: <Settings className="w-5 h-5" />, href: "/profile" },
 ];
 

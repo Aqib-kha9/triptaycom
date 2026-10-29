@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { BackButton } from "@/components/navigation/back-button";
 import {
   CreditCard,
+  Coins,
   Zap,
   CheckCircle2,
   Info,
@@ -409,8 +410,14 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
   const gst = Math.round((basePrice + addonTotal) * 0.12);
   const total = basePrice + addonTotal + gst - discount;
 
+  const [useCredits, setUseCredits] = useState(true);
   const currentTotalAmount = previewData ? previewData.totalAmount : total;
-  const isWalletInsufficient = userProfile ? (userProfile.walletBalance || 0) < currentTotalAmount : true;
+  const userCredits = userProfile?.walletBalance || 0;
+  const maxApplicableCredits = Math.min(userCredits, currentTotalAmount);
+  const appliedCredits = useCredits && maxApplicableCredits > 0 ? maxApplicableCredits : 0;
+  const payableCash = Math.max(0, currentTotalAmount - appliedCredits);
+  const isFullyCoveredByCredits = useCredits && appliedCredits >= currentTotalAmount && currentTotalAmount > 0;
+  const isWalletInsufficient = false;
 
   const [couponError, setCouponError] = useState("");
   const [couponSuccess, setCouponSuccess] = useState("");
@@ -441,13 +448,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
       const res = await authApi.sendOtp(guestEmail, "update_email");
       if (res.status === "success") {
         setShowOtpInput(true);
-        // Assuming devCode is returned in dev mode
-        const devCode = (res as any).devCode || res.data?.devCode;
-        if (devCode) {
-          setOtpMessage(`OTP Sent. (Dev Code: ${devCode})`);
-        } else {
-          setOtpMessage("OTP sent to your email.");
-        }
+        setOtpMessage("Verification code sent to your email.");
       } else {
         setOtpError("Failed to send OTP.");
       }
@@ -551,13 +552,8 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
       return;
     }
 
-    if (paymentMethod === "wallet" && isWalletInsufficient) {
-      setError("Insufficient wallet balance. Please add funds or select another payment gateway.");
-      return;
-    }
-
-    if (!paymentMethod) {
-      setError("No valid payment method selected. Please select a payment method to continue.");
+    if (!isFullyCoveredByCredits && !paymentMethod) {
+      setError("Please select a payment method for the payable amount.");
       return;
     }
 
@@ -623,9 +619,10 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
         return;
       }
 
-      // Store booking id for processing page, then navigate
+      // Store booking id and applied credits for processing page, then navigate
       sessionStorage.setItem("pendingBookingId", booking.id);
-      sessionStorage.setItem("pendingBookingType", paymentMethod);
+      sessionStorage.setItem("pendingBookingType", isFullyCoveredByCredits ? "credits" : paymentMethod);
+      sessionStorage.setItem("pendingCreditsApplied", String(appliedCredits));
       router.push("/checkout/processing");
     } catch (err: any) {
       setError(err instanceof ApiError ? err.message : "Failed to create booking. Please try again.");
@@ -656,14 +653,7 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
     });
   }
 
-  paymentMethods.push({
-    id: "wallet",
-    name: "Triptay Wallet",
-    subName: userProfile ? `Balance: ₹${userProfile.walletBalance?.toLocaleString()}` : "Loading balance...",
-    icon: <Wallet className="w-5 h-5 text-emerald-600" />,
-    badge: userProfile && !isWalletInsufficient ? "Instant Checkout" : undefined,
-    disabled: userProfile && isWalletInsufficient
-  });
+  // TripTay Credits is integrated via Split-Payment Widget above total
 
   // Pay at Property — show only if globally enabled AND listing supports it
   const itemSupportsPap = (item as any)?.allowPayAtProperty === true;
@@ -1047,17 +1037,25 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
                   })}
                 </div>
 
-                {paymentMethod === "wallet" && (
-                  <div className="mt-4 p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 text-xs font-semibold text-emerald-800 flex items-start gap-2.5">
+                {isFullyCoveredByCredits ? (
+                  <div className="mt-4 p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 text-xs font-semibold text-emerald-900 flex items-start gap-2.5 shadow-sm">
                     <CheckCircle2 className="w-4 h-4 mt-0.5 text-emerald-600 shrink-0" />
                     <div>
-                      <p className="font-bold">Instant Wallet Checkout Activated</p>
-                      <p className="text-[10px] text-emerald-700/80 mt-0.5 font-medium">
-                        Amount will be directly debited from your secure Triptay Wallet balance. No card details required.
+                      <p className="font-bold">100% TripTay Credits Applied</p>
+                      <p className="text-[10px] text-emerald-700 mt-0.5 font-medium">
+                        Your reservation is fully covered by your available TripTay Credits. No bank or gateway payment is required!
                       </p>
                     </div>
                   </div>
-                )}
+                ) : appliedCredits > 0 ? (
+                  <div className="mt-4 p-3.5 rounded-2xl bg-emerald-50/60 border border-emerald-200/70 text-xs font-semibold text-emerald-800 flex items-center justify-between">
+                    <span className="flex items-center gap-2">
+                      <Coins className="w-4 h-4 text-emerald-600" />
+                      <span>₹{appliedCredits.toLocaleString("en-IN")} Credits Applied (-₹{appliedCredits.toLocaleString("en-IN")})</span>
+                    </span>
+                    <span className="text-[10px] text-zinc-500 font-bold">Remaining to pay: ₹{payableCash.toLocaleString("en-IN")}</span>
+                  </div>
+                ) : null}
               </section>
 
             </div>
@@ -1233,15 +1231,49 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
                     )}
                   </div>
 
+                  {/* TripTay Credits Split Toggle Widget */}
+                  {userCredits > 0 && (
+                    <div className="rounded-2xl p-4 bg-emerald-50/60 border border-emerald-200/80 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+                            <Coins className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-black text-zinc-900">Apply TripTay Credits</p>
+                            <p className="text-[10px] text-zinc-500 font-semibold">Available: ₹{userCredits.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</p>
+                          </div>
+                        </div>
+
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={useCredits}
+                            onChange={(e) => setUseCredits(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-9 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
+                        </label>
+                      </div>
+
+                      {useCredits && appliedCredits > 0 && (
+                        <div className="text-[11px] font-bold text-emerald-800 flex justify-between pt-1.5 border-t border-emerald-200/60">
+                          <span>Credits Applied Discount</span>
+                          <span>-₹{appliedCredits.toLocaleString("en-IN")}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Total */}
-                  <div className="pt-5 border-t border-zinc-100 flex justify-between items-center">
+                  <div className="pt-4 border-t border-zinc-100 flex justify-between items-center">
                     <div>
-                      <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Total Amount</p>
+                      <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{appliedCredits > 0 ? "Payable Balance" : "Total Amount"}</p>
                       <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider mt-0.5">Tax & GST Inclusive</p>
                     </div>
                     <div className="text-right">
                       <span className="text-2xl font-black text-primary font-mono tracking-tight">
-                        ₹{(previewData ? previewData.totalAmount : total).toLocaleString()}
+                        ₹{payableCash.toLocaleString("en-IN")}
                       </span>
                     </div>
                   </div>
@@ -1265,11 +1297,16 @@ export default function CheckoutPage({ params: paramsPromise }: { params: Promis
                     {submitting ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Processing Gateway...</span>
+                        <span>Processing Reservation...</span>
+                      </>
+                    ) : isFullyCoveredByCredits ? (
+                      <>
+                        <span>Confirm Booking with Credits (₹0 Payable)</span>
+                        <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                       </>
                     ) : (
                       <>
-                        <span>Pay & Confirm Booking</span>
+                        <span>{appliedCredits > 0 ? `Pay ₹${payableCash.toLocaleString("en-IN")} & Confirm` : "Pay & Confirm Booking"}</span>
                         <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                       </>
                     )}

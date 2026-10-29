@@ -270,7 +270,9 @@ export interface NotificationItem {
   id: string;
   type: string;
   title: string;
-  message: string;
+  message?: string;
+  description?: string;
+  link?: string | null;
   isRead: boolean;
   metadata?: Record<string, unknown>;
   createdAt: string;
